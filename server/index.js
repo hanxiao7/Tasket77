@@ -139,14 +139,14 @@ app.get('/api/tasks', (req, res) => {
   
   // Sorting
   if (view === 'planner') {
-    query += " ORDER BY CASE t.status WHEN 'in_progress' THEN 1 WHEN 'todo' THEN 2 WHEN 'paused' THEN 3 WHEN 'done' THEN 4 END, ";
+    query += " ORDER BY CASE t.status WHEN 'in_progress' THEN 1 WHEN 'paused' THEN 2 WHEN 'todo' THEN 3 WHEN 'done' THEN 4 END, ";
     query += " CASE t.priority WHEN 'urgent' THEN 1 WHEN 'high' THEN 2 WHEN 'normal' THEN 3 WHEN 'low' THEN 4 END, ";
-    query += " t.last_modified DESC";
+    query += " t.title ASC";
   } else if (view === 'tracker') {
-    query += " ORDER BY a.name, CASE t.status WHEN 'done' THEN 1 WHEN 'paused' THEN 2 WHEN 'todo' THEN 3 WHEN 'in_progress' THEN 4 END, ";
-    query += " t.last_modified DESC";
+    query += " ORDER BY a.name, CASE t.status WHEN 'done' THEN 1 WHEN 'in_progress' THEN 2 WHEN 'paused' THEN 3 WHEN 'todo' THEN 4 END, ";
+    query += " t.title ASC";
   } else {
-    query += " ORDER BY t.last_modified DESC";
+    query += " ORDER BY t.title ASC";
   }
   
   db.all(query, params, (err, rows) => {
@@ -272,22 +272,51 @@ app.put('/api/tasks/:id', async (req, res) => {
       return;
     }
     
-    // Check if due date is tomorrow and set priority to urgent
-    let finalPriority = priority || currentTask.priority;
-    if (due_date && moment(due_date).format('YYYY-MM-DD') === getNextBusinessDay()) {
-      finalPriority = 'urgent';
+    // Build dynamic update query based on provided fields
+    const updateFields = [];
+    const updateParams = [];
+    
+    // Only update fields that are actually provided in the request
+    if (title !== undefined) {
+      updateFields.push('title = ?');
+      updateParams.push(title);
     }
     
-    await new Promise((resolve, reject) => {
-      db.run(`
-        UPDATE tasks 
-        SET title = ?, description = ?, area_id = ?, priority = ?, due_date = ?, last_modified = CURRENT_TIMESTAMP
-        WHERE id = ?
-      `, [title, description, area_id, finalPriority, due_date, id], (err) => {
-        if (err) reject(err);
-        else resolve();
+    if (description !== undefined) {
+      updateFields.push('description = ?');
+      updateParams.push(description);
+    }
+    
+    if (area_id !== undefined) {
+      updateFields.push('area_id = ?');
+      updateParams.push(area_id);
+    }
+    
+    if (priority !== undefined) {
+      updateFields.push('priority = ?');
+      updateParams.push(priority);
+    }
+    
+    if (due_date !== undefined) {
+      updateFields.push('due_date = ?');
+      updateParams.push(due_date);
+    }
+    
+    // Always update last_modified
+    updateFields.push('last_modified = CURRENT_TIMESTAMP');
+    
+    // Add id to updateParams for WHERE clause
+    updateParams.push(id);
+    
+    // Only perform update if there are fields to update
+    if (updateFields.length > 1) { // > 1 because we always add last_modified
+      await new Promise((resolve, reject) => {
+        db.run(`UPDATE tasks SET ${updateFields.join(', ')} WHERE id = ?`, updateParams, (err) => {
+          if (err) reject(err);
+          else resolve();
+        });
       });
-    });
+    }
     
     res.json({ success: true });
     

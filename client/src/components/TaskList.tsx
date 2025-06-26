@@ -38,11 +38,12 @@ const TaskList: React.FC<TaskListProps> = ({ viewMode, filters, onFiltersChange 
     try {
       setLoading(true);
       const [tasksData, areasData] = await Promise.all([
-        apiService.getTasks(filters),
+        apiService.getTasks({ ...filters, view: viewMode }),
         apiService.getAreas()
       ]);
       setTasks(tasksData);
       setAreas(areasData);
+      console.log(`📋 Loaded ${tasksData.length} tasks and ${areasData.length} areas`);
       // Always expand all areas on load (including unassigned area with ID -1)
       const allAreaIds = new Set(areasData.map(area => area.id));
       allAreaIds.add(-1); // Add unassigned area ID
@@ -52,14 +53,13 @@ const TaskList: React.FC<TaskListProps> = ({ viewMode, filters, onFiltersChange 
     } finally {
       setLoading(false);
     }
-  }, [filters]);
+  }, [filters, viewMode]);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
 
   const handleStatusClick = async (task: Task) => {
-    console.log('handleStatusClick called for task:', task);
     try {
       let newStatus: Task['status'];
       
@@ -74,14 +74,13 @@ const TaskList: React.FC<TaskListProps> = ({ viewMode, filters, onFiltersChange 
           newStatus = 'in_progress';
           break;
         case 'done':
-          newStatus = 'todo';
-          break;
+          // Done stays done - no cycling back
+          return;
         default:
-          console.log('Unknown status in switch:', task.status);
           return;
       }
       
-      console.log('Updating task', task.id, 'from', task.status, 'to', newStatus);
+      console.log(`🔄 Updating task "${task.title}" status: ${task.status} → ${newStatus}`);
       await apiService.updateTaskStatus(task.id, newStatus);
       await loadData();
     } catch (error) {
@@ -91,6 +90,7 @@ const TaskList: React.FC<TaskListProps> = ({ viewMode, filters, onFiltersChange 
 
   const handleStatusDoubleClick = async (task: Task) => {
     try {
+      console.log(`✅ Marking task "${task.title}" as done`);
       await apiService.updateTaskStatus(task.id, 'done');
       await loadData();
     } catch (error) {
@@ -119,6 +119,7 @@ const TaskList: React.FC<TaskListProps> = ({ viewMode, filters, onFiltersChange 
           return;
       }
       
+      console.log(`🚩 Updating task "${task.title}" priority: ${task.priority} → ${newPriority}`);
       await apiService.updateTask(task.id, { priority: newPriority });
       await loadData();
     } catch (error) {
@@ -131,6 +132,7 @@ const TaskList: React.FC<TaskListProps> = ({ viewMode, filters, onFiltersChange 
     
     try {
       setIsCreatingTask(true);
+      console.log(`➕ Creating new task: "${newTaskTitle.trim()}"`);
       await apiService.createTask({
         title: newTaskTitle.trim(),
         area_id: filters.area_id
@@ -151,7 +153,6 @@ const TaskList: React.FC<TaskListProps> = ({ viewMode, filters, onFiltersChange 
   };
 
   const getStatusIcon = (status: Task['status']) => {
-    console.log('getStatusIcon called with status:', status);
     switch (status) {
       case 'todo':
         return <Circle className="w-4 h-4" />;
@@ -162,7 +163,6 @@ const TaskList: React.FC<TaskListProps> = ({ viewMode, filters, onFiltersChange 
       case 'done':
         return <CheckCircle className="w-4 h-4" />;
       default:
-        console.log('Unknown status:', status);
         return <Circle className="w-4 h-4" />;
     }
   };
@@ -177,6 +177,8 @@ const TaskList: React.FC<TaskListProps> = ({ viewMode, filters, onFiltersChange 
         return 'text-yellow-500 hover:text-yellow-700';
       case 'done':
         return 'text-green-500 hover:text-green-700';
+      default:
+        return 'text-gray-400 hover:text-gray-600';
     }
   };
 
@@ -263,8 +265,15 @@ const TaskList: React.FC<TaskListProps> = ({ viewMode, filters, onFiltersChange 
     }
     
     try {
+      // Find the task being moved
+      const task = tasks.find(t => t.id === taskId);
+      if (!task) return;
+      
       // If targetAreaId is -1 (unassigned), set area_id to undefined
       const areaId = targetAreaId === -1 ? undefined : targetAreaId;
+      const targetAreaName = targetAreaId === -1 ? 'Unassigned' : areas.find(a => a.id === targetAreaId)?.name || 'Unknown';
+      
+      console.log(`📦 Moving task "${task.title}" to area: ${task.area_name || 'Unassigned'} → ${targetAreaName}`);
       await apiService.updateTask(taskId, { area_id: areaId });
       await loadData();
     } catch (error) {
