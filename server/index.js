@@ -230,6 +230,9 @@ app.patch('/api/tasks/:id/status', async (req, res) => {
     
     updateFields.push('last_modified = CURRENT_TIMESTAMP');
     
+    // Add id to updateParams so the WHERE clause works
+    updateParams.push(id);
+    
     await new Promise((resolve, reject) => {
       db.run(`UPDATE tasks SET ${updateFields.join(', ')} WHERE id = ?`, updateParams, (err) => {
         if (err) reject(err);

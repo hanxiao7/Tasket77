@@ -41,6 +41,8 @@ const TaskList: React.FC<TaskListProps> = ({ viewMode, filters, onFiltersChange 
         apiService.getTasks(filters),
         apiService.getAreas()
       ]);
+      console.log('Loaded tasks:', tasksData);
+      console.log('Loaded areas:', areasData);
       setTasks(tasksData);
       setAreas(areasData);
     } catch (error) {
@@ -55,6 +57,7 @@ const TaskList: React.FC<TaskListProps> = ({ viewMode, filters, onFiltersChange 
   }, [loadData]);
 
   const handleStatusClick = async (task: Task) => {
+    console.log('handleStatusClick called for task:', task);
     try {
       let newStatus: Task['status'];
       
@@ -68,10 +71,15 @@ const TaskList: React.FC<TaskListProps> = ({ viewMode, filters, onFiltersChange 
         case 'paused':
           newStatus = 'in_progress';
           break;
+        case 'done':
+          newStatus = 'todo';
+          break;
         default:
+          console.log('Unknown status in switch:', task.status);
           return;
       }
       
+      console.log('Updating task', task.id, 'from', task.status, 'to', newStatus);
       await apiService.updateTaskStatus(task.id, newStatus);
       await loadData();
     } catch (error) {
@@ -113,6 +121,7 @@ const TaskList: React.FC<TaskListProps> = ({ viewMode, filters, onFiltersChange 
   };
 
   const getStatusIcon = (status: Task['status']) => {
+    console.log('getStatusIcon called with status:', status);
     switch (status) {
       case 'todo':
         return <Circle className="w-4 h-4" />;
@@ -122,6 +131,9 @@ const TaskList: React.FC<TaskListProps> = ({ viewMode, filters, onFiltersChange 
         return <Pause className="w-4 h-4" />;
       case 'done':
         return <CheckCircle className="w-4 h-4" />;
+      default:
+        console.log('Unknown status:', status);
+        return <Circle className="w-4 h-4" />;
     }
   };
 
@@ -229,8 +241,14 @@ const TaskList: React.FC<TaskListProps> = ({ viewMode, filters, onFiltersChange 
                 >
                   {/* Status button */}
                   <button
-                    onClick={() => handleStatusClick(task)}
-                    onDoubleClick={() => handleStatusDoubleClick(task)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleStatusClick(task);
+                    }}
+                    onDoubleClick={(e) => {
+                      e.stopPropagation();
+                      handleStatusDoubleClick(task);
+                    }}
                     className={clsx(
                       "p-1 rounded hover:bg-gray-200 transition-colors",
                       getStatusColor(task.status)
