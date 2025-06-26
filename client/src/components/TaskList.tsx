@@ -41,10 +41,12 @@ const TaskList: React.FC<TaskListProps> = ({ viewMode, filters, onFiltersChange 
         apiService.getTasks(filters),
         apiService.getAreas()
       ]);
-      console.log('Loaded tasks:', tasksData);
-      console.log('Loaded areas:', areasData);
       setTasks(tasksData);
       setAreas(areasData);
+      // Always expand all areas on load (including unassigned area with ID -1)
+      const allAreaIds = new Set(areasData.map(area => area.id));
+      allAreaIds.add(-1); // Add unassigned area ID
+      setExpandedAreas(allAreaIds);
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
@@ -93,6 +95,34 @@ const TaskList: React.FC<TaskListProps> = ({ viewMode, filters, onFiltersChange 
       await loadData();
     } catch (error) {
       console.error('Error completing task:', error);
+    }
+  };
+
+  const handlePriorityClick = async (task: Task) => {
+    try {
+      let newPriority: Task['priority'];
+      
+      switch (task.priority) {
+        case 'normal':
+          newPriority = 'high';
+          break;
+        case 'high':
+          newPriority = 'urgent';
+          break;
+        case 'urgent':
+          newPriority = 'low';
+          break;
+        case 'low':
+          newPriority = 'normal';
+          break;
+        default:
+          return;
+      }
+      
+      await apiService.updateTask(task.id, { priority: newPriority });
+      await loadData();
+    } catch (error) {
+      console.error('Error updating task priority:', error);
     }
   };
 
@@ -188,6 +218,60 @@ const TaskList: React.FC<TaskListProps> = ({ viewMode, filters, onFiltersChange 
 
   const groupedTasks = groupTasksByArea();
 
+  // Sort areas: Unassigned first, then alphabetically
+  const sortedAreaNames = Object.keys(groupedTasks).sort((a, b) => {
+    if (a === 'Unassigned') return -1;
+    if (b === 'Unassigned') return 1;
+    return a.localeCompare(b);
+  });
+
+  // Get area ID for unassigned area (use -1 as special ID)
+  const getAreaId = (areaName: string) => {
+    if (areaName === 'Unassigned') return -1;
+    return areas.find(a => a.name === areaName)?.id || 0;
+  };
+
+  // Check if area is expanded (including unassigned)
+  const isAreaExpanded = (areaName: string) => {
+    const areaId = getAreaId(areaName);
+    return expandedAreas.has(areaId);
+  };
+
+  const handleDragStart = (e: React.DragEvent, task: Task) => {
+    e.dataTransfer.setData('text/plain', task.id.toString());
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    e.currentTarget.classList.add('bg-blue-50', 'border-blue-200');
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.currentTarget.classList.remove('bg-blue-50', 'border-blue-200');
+  };
+
+  const handleDrop = async (e: React.DragEvent, targetAreaId: number) => {
+    e.preventDefault();
+    e.currentTarget.classList.remove('bg-blue-50', 'border-blue-200');
+    const taskId = parseInt(e.dataTransfer.getData('text/plain'));
+    
+    // Don't update if targetAreaId is 0 (invalid area)
+    if (targetAreaId === 0) {
+      return;
+    }
+    
+    try {
+      // If targetAreaId is -1 (unassigned), set area_id to undefined
+      const areaId = targetAreaId === -1 ? undefined : targetAreaId;
+      await apiService.updateTask(taskId, { area_id: areaId });
+      await loadData();
+    } catch (error) {
+      console.error('Error updating task area:', error);
+    }
+  };
+
   if (loading) {
     return <div className="flex justify-center items-center h-64">Loading...</div>;
   }
@@ -210,34 +294,46 @@ const TaskList: React.FC<TaskListProps> = ({ viewMode, filters, onFiltersChange 
       </div>
 
       {/* Tasks by area */}
-      {Object.entries(groupedTasks).map(([areaName, areaTasks]) => (
+      {sortedAreaNames.map((areaName) => (
         <div key={areaName} className="border rounded">
           {/* Area header */}
           <div 
             className="flex items-center justify-between p-2 bg-gray-100 cursor-pointer hover:bg-gray-200"
-            onClick={() => toggleAreaExpansion(areas.find(a => a.name === areaName)?.id || 0)}
+            onClick={() => toggleAreaExpansion(getAreaId(areaName))}
           >
             <div className="flex items-center space-x-2">
-              {expandedAreas.has(areas.find(a => a.name === areaName)?.id || 0) ? (
+              {isAreaExpanded(areaName) ? (
                 <ChevronDown className="w-4 h-4" />
               ) : (
                 <ChevronRight className="w-4 h-4" />
               )}
               <span className="font-medium text-sm">{areaName}</span>
-              <span className="text-xs text-gray-500">({areaTasks.length})</span>
+              <span className="text-xs text-gray-500">({groupedTasks[areaName].length})</span>
             </div>
           </div>
 
           {/* Tasks in area */}
-          {expandedAreas.has(areas.find(a => a.name === areaName)?.id || 0) && (
-            <div className="divide-y">
-              {areaTasks.map((task) => (
+          {isAreaExpanded(areaName) && (
+            <div 
+              className="divide-y"
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={(e) => {
+                const areaId = getAreaId(areaName);
+                if (areaId) {
+                  handleDrop(e, areaId);
+                }
+              }}
+            >
+              {groupedTasks[areaName].map((task) => (
                 <div
                   key={task.id}
                   className="flex items-center space-x-3 p-3 hover:bg-gray-50 relative"
                   onMouseEnter={() => setHoveredTask(task.id)}
                   onMouseLeave={() => setHoveredTask(null)}
                   onDoubleClick={() => setEditingTask(task)}
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, task)}
                 >
                   {/* Status button */}
                   <button
@@ -260,7 +356,16 @@ const TaskList: React.FC<TaskListProps> = ({ viewMode, filters, onFiltersChange 
 
                   {/* Priority flag */}
                   <div className="flex-shrink-0">
-                    {getPriorityIcon(task.priority)}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handlePriorityClick(task);
+                      }}
+                      className="p-1 rounded hover:bg-gray-200 transition-colors cursor-pointer"
+                      title={`Click to change priority (${task.priority})`}
+                    >
+                      {getPriorityIcon(task.priority)}
+                    </button>
                   </div>
 
                   {/* Task title */}
