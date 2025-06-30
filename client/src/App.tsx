@@ -128,11 +128,15 @@ function App() {
         <div className="mt-6 p-4 bg-blue-50 rounded-lg">
           <h3 className="font-medium text-blue-900 mb-2">Quick Tips:</h3>
           <ul className="text-sm text-blue-800 space-y-1">
-            <li>• Click status button to cycle: To Do → In Progress → Paused</li>
+            <li>• Click status button to cycle: To Do → In Progress → Paused → To Do</li>
             <li>• Double-click status button to mark as Done</li>
-            <li>• Double-click task to edit details</li>
+            <li>• Click task title to edit it inline</li>
+            <li>• Click start date or due date to set/edit dates</li>
+            <li>• Double-click task to edit all details including status</li>
             <li>• Hover over tasks to see descriptions</li>
             <li>• Type in the input field and press Enter to create new tasks</li>
+            <li>• Click "+ Create new tag" to add new tags for organizing tasks</li>
+            <li>• Drag and drop tasks between tags to reorganize</li>
           </ul>
         </div>
       </div>

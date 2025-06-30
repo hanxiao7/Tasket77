@@ -1,4 +1,4 @@
-export interface Area {
+export interface Tag {
   id: number;
   name: string;
   created_at: string;
@@ -9,8 +9,8 @@ export interface Task {
   id: number;
   title: string;
   description?: string;
-  area_id?: number;
-  area_name?: string;
+  tag_id?: number;
+  tag_name?: string;
   parent_task_id?: number;
   status: 'todo' | 'in_progress' | 'paused' | 'done';
   priority: 'urgent' | 'high' | 'normal' | 'low';
@@ -34,7 +34,7 @@ export interface TaskHistory {
 export interface CreateTaskData {
   title: string;
   description?: string;
-  area_id?: number;
+  tag_id?: number;
   parent_task_id?: number;
   priority?: 'urgent' | 'high' | 'normal' | 'low';
   due_date?: string;
@@ -43,15 +43,17 @@ export interface CreateTaskData {
 export interface UpdateTaskData {
   title?: string;
   description?: string;
-  area_id?: number;
+  tag_id?: number;
   priority?: 'urgent' | 'high' | 'normal' | 'low';
+  status?: 'todo' | 'in_progress' | 'paused' | 'done';
+  start_date?: string;
   due_date?: string;
 }
 
 export interface TaskFilters {
   view?: 'planner' | 'tracker';
   days?: number;
-  area_id?: number;
+  tag_id?: number;
   status?: string;
   priority?: string;
   show_completed?: boolean;

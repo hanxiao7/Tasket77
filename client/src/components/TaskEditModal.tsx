@@ -1,20 +1,22 @@
 import React, { useState } from 'react';
-import { Task, Area } from '../types';
+import { Task, Tag } from '../types';
 import { X, Save } from 'lucide-react';
 
 interface TaskEditModalProps {
   task: Task;
-  areas: Area[];
+  tags: Tag[];
   onClose: () => void;
   onSave: (task: Task) => void;
 }
 
-const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, areas, onClose, onSave }) => {
+const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, tags, onClose, onSave }) => {
   const [formData, setFormData] = useState({
     title: task.title,
     description: task.description || '',
-    area_id: task.area_id || '',
+    tag_id: task.tag_id || '',
     priority: task.priority,
+    status: task.status,
+    start_date: task.start_date || '',
     due_date: task.due_date || ''
   });
 
@@ -23,7 +25,7 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, areas, onClose, onS
     onSave({
       ...task,
       ...formData,
-      area_id: formData.area_id ? Number(formData.area_id) : undefined
+      tag_id: formData.tag_id ? Number(formData.tag_id) : undefined
     });
   };
 
@@ -68,19 +70,35 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, areas, onClose, onS
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Area
+              Tag
             </label>
             <select
-              value={formData.area_id}
-              onChange={(e) => setFormData({ ...formData, area_id: e.target.value })}
+              value={formData.tag_id}
+              onChange={(e) => setFormData({ ...formData, tag_id: e.target.value })}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
-              <option value="">Select an area</option>
-              {areas.map((area) => (
-                <option key={area.id} value={area.id}>
-                  {area.name}
+              <option value="">Select a tag</option>
+              {tags.map((tag) => (
+                <option key={tag.id} value={tag.id}>
+                  {tag.name}
                 </option>
               ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Status
+            </label>
+            <select
+              value={formData.status}
+              onChange={(e) => setFormData({ ...formData, status: e.target.value as Task['status'] })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="todo">To Do</option>
+              <option value="in_progress">In Progress</option>
+              <option value="paused">Paused</option>
+              <option value="done">Done</option>
             </select>
           </div>
 
@@ -98,6 +116,18 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, areas, onClose, onS
               <option value="high">High</option>
               <option value="urgent">Urgent</option>
             </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Start Date
+            </label>
+            <input
+              type="date"
+              value={formData.start_date}
+              onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
           </div>
 
           <div>

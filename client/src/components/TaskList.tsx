@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Task, TaskFilters, Area } from '../types';
+import { Task, TaskFilters, Tag } from '../types';
 import { apiService } from '../services/api';
 import { format } from 'date-fns';
 import { 
@@ -11,7 +11,8 @@ import {
   Calendar,
   Plus,
   ChevronDown,
-  ChevronRight
+  ChevronRight,
+  Tag as TagIcon
 } from 'lucide-react';
 import clsx from 'clsx';
 import TaskEditModal from './TaskEditModal';
@@ -25,29 +26,41 @@ interface TaskListProps {
 
 const TaskList: React.FC<TaskListProps> = ({ viewMode, filters, onFiltersChange }) => {
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [areas, setAreas] = useState<Area[]>([]);
+  const [tags, setTags] = useState<Tag[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [hoveredTask, setHoveredTask] = useState<number | null>(null);
-  const [expandedAreas, setExpandedAreas] = useState<Set<number>>(new Set());
+  const [expandedTags, setExpandedTags] = useState<Set<number>>(new Set());
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [isCreatingTask, setIsCreatingTask] = useState(false);
+  const [editingTitleTaskId, setEditingTitleTaskId] = useState<number | null>(null);
+  const [editingTitleValue, setEditingTitleValue] = useState('');
+  const [newTagName, setNewTagName] = useState('');
+  const [isCreatingTag, setIsCreatingTag] = useState(false);
+  const [showTagInput, setShowTagInput] = useState(false);
+  const [editingDateTaskId, setEditingDateTaskId] = useState<number | null>(null);
+  const [editingDateType, setEditingDateType] = useState<'due_date' | 'start_date' | null>(null);
+  const [editingDateValue, setEditingDateValue] = useState('');
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const newTaskInputRef = useRef<HTMLInputElement>(null);
+  const titleInputRef = useRef<HTMLInputElement>(null);
+  const newTagInputRef = useRef<HTMLInputElement>(null);
+  const dateInputRef = useRef<HTMLInputElement>(null);
 
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
-      const [tasksData, areasData] = await Promise.all([
+      const [tasksData, tagsData] = await Promise.all([
         apiService.getTasks({ ...filters, view: viewMode }),
-        apiService.getAreas()
+        apiService.getTags()
       ]);
       setTasks(tasksData);
-      setAreas(areasData);
-      console.log(`📋 Loaded ${tasksData.length} tasks and ${areasData.length} areas`);
-      // Always expand all areas on load (including unassigned area with ID -1)
-      const allAreaIds = new Set(areasData.map(area => area.id));
-      allAreaIds.add(-1); // Add unassigned area ID
-      setExpandedAreas(allAreaIds);
+      setTags(tagsData);
+      console.log(`📋 Loaded ${tasksData.length} tasks and ${tagsData.length} tags`);
+      // Always expand all tags on load (including unassigned tag with ID -1)
+      const allTagIds = new Set(tagsData.map(tag => tag.id));
+      allTagIds.add(-1); // Add unassigned tag ID
+      setExpandedTags(allTagIds);
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
@@ -135,7 +148,7 @@ const TaskList: React.FC<TaskListProps> = ({ viewMode, filters, onFiltersChange 
       console.log(`➕ Creating new task: "${newTaskTitle.trim()}"`);
       await apiService.createTask({
         title: newTaskTitle.trim(),
-        area_id: filters.area_id
+        tag_id: filters.tag_id
       });
       setNewTaskTitle('');
       await loadData();
@@ -196,47 +209,47 @@ const TaskList: React.FC<TaskListProps> = ({ viewMode, filters, onFiltersChange 
     }
   };
 
-  const toggleAreaExpansion = (areaId: number) => {
-    const newExpanded = new Set(expandedAreas);
-    if (newExpanded.has(areaId)) {
-      newExpanded.delete(areaId);
+  const toggleTagExpansion = (tagId: number) => {
+    const newExpanded = new Set(expandedTags);
+    if (newExpanded.has(tagId)) {
+      newExpanded.delete(tagId);
     } else {
-      newExpanded.add(areaId);
+      newExpanded.add(tagId);
     }
-    setExpandedAreas(newExpanded);
+    setExpandedTags(newExpanded);
   };
 
-  const groupTasksByArea = () => {
+  const groupTasksByTag = () => {
     const grouped: { [key: string]: Task[] } = {};
     tasks.forEach(task => {
-      const areaName = task.area_name || 'Unassigned';
-      if (!grouped[areaName]) {
-        grouped[areaName] = [];
+      const tagName = task.tag_name || 'Unassigned';
+      if (!grouped[tagName]) {
+        grouped[tagName] = [];
       }
-      grouped[areaName].push(task);
+      grouped[tagName].push(task);
     });
     return grouped;
   };
 
-  const groupedTasks = groupTasksByArea();
+  const groupedTasks = groupTasksByTag();
 
-  // Sort areas: Unassigned first, then alphabetically
-  const sortedAreaNames = Object.keys(groupedTasks).sort((a, b) => {
+  // Sort tags: Unassigned first, then alphabetically
+  const sortedTagNames = Object.keys(groupedTasks).sort((a, b) => {
     if (a === 'Unassigned') return -1;
     if (b === 'Unassigned') return 1;
     return a.localeCompare(b);
   });
 
-  // Get area ID for unassigned area (use -1 as special ID)
-  const getAreaId = (areaName: string) => {
-    if (areaName === 'Unassigned') return -1;
-    return areas.find(a => a.name === areaName)?.id || 0;
+  // Get tag ID for unassigned tag (use -1 as special ID)
+  const getTagId = (tagName: string) => {
+    if (tagName === 'Unassigned') return -1;
+    return tags.find(t => t.name === tagName)?.id || 0;
   };
 
-  // Check if area is expanded (including unassigned)
-  const isAreaExpanded = (areaName: string) => {
-    const areaId = getAreaId(areaName);
-    return expandedAreas.has(areaId);
+  // Check if tag is expanded (including unassigned)
+  const isTagExpanded = (tagName: string) => {
+    const tagId = getTagId(tagName);
+    return expandedTags.has(tagId);
   };
 
   const handleDragStart = (e: React.DragEvent, task: Task) => {
@@ -254,13 +267,13 @@ const TaskList: React.FC<TaskListProps> = ({ viewMode, filters, onFiltersChange 
     e.currentTarget.classList.remove('bg-blue-50', 'border-blue-200');
   };
 
-  const handleDrop = async (e: React.DragEvent, targetAreaId: number) => {
+  const handleDrop = async (e: React.DragEvent, targetTagId: number) => {
     e.preventDefault();
     e.currentTarget.classList.remove('bg-blue-50', 'border-blue-200');
     const taskId = parseInt(e.dataTransfer.getData('text/plain'));
     
-    // Don't update if targetAreaId is 0 (invalid area)
-    if (targetAreaId === 0) {
+    // Don't update if targetTagId is 0 (invalid tag)
+    if (targetTagId === 0) {
       return;
     }
     
@@ -269,15 +282,129 @@ const TaskList: React.FC<TaskListProps> = ({ viewMode, filters, onFiltersChange 
       const task = tasks.find(t => t.id === taskId);
       if (!task) return;
       
-      // If targetAreaId is -1 (unassigned), set area_id to undefined
-      const areaId = targetAreaId === -1 ? undefined : targetAreaId;
-      const targetAreaName = targetAreaId === -1 ? 'Unassigned' : areas.find(a => a.id === targetAreaId)?.name || 'Unknown';
+      // If targetTagId is -1 (unassigned), set area_id to undefined
+      const tagId = targetTagId === -1 ? undefined : targetTagId;
+      const targetTagName = targetTagId === -1 ? 'Unassigned' : tags.find(t => t.id === targetTagId)?.name || 'Unknown';
       
-      console.log(`📦 Moving task "${task.title}" to area: ${task.area_name || 'Unassigned'} → ${targetAreaName}`);
-      await apiService.updateTask(taskId, { area_id: areaId });
+      console.log(`📦 Moving task "${task.title}" to tag: ${task.tag_name || 'Unassigned'} → ${targetTagName}`);
+      await apiService.updateTask(taskId, { tag_id: tagId });
       await loadData();
     } catch (error) {
-      console.error('Error updating task area:', error);
+      console.error('Error updating task tag:', error);
+    }
+  };
+
+  const handleTitleClick = (task: Task) => {
+    setEditingTitleTaskId(task.id);
+    setEditingTitleValue(task.title);
+    // Focus the input after a brief delay to ensure it's rendered
+    setTimeout(() => {
+      titleInputRef.current?.focus();
+      titleInputRef.current?.select();
+    }, 10);
+  };
+
+  const handleTitleSave = async (taskId: number) => {
+    if (!editingTitleValue.trim()) return;
+    
+    try {
+      console.log(`✏️ Updating task title: "${editingTitleValue.trim()}"`);
+      await apiService.updateTask(taskId, { title: editingTitleValue.trim() });
+      await loadData();
+    } catch (error) {
+      console.error('Error updating task title:', error);
+    } finally {
+      setEditingTitleTaskId(null);
+      setEditingTitleValue('');
+    }
+  };
+
+  const handleTitleCancel = () => {
+    setEditingTitleTaskId(null);
+    setEditingTitleValue('');
+  };
+
+  const handleTitleKeyPress = (e: React.KeyboardEvent, taskId: number) => {
+    if (e.key === 'Enter') {
+      handleTitleSave(taskId);
+    } else if (e.key === 'Escape') {
+      handleTitleCancel();
+    }
+  };
+
+  const handleCreateTag = async () => {
+    if (!newTagName.trim()) return;
+    
+    try {
+      setIsCreatingTag(true);
+      console.log(`➕ Creating new tag: "${newTagName.trim()}"`);
+      await apiService.createTag(newTagName.trim());
+      setNewTagName('');
+      setShowTagInput(false);
+      await loadData();
+    } catch (error) {
+      console.error('Error creating tag:', error);
+    } finally {
+      setIsCreatingTag(false);
+    }
+  };
+
+  const handleTagKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleCreateTag();
+    }
+  };
+
+  const handleDateClick = (task: Task, dateType: 'due_date' | 'start_date') => {
+    setEditingDateTaskId(task.id);
+    setEditingDateType(dateType);
+    setEditingDateValue(task[dateType] || '');
+    setShowDatePicker(true);
+    // Focus the input after a brief delay to ensure it's rendered
+    setTimeout(() => {
+      dateInputRef.current?.focus();
+      dateInputRef.current?.showPicker?.(); // Show native date picker immediately
+    }, 10);
+  };
+
+  const handleDateSave = async (taskId: number) => {
+    if (!editingDateType) return;
+    
+    try {
+      console.log(`📅 Updating task ${editingDateType}: "${editingDateValue}"`);
+      await apiService.updateTask(taskId, { [editingDateType]: editingDateValue || null });
+      await loadData();
+    } catch (error) {
+      console.error('Error updating task date:', error);
+    } finally {
+      setEditingDateTaskId(null);
+      setEditingDateType(null);
+      setEditingDateValue('');
+      setShowDatePicker(false);
+    }
+  };
+
+  const handleDateCancel = () => {
+    setEditingDateTaskId(null);
+    setEditingDateType(null);
+    setEditingDateValue('');
+    setShowDatePicker(false);
+  };
+
+  const handleDateKeyPress = (e: React.KeyboardEvent, taskId: number) => {
+    if (e.key === 'Enter') {
+      handleDateSave(taskId);
+    } else if (e.key === 'Escape') {
+      handleDateCancel();
+    }
+  };
+
+  const formatDate = (dateString: string | undefined) => {
+    if (!dateString) return '';
+    try {
+      return format(new Date(dateString), 'MMM d');
+    } catch {
+      return '';
     }
   };
 
@@ -302,39 +429,98 @@ const TaskList: React.FC<TaskListProps> = ({ viewMode, filters, onFiltersChange 
         />
       </div>
 
-      {/* Tasks by area */}
-      {sortedAreaNames.map((areaName) => (
-        <div key={areaName} className="border rounded">
-          {/* Area header */}
+      {/* New tag input */}
+      <div className="flex items-center space-x-2 p-2 bg-blue-50 rounded border">
+        <TagIcon className="w-4 h-4 text-blue-400" />
+        {showTagInput ? (
+          <>
+            <input
+              ref={newTagInputRef}
+              type="text"
+              placeholder="Enter tag name..."
+              value={newTagName}
+              onChange={(e) => setNewTagName(e.target.value)}
+              onKeyPress={handleTagKeyPress}
+              disabled={isCreatingTag}
+              className="flex-1 bg-transparent border-none outline-none text-sm"
+              onBlur={() => {
+                if (!newTagName.trim()) {
+                  setShowTagInput(false);
+                }
+              }}
+            />
+            <button
+              onClick={handleCreateTag}
+              disabled={isCreatingTag || !newTagName.trim()}
+              className="px-2 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
+            >
+              {isCreatingTag ? 'Creating...' : 'Create'}
+            </button>
+            <button
+              onClick={() => {
+                setShowTagInput(false);
+                setNewTagName('');
+              }}
+              className="px-2 py-1 text-xs text-gray-500 hover:text-gray-700"
+            >
+              Cancel
+            </button>
+          </>
+        ) : (
+          <button
+            onClick={() => {
+              setShowTagInput(true);
+              setTimeout(() => newTagInputRef.current?.focus(), 10);
+            }}
+            className="flex-1 text-left text-sm text-blue-600 hover:text-blue-800"
+          >
+            + Create new tag
+          </button>
+        )}
+      </div>
+
+      {/* Tasks by tag */}
+      {sortedTagNames.map((tagName) => (
+        <div key={tagName} className="border rounded">
+          {/* Tag header */}
           <div 
             className="flex items-center justify-between p-2 bg-gray-100 cursor-pointer hover:bg-gray-200"
-            onClick={() => toggleAreaExpansion(getAreaId(areaName))}
+            onClick={() => toggleTagExpansion(getTagId(tagName))}
           >
             <div className="flex items-center space-x-2">
-              {isAreaExpanded(areaName) ? (
+              {isTagExpanded(tagName) ? (
                 <ChevronDown className="w-4 h-4" />
               ) : (
                 <ChevronRight className="w-4 h-4" />
               )}
-              <span className="font-medium text-sm">{areaName}</span>
-              <span className="text-xs text-gray-500">({groupedTasks[areaName].length})</span>
+              <span className="font-medium text-sm">{tagName}</span>
+              <span className="text-xs text-gray-500">({groupedTasks[tagName].length})</span>
             </div>
           </div>
 
-          {/* Tasks in area */}
-          {isAreaExpanded(areaName) && (
+          {/* Tasks in tag */}
+          {isTagExpanded(tagName) && (
             <div 
               className="divide-y"
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               onDrop={(e) => {
-                const areaId = getAreaId(areaName);
-                if (areaId) {
-                  handleDrop(e, areaId);
+                const tagId = getTagId(tagName);
+                if (tagId) {
+                  handleDrop(e, tagId);
                 }
               }}
             >
-              {groupedTasks[areaName].map((task) => (
+              {/* Column headers */}
+              <div className="flex items-center space-x-3 p-2 bg-gray-50 text-xs font-medium text-gray-600 border-b">
+                <div className="w-8"></div> {/* Status */}
+                <div className="w-6"></div> {/* Priority */}
+                <div className="flex-1">Task</div>
+                <div className="w-16 text-center">Start</div>
+                <div className="w-16 text-center">Due</div>
+              </div>
+              
+              {groupedTasks[tagName].map((task) => (
                 <div
                   key={task.id}
                   className="flex items-center space-x-3 p-3 hover:bg-gray-50 relative"
@@ -345,26 +531,28 @@ const TaskList: React.FC<TaskListProps> = ({ viewMode, filters, onFiltersChange 
                   onDragStart={(e) => handleDragStart(e, task)}
                 >
                   {/* Status button */}
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleStatusClick(task);
-                    }}
-                    onDoubleClick={(e) => {
-                      e.stopPropagation();
-                      handleStatusDoubleClick(task);
-                    }}
-                    className={clsx(
-                      "p-1 rounded hover:bg-gray-200 transition-colors",
-                      getStatusColor(task.status)
-                    )}
-                    title={`Click to change status, double-click to complete`}
-                  >
-                    {getStatusIcon(task.status)}
-                  </button>
+                  <div className="w-8 flex justify-center">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleStatusClick(task);
+                      }}
+                      onDoubleClick={(e) => {
+                        e.stopPropagation();
+                        handleStatusDoubleClick(task);
+                      }}
+                      className={clsx(
+                        "p-1 rounded hover:bg-gray-200 transition-colors",
+                        getStatusColor(task.status)
+                      )}
+                      title={`Click to change status, double-click to complete`}
+                    >
+                      {getStatusIcon(task.status)}
+                    </button>
+                  </div>
 
                   {/* Priority flag */}
-                  <div className="flex-shrink-0">
+                  <div className="w-6 flex justify-center">
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -379,9 +567,29 @@ const TaskList: React.FC<TaskListProps> = ({ viewMode, filters, onFiltersChange 
 
                   {/* Task title */}
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium truncate">
-                      {task.title}
-                    </div>
+                    {editingTitleTaskId === task.id ? (
+                      <input
+                        ref={titleInputRef}
+                        type="text"
+                        value={editingTitleValue}
+                        onChange={(e) => setEditingTitleValue(e.target.value)}
+                        onKeyPress={(e) => handleTitleKeyPress(e, task.id)}
+                        onBlur={() => handleTitleSave(task.id)}
+                        className="w-full bg-transparent border-none outline-none text-sm font-medium"
+                        placeholder="Enter task title..."
+                      />
+                    ) : (
+                      <div 
+                        className="text-sm font-medium truncate cursor-pointer hover:text-blue-600 hover:bg-blue-50 px-1 py-1 rounded"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleTitleClick(task);
+                        }}
+                        title="Click to edit title"
+                      >
+                        {task.title}
+                      </div>
+                    )}
                     {task.sub_task_count > 0 && (
                       <div className="text-xs text-gray-500">
                         {task.completed_sub_tasks}/{task.sub_task_count} sub-tasks
@@ -389,13 +597,67 @@ const TaskList: React.FC<TaskListProps> = ({ viewMode, filters, onFiltersChange 
                     )}
                   </div>
 
+                  {/* Start date */}
+                  <div className="flex-shrink-0 w-16 text-center">
+                    {editingDateTaskId === task.id && editingDateType === 'start_date' ? (
+                      <input
+                        ref={dateInputRef}
+                        type="date"
+                        value={editingDateValue}
+                        onChange={(e) => setEditingDateValue(e.target.value)}
+                        onKeyPress={(e) => handleDateKeyPress(e, task.id)}
+                        onBlur={() => handleDateSave(task.id)}
+                        className="text-xs border border-gray-300 rounded px-1 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500 w-full"
+                        title="Press Enter to save, Escape to cancel"
+                      />
+                    ) : (
+                      <div 
+                        className="flex items-center justify-center text-xs text-gray-500 cursor-pointer hover:text-blue-600 hover:bg-blue-50 px-1 py-1 rounded min-h-[20px]"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDateClick(task, 'start_date');
+                        }}
+                        title="Click to set start date"
+                      >
+                        {task.start_date ? (
+                          <span>{formatDate(task.start_date)}</span>
+                        ) : (
+                          <Calendar className="w-3 h-3" />
+                        )}
+                      </div>
+                    )}
+                  </div>
+
                   {/* Due date */}
-                  {task.due_date && (
-                    <div className="flex items-center space-x-1 text-xs text-gray-500">
-                      <Calendar className="w-3 h-3" />
-                      <span>{format(new Date(task.due_date), 'MMM d')}</span>
-                    </div>
-                  )}
+                  <div className="flex-shrink-0 w-16 text-center">
+                    {editingDateTaskId === task.id && editingDateType === 'due_date' ? (
+                      <input
+                        ref={dateInputRef}
+                        type="date"
+                        value={editingDateValue}
+                        onChange={(e) => setEditingDateValue(e.target.value)}
+                        onKeyPress={(e) => handleDateKeyPress(e, task.id)}
+                        onBlur={() => handleDateSave(task.id)}
+                        className="text-xs border border-gray-300 rounded px-1 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500 w-full"
+                        title="Press Enter to save, Escape to cancel"
+                      />
+                    ) : (
+                      <div 
+                        className="flex items-center justify-center text-xs text-gray-500 cursor-pointer hover:text-blue-600 hover:bg-blue-50 px-1 py-1 rounded min-h-[20px]"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDateClick(task, 'due_date');
+                        }}
+                        title="Click to set due date"
+                      >
+                        {task.due_date ? (
+                          <span>{formatDate(task.due_date)}</span>
+                        ) : (
+                          <Calendar className="w-3 h-3" />
+                        )}
+                      </div>
+                    )}
+                  </div>
 
                   {/* Tooltip */}
                   {hoveredTask === task.id && task.description && (
@@ -412,15 +674,17 @@ const TaskList: React.FC<TaskListProps> = ({ viewMode, filters, onFiltersChange 
       {editingTask && (
         <TaskEditModal
           task={editingTask}
-          areas={areas}
+          tags={tags}
           onClose={() => setEditingTask(null)}
           onSave={async (updatedTask) => {
             try {
               await apiService.updateTask(updatedTask.id, {
                 title: updatedTask.title,
                 description: updatedTask.description,
-                area_id: updatedTask.area_id,
+                tag_id: updatedTask.tag_id,
                 priority: updatedTask.priority,
+                status: updatedTask.status,
+                start_date: updatedTask.start_date,
                 due_date: updatedTask.due_date
               });
               await loadData();

@@ -69,9 +69,9 @@ async function updateParentTaskStatus(parentTaskId) {
 
 // API Routes
 
-// Get all areas
-app.get('/api/areas', (req, res) => {
-  db.all("SELECT * FROM areas ORDER BY name", (err, rows) => {
+// Get all tags
+app.get('/api/tags', (req, res) => {
+  db.all("SELECT * FROM tags ORDER BY name", (err, rows) => {
     if (err) {
       res.status(500).json({ error: err.message });
       return;
@@ -80,15 +80,15 @@ app.get('/api/areas', (req, res) => {
   });
 });
 
-// Create new area
-app.post('/api/areas', (req, res) => {
+// Create new tag
+app.post('/api/tags', (req, res) => {
   const { name } = req.body;
   if (!name) {
-    res.status(400).json({ error: 'Area name is required' });
+    res.status(400).json({ error: 'Tag name is required' });
     return;
   }
   
-  db.run("INSERT INTO areas (name) VALUES (?)", [name], function(err) {
+  db.run("INSERT INTO tags (name) VALUES (?)", [name], function(err) {
     if (err) {
       res.status(500).json({ error: err.message });
       return;
@@ -99,14 +99,14 @@ app.post('/api/areas', (req, res) => {
 
 // Get tasks with optional filters
 app.get('/api/tasks', (req, res) => {
-  const { view, days, area_id, status, priority, show_completed } = req.query;
+  const { view, days, tag_id, status, priority, show_completed } = req.query;
   
   let query = `
-    SELECT t.*, a.name as area_name, 
+    SELECT t.*, tg.name as tag_name, 
            (SELECT COUNT(*) FROM tasks WHERE parent_task_id = t.id) as sub_task_count,
            (SELECT COUNT(*) FROM tasks WHERE parent_task_id = t.id AND status = 'done') as completed_sub_tasks
     FROM tasks t
-    LEFT JOIN areas a ON t.area_id = a.id
+    LEFT JOIN tags tg ON t.tag_id = tg.id
     WHERE 1=1
   `;
   
@@ -122,9 +122,9 @@ app.get('/api/tasks', (req, res) => {
   }
   
   // Additional filters
-  if (area_id) {
-    query += " AND t.area_id = ?";
-    params.push(area_id);
+  if (tag_id) {
+    query += " AND t.tag_id = ?";
+    params.push(tag_id);
   }
   
   if (status) {
@@ -139,11 +139,11 @@ app.get('/api/tasks', (req, res) => {
   
   // Sorting
   if (view === 'planner') {
-    query += " ORDER BY CASE t.status WHEN 'in_progress' THEN 1 WHEN 'paused' THEN 2 WHEN 'todo' THEN 3 WHEN 'done' THEN 4 END, ";
+    query += " ORDER BY CASE t.status WHEN 'in_progress' THEN 1 WHEN 'paused' THEN 1 WHEN 'todo' THEN 3 WHEN 'done' THEN 4 END, ";
     query += " CASE t.priority WHEN 'urgent' THEN 1 WHEN 'high' THEN 2 WHEN 'normal' THEN 3 WHEN 'low' THEN 4 END, ";
     query += " t.title ASC";
   } else if (view === 'tracker') {
-    query += " ORDER BY a.name, CASE t.status WHEN 'done' THEN 1 WHEN 'in_progress' THEN 2 WHEN 'paused' THEN 3 WHEN 'todo' THEN 4 END, ";
+    query += " ORDER BY tg.name, CASE t.status WHEN 'done' THEN 1 WHEN 'in_progress' THEN 2 WHEN 'paused' THEN 3 WHEN 'todo' THEN 4 END, ";
     query += " t.title ASC";
   } else {
     query += " ORDER BY t.title ASC";
@@ -160,7 +160,7 @@ app.get('/api/tasks', (req, res) => {
 
 // Create new task
 app.post('/api/tasks', async (req, res) => {
-  const { title, description, area_id, parent_task_id, priority, due_date } = req.body;
+  const { title, description, tag_id, parent_task_id, priority, due_date } = req.body;
   
   if (!title) {
     res.status(400).json({ error: 'Task title is required' });
@@ -174,9 +174,9 @@ app.post('/api/tasks', async (req, res) => {
   }
   
   db.run(`
-    INSERT INTO tasks (title, description, area_id, parent_task_id, priority, due_date)
+    INSERT INTO tasks (title, description, tag_id, parent_task_id, priority, due_date)
     VALUES (?, ?, ?, ?, ?, ?)
-  `, [title, description, area_id, parent_task_id, finalPriority, due_date], async function(err) {
+  `, [title, description, tag_id, parent_task_id, finalPriority, due_date], async function(err) {
     if (err) {
       res.status(500).json({ error: err.message });
       return;
@@ -257,7 +257,7 @@ app.patch('/api/tasks/:id/status', async (req, res) => {
 // Update task
 app.put('/api/tasks/:id', async (req, res) => {
   const { id } = req.params;
-  const { title, description, area_id, priority, due_date } = req.body;
+  const { title, description, tag_id, priority, status, start_date, due_date } = req.body;
   
   try {
     const currentTask = await new Promise((resolve, reject) => {
@@ -287,14 +287,24 @@ app.put('/api/tasks/:id', async (req, res) => {
       updateParams.push(description);
     }
     
-    if (area_id !== undefined) {
-      updateFields.push('area_id = ?');
-      updateParams.push(area_id);
+    if (tag_id !== undefined) {
+      updateFields.push('tag_id = ?');
+      updateParams.push(tag_id);
     }
     
     if (priority !== undefined) {
       updateFields.push('priority = ?');
       updateParams.push(priority);
+    }
+    
+    if (status !== undefined) {
+      updateFields.push('status = ?');
+      updateParams.push(status);
+    }
+    
+    if (start_date !== undefined) {
+      updateFields.push('start_date = ?');
+      updateParams.push(start_date);
     }
     
     if (due_date !== undefined) {
@@ -316,6 +326,11 @@ app.put('/api/tasks/:id', async (req, res) => {
           else resolve();
         });
       });
+      
+      // Add task history if status was updated
+      if (status !== undefined && status !== currentTask.status) {
+        await addTaskHistory(id, status, 'Status updated via edit');
+      }
     }
     
     res.json({ success: true });
@@ -398,7 +413,7 @@ app.get('/api/export', (req, res) => {
       t.id,
       t.title,
       t.description,
-      a.name as area,
+      tg.name as tag,
       t.status,
       t.priority,
       t.due_date,
@@ -408,7 +423,7 @@ app.get('/api/export', (req, res) => {
       t.created_at,
       (SELECT COUNT(*) FROM tasks WHERE parent_task_id = t.id) as sub_task_count
     FROM tasks t
-    LEFT JOIN areas a ON t.area_id = a.id
+    LEFT JOIN tags tg ON t.tag_id = tg.id
     ORDER BY t.last_modified DESC
   `, (err, rows) => {
     if (err) {
@@ -424,4 +439,4 @@ app.get('/api/export', (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
-}); 
+});

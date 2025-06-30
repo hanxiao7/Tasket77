@@ -1,4 +1,4 @@
-import { Task, Area, CreateTaskData, UpdateTaskData, TaskFilters, TaskHistory } from '../types';
+import { Task, Tag, CreateTaskData, UpdateTaskData, TaskFilters, TaskHistory } from '../types';
 
 const API_BASE = 'http://localhost:3001/api';
 
@@ -20,13 +20,13 @@ class ApiService {
     return response.json();
   }
 
-  // Areas
-  async getAreas(): Promise<Area[]> {
-    return this.request<Area[]>('/areas');
+  // Tags
+  async getTags(): Promise<Tag[]> {
+    return this.request<Tag[]>('/tags');
   }
 
-  async createArea(name: string): Promise<Area> {
-    return this.request<Area>('/areas', {
+  async createTag(name: string): Promise<Tag> {
+    return this.request<Tag>('/tags', {
       method: 'POST',
       body: JSON.stringify({ name }),
     });
