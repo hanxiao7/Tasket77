@@ -41,11 +41,15 @@ const TaskList: React.FC<TaskListProps> = ({ viewMode, filters, onFiltersChange 
   const [editingDateTaskId, setEditingDateTaskId] = useState<number | null>(null);
   const [editingDateType, setEditingDateType] = useState<'due_date' | 'start_date' | null>(null);
   const [editingDateValue, setEditingDateValue] = useState('');
-  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [editingTagTaskId, setEditingTagTaskId] = useState<number | null>(null);
+  const [editingTagValue, setEditingTagValue] = useState('');
+  const [editingPriorityTaskId, setEditingPriorityTaskId] = useState<number | null>(null);
+  const [editingPriorityValue, setEditingPriorityValue] = useState<Task['priority']>('normal');
   const newTaskInputRef = useRef<HTMLInputElement>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
   const newTagInputRef = useRef<HTMLInputElement>(null);
   const dateInputRef = useRef<HTMLInputElement>(null);
+  const tagInputRef = useRef<HTMLSelectElement>(null);
 
   const loadData = useCallback(async () => {
     try {
@@ -57,10 +61,21 @@ const TaskList: React.FC<TaskListProps> = ({ viewMode, filters, onFiltersChange 
       setTasks(tasksData);
       setTags(tagsData);
       console.log(`📋 Loaded ${tasksData.length} tasks and ${tagsData.length} tags`);
-      // Always expand all tags on load (including unassigned tag with ID -1)
-      const allTagIds = new Set(tagsData.map(tag => tag.id));
-      allTagIds.add(-1); // Add unassigned tag ID
-      setExpandedTags(allTagIds);
+      
+      // Set expansion state based on view mode
+      if (viewMode === 'planner') {
+        // Always expand In Progress & Paused and To Do sections
+        const plannerExpanded = new Set([1, 2]); // In Progress & Paused, To Do
+        if (filters.show_completed) {
+          plannerExpanded.add(3); // Completed
+        }
+        setExpandedTags(plannerExpanded);
+      } else {
+        // Always expand all tags in tracker view
+        const allTagIds = new Set(tagsData.map(tag => tag.id));
+        allTagIds.add(-1); // Add unassigned tag ID
+        setExpandedTags(allTagIds);
+      }
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
@@ -140,6 +155,34 @@ const TaskList: React.FC<TaskListProps> = ({ viewMode, filters, onFiltersChange 
     }
   };
 
+
+
+  const handlePrioritySave = async (taskId: number) => {
+    try {
+      console.log(`🚩 Updating task priority: "${editingPriorityValue}"`);
+      await apiService.updateTask(taskId, { priority: editingPriorityValue });
+      await loadData();
+    } catch (error) {
+      console.error('Error updating task priority:', error);
+    } finally {
+      setEditingPriorityTaskId(null);
+      setEditingPriorityValue('normal');
+    }
+  };
+
+  const handlePriorityCancel = () => {
+    setEditingPriorityTaskId(null);
+    setEditingPriorityValue('normal');
+  };
+
+  const handlePriorityKeyPress = (e: React.KeyboardEvent, taskId: number) => {
+    if (e.key === 'Enter') {
+      handlePrioritySave(taskId);
+    } else if (e.key === 'Escape') {
+      handlePriorityCancel();
+    }
+  };
+
   const handleCreateTask = async () => {
     if (!newTaskTitle.trim()) return;
     
@@ -209,14 +252,24 @@ const TaskList: React.FC<TaskListProps> = ({ viewMode, filters, onFiltersChange 
     }
   };
 
-  const toggleTagExpansion = (tagId: number) => {
-    const newExpanded = new Set(expandedTags);
-    if (newExpanded.has(tagId)) {
-      newExpanded.delete(tagId);
-    } else {
-      newExpanded.add(tagId);
-    }
-    setExpandedTags(newExpanded);
+  const groupTasksByStatus = () => {
+    const grouped: { [key: string]: Task[] } = {
+      'In Progress & Paused': [],
+      'To Do': [],
+      'Completed': []
+    };
+    
+    tasks.forEach(task => {
+      if (task.status === 'in_progress' || task.status === 'paused') {
+        grouped['In Progress & Paused'].push(task);
+      } else if (task.status === 'todo') {
+        grouped['To Do'].push(task);
+      } else if (task.status === 'done') {
+        grouped['Completed'].push(task);
+      }
+    });
+    
+    return grouped;
   };
 
   const groupTasksByTag = () => {
@@ -231,25 +284,67 @@ const TaskList: React.FC<TaskListProps> = ({ viewMode, filters, onFiltersChange 
     return grouped;
   };
 
-  const groupedTasks = groupTasksByTag();
+  // Use different grouping based on view mode
+  const groupedTasks = viewMode === 'planner' ? groupTasksByStatus() : groupTasksByTag();
 
-  // Sort tags: Unassigned first, then alphabetically
-  const sortedTagNames = Object.keys(groupedTasks).sort((a, b) => {
-    if (a === 'Unassigned') return -1;
-    if (b === 'Unassigned') return 1;
-    return a.localeCompare(b);
-  });
+  // Sort status groups for planner view
+  const sortedStatusNames = viewMode === 'planner' ? 
+    ['In Progress & Paused', 'To Do', 'Completed'] : 
+    Object.keys(groupedTasks).sort((a, b) => {
+      if (a === 'Unassigned') return -1;
+      if (b === 'Unassigned') return 1;
+      return a.localeCompare(b);
+    });
 
-  // Get tag ID for unassigned tag (use -1 as special ID)
+  // Get status ID for unassigned status (use -1 as special ID)
+  const getStatusId = (statusName: string) => {
+    if (statusName === 'In Progress & Paused') return 1;
+    if (statusName === 'To Do') return 2;
+    if (statusName === 'Completed') return 3;
+    return -1;
+  };
+
+  // Get tag ID for unassigned tag (use -1 as special ID) - only for tracker view
   const getTagId = (tagName: string) => {
     if (tagName === 'Unassigned') return -1;
     return tags.find(t => t.name === tagName)?.id || 0;
   };
 
-  // Check if tag is expanded (including unassigned)
+  // Check if status is expanded (including completed) - only for planner view
+  const isStatusExpanded = (statusName: string) => {
+    if (viewMode !== 'planner') return false;
+    const statusId = getStatusId(statusName);
+    if (statusName === 'Completed') {
+      return filters.show_completed && expandedTags.has(statusId);
+    }
+    return expandedTags.has(statusId);
+  };
+
+  // Check if tag is expanded (including unassigned) - only for tracker view
   const isTagExpanded = (tagName: string) => {
+    if (viewMode !== 'tracker') return false;
     const tagId = getTagId(tagName);
     return expandedTags.has(tagId);
+  };
+
+  const toggleStatusExpansion = (statusId: number) => {
+    const newExpanded = new Set(expandedTags);
+    if (newExpanded.has(statusId)) {
+      newExpanded.delete(statusId);
+    } else {
+      newExpanded.add(statusId);
+    }
+    setExpandedTags(newExpanded);
+  };
+
+  const toggleTagExpansion = (tagId: number) => {
+    const newExpanded = new Set(expandedTags);
+    if (newExpanded.has(tagId)) {
+      newExpanded.delete(tagId);
+    } else {
+      newExpanded.add(tagId);
+    }
+    setExpandedTags(newExpanded);
   };
 
   const handleDragStart = (e: React.DragEvent, task: Task) => {
@@ -267,13 +362,13 @@ const TaskList: React.FC<TaskListProps> = ({ viewMode, filters, onFiltersChange 
     e.currentTarget.classList.remove('bg-blue-50', 'border-blue-200');
   };
 
-  const handleDrop = async (e: React.DragEvent, targetTagId: number) => {
+  const handleDrop = async (e: React.DragEvent, targetId: number) => {
     e.preventDefault();
     e.currentTarget.classList.remove('bg-blue-50', 'border-blue-200');
     const taskId = parseInt(e.dataTransfer.getData('text/plain'));
     
-    // Don't update if targetTagId is 0 (invalid tag)
-    if (targetTagId === 0) {
+    // Don't update if targetId is 0 (invalid)
+    if (targetId === 0) {
       return;
     }
     
@@ -282,15 +377,33 @@ const TaskList: React.FC<TaskListProps> = ({ viewMode, filters, onFiltersChange 
       const task = tasks.find(t => t.id === taskId);
       if (!task) return;
       
-      // If targetTagId is -1 (unassigned), set area_id to undefined
-      const tagId = targetTagId === -1 ? undefined : targetTagId;
-      const targetTagName = targetTagId === -1 ? 'Unassigned' : tags.find(t => t.id === targetTagId)?.name || 'Unknown';
+      if (viewMode === 'planner') {
+        // In planner view, we're moving between status groups
+        let newStatus: Task['status'];
+        if (targetId === 1) { // In Progress & Paused
+          newStatus = 'in_progress';
+        } else if (targetId === 2) { // To Do
+          newStatus = 'todo';
+        } else if (targetId === 3) { // Completed
+          newStatus = 'done';
+        } else {
+          return;
+        }
+        
+        console.log(`📦 Moving task "${task.title}" to status: ${task.status} → ${newStatus}`);
+        await apiService.updateTaskStatus(taskId, newStatus);
+      } else {
+        // In tracker view, we're moving between tag groups
+        const tagId = targetId === -1 ? undefined : targetId;
+        const targetTagName = targetId === -1 ? 'Unassigned' : tags.find(t => t.id === targetId)?.name || 'Unknown';
+        
+        console.log(`📦 Moving task "${task.title}" to tag: ${task.tag_name || 'Unassigned'} → ${targetTagName}`);
+        await apiService.updateTask(taskId, { tag_id: tagId });
+      }
       
-      console.log(`📦 Moving task "${task.title}" to tag: ${task.tag_name || 'Unassigned'} → ${targetTagName}`);
-      await apiService.updateTask(taskId, { tag_id: tagId });
       await loadData();
     } catch (error) {
-      console.error('Error updating task tag:', error);
+      console.error('Error updating task:', error);
     }
   };
 
@@ -349,7 +462,37 @@ const TaskList: React.FC<TaskListProps> = ({ viewMode, filters, onFiltersChange 
     }
   };
 
-  const handleTagKeyPress = (e: React.KeyboardEvent) => {
+
+
+  const handleTagSave = async (taskId: number) => {
+    try {
+      const tagId = editingTagValue ? Number(editingTagValue) : undefined;
+      const tagName = editingTagValue ? tags.find(t => t.id === Number(editingTagValue))?.name || 'Unknown' : 'Unassigned';
+      console.log(`🏷️ Updating task tag: "${tagName}"`);
+      await apiService.updateTask(taskId, { tag_id: tagId });
+      await loadData();
+    } catch (error) {
+      console.error('Error updating task tag:', error);
+    } finally {
+      setEditingTagTaskId(null);
+      setEditingTagValue('');
+    }
+  };
+
+  const handleTagCancel = () => {
+    setEditingTagTaskId(null);
+    setEditingTagValue('');
+  };
+
+  const handleTagKeyPress = (e: React.KeyboardEvent, taskId: number) => {
+    if (e.key === 'Enter') {
+      handleTagSave(taskId);
+    } else if (e.key === 'Escape') {
+      handleTagCancel();
+    }
+  };
+
+  const handleCreateTagKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       handleCreateTag();
     }
@@ -359,7 +502,6 @@ const TaskList: React.FC<TaskListProps> = ({ viewMode, filters, onFiltersChange 
     setEditingDateTaskId(task.id);
     setEditingDateType(dateType);
     setEditingDateValue(task[dateType] || '');
-    setShowDatePicker(true);
     // Focus the input after a brief delay to ensure it's rendered
     setTimeout(() => {
       dateInputRef.current?.focus();
@@ -380,7 +522,6 @@ const TaskList: React.FC<TaskListProps> = ({ viewMode, filters, onFiltersChange 
       setEditingDateTaskId(null);
       setEditingDateType(null);
       setEditingDateValue('');
-      setShowDatePicker(false);
     }
   };
 
@@ -388,7 +529,6 @@ const TaskList: React.FC<TaskListProps> = ({ viewMode, filters, onFiltersChange 
     setEditingDateTaskId(null);
     setEditingDateType(null);
     setEditingDateValue('');
-    setShowDatePicker(false);
   };
 
   const handleDateKeyPress = (e: React.KeyboardEvent, taskId: number) => {
@@ -440,7 +580,7 @@ const TaskList: React.FC<TaskListProps> = ({ viewMode, filters, onFiltersChange 
               placeholder="Enter tag name..."
               value={newTagName}
               onChange={(e) => setNewTagName(e.target.value)}
-              onKeyPress={handleTagKeyPress}
+              onKeyPress={handleCreateTagKeyPress}
               disabled={isCreatingTag}
               className="flex-1 bg-transparent border-none outline-none text-sm"
               onBlur={() => {
@@ -479,35 +619,48 @@ const TaskList: React.FC<TaskListProps> = ({ viewMode, filters, onFiltersChange 
         )}
       </div>
 
-      {/* Tasks by tag */}
-      {sortedTagNames.map((tagName) => (
-        <div key={tagName} className="border rounded">
-          {/* Tag header */}
+      {/* Tasks by status/tag */}
+      {sortedStatusNames.map((groupName) => (
+        <div key={groupName} className="border rounded">
+          {/* Group header */}
           <div 
             className="flex items-center justify-between p-2 bg-gray-100 cursor-pointer hover:bg-gray-200"
-            onClick={() => toggleTagExpansion(getTagId(tagName))}
+            onClick={() => {
+              if (viewMode === 'planner') {
+                toggleStatusExpansion(getStatusId(groupName));
+              } else {
+                toggleTagExpansion(getTagId(groupName));
+              }
+            }}
           >
             <div className="flex items-center space-x-2">
-              {isTagExpanded(tagName) ? (
+              {(viewMode === 'planner' ? isStatusExpanded(groupName) : isTagExpanded(groupName)) ? (
                 <ChevronDown className="w-4 h-4" />
               ) : (
                 <ChevronRight className="w-4 h-4" />
               )}
-              <span className="font-medium text-sm">{tagName}</span>
-              <span className="text-xs text-gray-500">({groupedTasks[tagName].length})</span>
+              <span className="font-medium text-sm">{groupName}</span>
+              <span className="text-xs text-gray-500">({groupedTasks[groupName].length})</span>
             </div>
           </div>
 
-          {/* Tasks in tag */}
-          {isTagExpanded(tagName) && (
+          {/* Tasks in group */}
+          {(viewMode === 'planner' ? isStatusExpanded(groupName) : isTagExpanded(groupName)) && (
             <div 
               className="divide-y"
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               onDrop={(e) => {
-                const tagId = getTagId(tagName);
-                if (tagId) {
-                  handleDrop(e, tagId);
+                if (viewMode === 'planner') {
+                  const statusId = getStatusId(groupName);
+                  if (statusId) {
+                    handleDrop(e, statusId);
+                  }
+                } else {
+                  const tagId = getTagId(groupName);
+                  if (tagId) {
+                    handleDrop(e, tagId);
+                  }
                 }
               }}
             >
@@ -516,11 +669,12 @@ const TaskList: React.FC<TaskListProps> = ({ viewMode, filters, onFiltersChange 
                 <div className="w-8"></div> {/* Status */}
                 <div className="w-6"></div> {/* Priority */}
                 <div className="flex-1">Task</div>
+                {viewMode === 'planner' && <div className="w-20 text-center">Tag</div>}
                 <div className="w-16 text-center">Start</div>
                 <div className="w-16 text-center">Due</div>
               </div>
               
-              {groupedTasks[tagName].map((task) => (
+              {groupedTasks[groupName].map((task) => (
                 <div
                   key={task.id}
                   className="flex items-center space-x-3 p-3 hover:bg-gray-50 relative"
@@ -553,16 +707,34 @@ const TaskList: React.FC<TaskListProps> = ({ viewMode, filters, onFiltersChange 
 
                   {/* Priority flag */}
                   <div className="w-6 flex justify-center">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handlePriorityClick(task);
-                      }}
-                      className="p-1 rounded hover:bg-gray-200 transition-colors cursor-pointer"
-                      title={`Click to change priority (${task.priority})`}
-                    >
-                      {getPriorityIcon(task.priority)}
-                    </button>
+                    {editingPriorityTaskId === task.id ? (
+                      <select
+                        value={editingPriorityValue}
+                        onChange={(e) => setEditingPriorityValue(e.target.value as Task['priority'])}
+                        onKeyPress={(e) => handlePriorityKeyPress(e, task.id)}
+                        onBlur={() => handlePrioritySave(task.id)}
+                        className="text-xs border border-gray-300 rounded px-1 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500 w-full"
+                        title="Press Enter to save, Escape to cancel"
+                        data-task-id={task.id}
+                        autoFocus
+                      >
+                        <option value="low">Low</option>
+                        <option value="normal">Normal</option>
+                        <option value="high">High</option>
+                        <option value="urgent">Urgent</option>
+                      </select>
+                    ) : (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handlePriorityClick(task);
+                        }}
+                        className="p-1 rounded hover:bg-gray-200 transition-colors cursor-pointer"
+                        title={`Click to cycle priority (${task.priority})`}
+                      >
+                        {getPriorityIcon(task.priority)}
+                      </button>
+                    )}
                   </div>
 
                   {/* Task title */}
@@ -596,6 +768,55 @@ const TaskList: React.FC<TaskListProps> = ({ viewMode, filters, onFiltersChange 
                       </div>
                     )}
                   </div>
+
+                  {/* Tag */}
+                  {viewMode === 'planner' && (
+                    <div className="flex-shrink-0 w-20 text-center">
+                      <select
+                        ref={editingTagTaskId === task.id ? tagInputRef : undefined}
+                        value={editingTagTaskId === task.id ? editingTagValue : (task.tag_id?.toString() || '')}
+                        onChange={(e) => {
+                          if (editingTagTaskId === task.id) {
+                            setEditingTagValue(e.target.value);
+                          } else {
+                            // If not in editing mode, start editing and set the value
+                            setEditingTagTaskId(task.id);
+                            setEditingTagValue(e.target.value);
+                          }
+                        }}
+                        onKeyPress={(e) => {
+                          if (editingTagTaskId === task.id) {
+                            handleTagKeyPress(e, task.id);
+                          }
+                        }}
+                        onBlur={() => {
+                          if (editingTagTaskId === task.id) {
+                            handleTagSave(task.id);
+                          }
+                        }}
+                        onFocus={() => {
+                          if (editingTagTaskId !== task.id) {
+                            setEditingTagTaskId(task.id);
+                            setEditingTagValue(task.tag_id?.toString() || '');
+                          }
+                        }}
+                        className={clsx(
+                          "text-xs rounded px-1 py-1 w-full transition-all",
+                          editingTagTaskId === task.id 
+                            ? "border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500" 
+                            : "border border-transparent hover:border-gray-300 hover:bg-blue-50 cursor-pointer text-sm font-medium"
+                        )}
+                        title={editingTagTaskId === task.id ? "Press Enter to save, Escape to cancel" : "Click to edit tag"}
+                      >
+                        <option value="">Unassigned</option>
+                        {tags.map((tag) => (
+                          <option key={tag.id} value={tag.id}>
+                            {tag.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
 
                   {/* Start date */}
                   <div className="flex-shrink-0 w-16 text-center">
