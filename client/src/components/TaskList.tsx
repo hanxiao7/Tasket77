@@ -977,7 +977,7 @@ const TaskList: React.FC<TaskListProps> = ({ viewMode, filters, onFiltersChange 
                         
                         {/* Title Tooltip - show on hover for truncated titles only */}
                         {titleTooltips.has(task.id) && hoveredTask === task.id && (
-                          <TitleTooltip title={task.title} />
+                          <TitleTooltip title={task.title} titleRef={titleRefs.current.get(task.id)} />
                         )}
                       </div>
                     )}
