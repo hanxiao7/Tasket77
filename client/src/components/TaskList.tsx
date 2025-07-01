@@ -17,6 +17,7 @@ import {
 import clsx from 'clsx';
 import TaskEditModal from './TaskEditModal';
 import TaskTooltip from './TaskTooltip';
+import TitleTooltip from './TitleTooltip';
 
 interface TaskListProps {
   viewMode: 'planner' | 'tracker';
@@ -45,11 +46,162 @@ const TaskList: React.FC<TaskListProps> = ({ viewMode, filters, onFiltersChange 
   const [editingTagValue, setEditingTagValue] = useState('');
   const [editingPriorityTaskId, setEditingPriorityTaskId] = useState<number | null>(null);
   const [editingPriorityValue, setEditingPriorityValue] = useState<Task['priority']>('normal');
+  const [tooltipTimers, setTooltipTimers] = useState<Map<number, NodeJS.Timeout>>(new Map());
+  const [visibleTooltips, setVisibleTooltips] = useState<Set<number>>(new Set());
+  const [titleTooltips, setTitleTooltips] = useState<Set<number>>(new Set());
+  const titleRefs = useRef<Map<number, HTMLDivElement | null>>(new Map());
+  const truncationTimeouts = useRef<Map<number, NodeJS.Timeout>>(new Map());
+  const positionCache = useRef<Map<number, React.CSSProperties>>(new Map());
+  const maxWidthCache = useRef<Map<number, number>>(new Map());
   const newTaskInputRef = useRef<HTMLInputElement>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
   const newTagInputRef = useRef<HTMLInputElement>(null);
   const dateInputRef = useRef<HTMLInputElement>(null);
   const tagInputRef = useRef<HTMLSelectElement>(null);
+
+  const checkTitleTruncation = (taskId: number) => {
+    const titleRef = titleRefs.current.get(taskId);
+    if (titleRef) {
+      const isTruncated = titleRef.scrollWidth > titleRef.clientWidth;
+      setTitleTooltips(prev => {
+        const newSet = new Set(prev);
+        if (isTruncated) {
+          newSet.add(taskId);
+        } else {
+          newSet.delete(taskId);
+        }
+        return newSet;
+      });
+    }
+  };
+
+  const setTitleRef = useCallback((taskId: number, ref: HTMLDivElement | null) => {
+    // Use a ref to track if we've already set this ref to avoid infinite loops
+    const currentRef = titleRefs.current.get(taskId);
+    if (currentRef === ref) {
+      return; // No change, don't update
+    }
+    
+    titleRefs.current.set(taskId, ref);
+    
+    // Only check truncation when ref is set (not when it's null)
+    if (ref) {
+      // Clear existing timeout for this task
+      const existingTimeout = truncationTimeouts.current.get(taskId);
+      if (existingTimeout) {
+        clearTimeout(existingTimeout);
+      }
+      
+      // Set new timeout
+      const timeout = setTimeout(() => {
+        checkTitleTruncation(taskId);
+        truncationTimeouts.current.delete(taskId);
+      }, 100);
+      
+      truncationTimeouts.current.set(taskId, timeout);
+    }
+  }, []);
+
+  const getTitleEndPosition = (taskId: number) => {
+    const titleRef = titleRefs.current.get(taskId);
+    if (!titleRef) return 'right';
+    // Check if title is truncated
+    const isTruncated = titleRef.scrollWidth > titleRef.clientWidth;
+    if (isTruncated) {
+      // If truncated, position at the end of visible content (right side of title column)
+      return 'end-of-title';
+    } else {
+      // If not truncated, position at the end of the title text content
+      return 'end-of-content';
+    }
+  };
+
+  const getTitleEndPositionStyle = useCallback((taskId: number) => {
+    // Check cache first
+    const cached = positionCache.current.get(taskId);
+    if (cached) return cached;
+    
+    const titleRef = titleRefs.current.get(taskId);
+    if (!titleRef) return {};
+    
+    const isTruncated = titleRef.scrollWidth > titleRef.clientWidth;
+    let position: React.CSSProperties;
+    
+    if (isTruncated) {
+      // For truncated titles, align start of bubble with right edge of title column
+      position = { left: `${titleRef.clientWidth}px` };
+    } else {
+      // For normal titles, position at the end of the text content with small gap
+      // Create a temporary span to measure the actual text width
+      const tempSpan = document.createElement('span');
+      tempSpan.style.position = 'absolute';
+      tempSpan.style.visibility = 'hidden';
+      tempSpan.style.whiteSpace = 'nowrap';
+      tempSpan.style.fontSize = window.getComputedStyle(titleRef).fontSize;
+      tempSpan.style.fontFamily = window.getComputedStyle(titleRef).fontFamily;
+      tempSpan.style.fontWeight = window.getComputedStyle(titleRef).fontWeight;
+      tempSpan.textContent = titleRef.textContent || '';
+      
+      document.body.appendChild(tempSpan);
+      const textWidth = tempSpan.offsetWidth;
+      document.body.removeChild(tempSpan);
+      
+      position = { left: `${textWidth + 8}px` }; // Add 8px gap after text
+    }
+    
+    // Cache the result
+    positionCache.current.set(taskId, position);
+    return position;
+  }, []);
+
+  const getMaxTooltipWidth = useCallback((taskId: number) => {
+    // Check cache first
+    if (maxWidthCache.current.has(taskId)) {
+      return maxWidthCache.current.get(taskId)!;
+    }
+    
+    // Calculate available space from bubble starting position to table edge
+    const titleRef = titleRefs.current.get(taskId);
+    if (titleRef) {
+      // Find the main container (the outer div that contains all groups)
+      const mainContainer = titleRef.closest('.space-y-2');
+      if (mainContainer) {
+        const containerRect = mainContainer.getBoundingClientRect();
+        const titleRect = titleRef.getBoundingClientRect();
+        
+        // Calculate actual text width to determine bubble starting position
+        const tempSpan = document.createElement('span');
+        tempSpan.style.position = 'absolute';
+        tempSpan.style.visibility = 'hidden';
+        tempSpan.style.whiteSpace = 'nowrap';
+        tempSpan.style.fontSize = window.getComputedStyle(titleRef).fontSize;
+        tempSpan.style.fontFamily = window.getComputedStyle(titleRef).fontFamily;
+        tempSpan.style.fontWeight = window.getComputedStyle(titleRef).fontWeight;
+        tempSpan.textContent = titleRef.textContent || '';
+        
+        document.body.appendChild(tempSpan);
+        const textWidth = tempSpan.offsetWidth;
+        document.body.removeChild(tempSpan);
+        
+        // Calculate bubble starting position (title left + text width + margin)
+        const bubbleStartX = titleRect.left + Math.min(textWidth, titleRef.clientWidth) + 8; // 8px margin after text
+        
+        // Calculate available space from bubble start to container right edge
+        const availableSpace = containerRect.right - bubbleStartX - 20; // 20px margin
+        
+        console.log(`Task ${taskId}: container right=${containerRect.right}, title left=${titleRect.left}, text width=${textWidth}, bubble start=${bubbleStartX}, available=${availableSpace}`);
+        
+        // Ensure minimum and maximum reasonable widths
+        const maxWidth = Math.max(200, Math.min(availableSpace, 800));
+        
+        // Cache the result
+        maxWidthCache.current.set(taskId, maxWidth);
+        
+        return maxWidth;
+      }
+    }
+    return 400; // Fallback width
+  }, []);
 
   const loadData = useCallback(async () => {
     try {
@@ -61,6 +213,10 @@ const TaskList: React.FC<TaskListProps> = ({ viewMode, filters, onFiltersChange 
       setTasks(tasksData);
       setTags(tagsData);
       console.log(`📋 Loaded ${tasksData.length} tasks and ${tagsData.length} tags`);
+      
+      // Clear caches when data changes
+      positionCache.current.clear();
+      maxWidthCache.current.clear();
       
       // Set expansion state based on view mode
       if (viewMode === 'planner') {
@@ -154,8 +310,6 @@ const TaskList: React.FC<TaskListProps> = ({ viewMode, filters, onFiltersChange 
       console.error('Error updating task priority:', error);
     }
   };
-
-
 
   const handlePrioritySave = async (taskId: number) => {
     try {
@@ -462,8 +616,6 @@ const TaskList: React.FC<TaskListProps> = ({ viewMode, filters, onFiltersChange 
     }
   };
 
-
-
   const handleTagSave = async (taskId: number) => {
     try {
       const tagId = editingTagValue ? Number(editingTagValue) : undefined;
@@ -546,6 +698,60 @@ const TaskList: React.FC<TaskListProps> = ({ viewMode, filters, onFiltersChange 
     } catch {
       return '';
     }
+  };
+
+  const handleDescriptionSave = async (taskId: number, description: string) => {
+    try {
+      console.log(`📝 Updating task description: "${description}"`);
+      await apiService.updateTask(taskId, { description });
+      await loadData();
+    } catch (error) {
+      console.error('Error updating task description:', error);
+      throw error;
+    }
+  };
+
+  const handleDescriptionTooltipClose = () => {
+    setVisibleTooltips(new Set());
+  };
+
+  const showTooltip = (taskId: number) => {
+    // Clear any existing timer for this task
+    const existingTimer = tooltipTimers.get(taskId);
+    if (existingTimer) {
+      clearTimeout(existingTimer);
+      setTooltipTimers(prev => {
+        const newMap = new Map(prev);
+        newMap.delete(taskId);
+        return newMap;
+      });
+    }
+
+    // Add to visible tooltips
+    setVisibleTooltips(prev => new Set(Array.from(prev).concat([taskId])));
+  };
+
+  const hideTooltip = (taskId: number) => {
+    // Set a timer to hide the tooltip after 0.5 seconds
+    const timer = setTimeout(() => {
+      setVisibleTooltips(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(taskId);
+        return newSet;
+      });
+      
+      // No need to track active tooltip anymore
+      
+      // Clear the timer from the map
+      setTooltipTimers(prev => {
+        const newMap = new Map(prev);
+        newMap.delete(taskId);
+        return newMap;
+      });
+    }, 500);
+
+    // Store the timer
+    setTooltipTimers(prev => new Map(prev).set(taskId, timer));
   };
 
   if (loading) {
@@ -686,7 +892,7 @@ const TaskList: React.FC<TaskListProps> = ({ viewMode, filters, onFiltersChange 
                 >
                   {/* Status button */}
                   <div className="w-8 flex justify-center">
-                    <button
+                  <button
                       onClick={(e) => {
                         e.stopPropagation();
                         handleStatusClick(task);
@@ -695,14 +901,14 @@ const TaskList: React.FC<TaskListProps> = ({ viewMode, filters, onFiltersChange 
                         e.stopPropagation();
                         handleStatusDoubleClick(task);
                       }}
-                      className={clsx(
-                        "p-1 rounded hover:bg-gray-200 transition-colors",
-                        getStatusColor(task.status)
-                      )}
-                      title={`Click to change status, double-click to complete`}
-                    >
-                      {getStatusIcon(task.status)}
-                    </button>
+                    className={clsx(
+                      "p-1 rounded hover:bg-gray-200 transition-colors",
+                      getStatusColor(task.status)
+                    )}
+                    title={`Click to change status, double-click to complete`}
+                  >
+                    {getStatusIcon(task.status)}
+                  </button>
                   </div>
 
                   {/* Priority flag */}
@@ -732,13 +938,13 @@ const TaskList: React.FC<TaskListProps> = ({ viewMode, filters, onFiltersChange 
                         className="p-1 rounded hover:bg-gray-200 transition-colors cursor-pointer"
                         title={`Click to cycle priority (${task.priority})`}
                       >
-                        {getPriorityIcon(task.priority)}
+                    {getPriorityIcon(task.priority)}
                       </button>
                     )}
                   </div>
 
                   {/* Task title */}
-                  <div className="flex-1 min-w-0">
+                  <div className="flex-1 min-w-0 relative">
                     {editingTitleTaskId === task.id ? (
                       <input
                         ref={titleInputRef}
@@ -751,20 +957,65 @@ const TaskList: React.FC<TaskListProps> = ({ viewMode, filters, onFiltersChange 
                         placeholder="Enter task title..."
                       />
                     ) : (
-                      <div 
-                        className="text-sm font-medium truncate cursor-pointer hover:text-blue-600 hover:bg-blue-50 px-1 py-1 rounded"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleTitleClick(task);
+                      <div className="relative">
+                        <div 
+                          ref={(ref) => setTitleRef(task.id, ref)}
+                          className="text-sm font-medium truncate cursor-pointer hover:text-blue-600 hover:bg-blue-50 px-1 py-1 rounded"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleTitleClick(task);
+                          }}
+                                                  onMouseEnter={() => {
+                          showTooltip(task.id);
                         }}
-                        title="Click to edit title"
-                      >
-                        {task.title}
+                        onMouseLeave={() => {
+                          hideTooltip(task.id);
+                        }}
+                        >
+                      {task.title}
+                    </div>
+                        
+                        {/* Title Tooltip - show on hover for truncated titles only */}
+                        {titleTooltips.has(task.id) && hoveredTask === task.id && (
+                          <TitleTooltip title={task.title} />
+                        )}
                       </div>
                     )}
                     {task.sub_task_count > 0 && (
                       <div className="text-xs text-gray-500">
                         {task.completed_sub_tasks}/{task.sub_task_count} sub-tasks
+                      </div>
+                    )}
+                    
+                    {/* Description Tooltip */}
+                    {visibleTooltips.has(task.id) && (
+                      <div
+                        onMouseEnter={() => {
+                          // Clear any existing timer when mouse enters tooltip
+                          const existingTimer = tooltipTimers.get(task.id);
+                          if (existingTimer) {
+                            clearTimeout(existingTimer);
+                            setTooltipTimers(prev => {
+                              const newMap = new Map(prev);
+                              newMap.delete(task.id);
+                              return newMap;
+                            });
+                          }
+                        }}
+                        onMouseLeave={() => hideTooltip(task.id)}
+                        style={{ 
+                          zIndex: 1000
+                        }}
+                      >
+                        <TaskTooltip 
+                          description={task.description || ''}
+                          taskId={task.id}
+                          onSave={handleDescriptionSave}
+                          onClose={handleDescriptionTooltipClose}
+                          position={getTitleEndPosition(task.id)}
+                          positionStyle={getTitleEndPositionStyle(task.id)}
+                          maxWidth={getMaxTooltipWidth(task.id)}
+                        />
                       </div>
                     )}
                   </div>
@@ -880,10 +1131,7 @@ const TaskList: React.FC<TaskListProps> = ({ viewMode, filters, onFiltersChange 
                     )}
                   </div>
 
-                  {/* Tooltip */}
-                  {hoveredTask === task.id && task.description && (
-                    <TaskTooltip description={task.description} />
-                  )}
+
                 </div>
               ))}
             </div>

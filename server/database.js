@@ -23,15 +23,15 @@ function initializeDatabase() {
           console.log('Migrating from areas to tags...');
           
           // Create tags table
-          db.run(`
+      db.run(`
             CREATE TABLE IF NOT EXISTS tags (
-              id INTEGER PRIMARY KEY AUTOINCREMENT,
-              name TEXT NOT NULL UNIQUE,
-              created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-              updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-            )
-          `);
-          
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL UNIQUE,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
           // Copy data from areas to tags
           db.run("INSERT OR IGNORE INTO tags (id, name, created_at, updated_at) SELECT id, name, created_at, updated_at FROM areas");
           
@@ -88,55 +88,55 @@ function initializeDatabase() {
         }
         
         // Create tasks table (if it doesn't exist)
-        db.run(`
-          CREATE TABLE IF NOT EXISTS tasks (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            title TEXT NOT NULL,
-            description TEXT,
+      db.run(`
+        CREATE TABLE IF NOT EXISTS tasks (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          title TEXT NOT NULL,
+          description TEXT,
             tag_id INTEGER,
-            parent_task_id INTEGER,
-            status TEXT DEFAULT 'todo' CHECK (status IN ('todo', 'in_progress', 'paused', 'done')),
-            priority TEXT DEFAULT 'normal' CHECK (priority IN ('urgent', 'high', 'normal', 'low')),
-            due_date DATE,
-            start_date DATETIME,
-            completion_date DATETIME,
-            last_modified DATETIME DEFAULT CURRENT_TIMESTAMP,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          parent_task_id INTEGER,
+          status TEXT DEFAULT 'todo' CHECK (status IN ('todo', 'in_progress', 'paused', 'done')),
+          priority TEXT DEFAULT 'normal' CHECK (priority IN ('urgent', 'high', 'normal', 'low')),
+          due_date DATE,
+          start_date DATETIME,
+          completion_date DATETIME,
+          last_modified DATETIME DEFAULT CURRENT_TIMESTAMP,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (tag_id) REFERENCES tags (id),
-            FOREIGN KEY (parent_task_id) REFERENCES tasks (id)
-          )
-        `);
+          FOREIGN KEY (parent_task_id) REFERENCES tasks (id)
+        )
+      `);
 
-        // Task history table for tracking status changes and dates
-        db.run(`
-          CREATE TABLE IF NOT EXISTS task_history (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            task_id INTEGER NOT NULL,
-            status TEXT NOT NULL,
-            action_date DATETIME DEFAULT CURRENT_TIMESTAMP,
-            notes TEXT,
-            FOREIGN KEY (task_id) REFERENCES tasks (id)
-          )
-        `);
+      // Task history table for tracking status changes and dates
+      db.run(`
+        CREATE TABLE IF NOT EXISTS task_history (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          task_id INTEGER NOT NULL,
+          status TEXT NOT NULL,
+          action_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+          notes TEXT,
+          FOREIGN KEY (task_id) REFERENCES tasks (id)
+        )
+      `);
 
         // Insert default tag if none exists
         db.get("SELECT COUNT(*) as count FROM tags", (err, row) => {
-          if (err) {
-            reject(err);
-            return;
-          }
-          
-          if (row.count === 0) {
+        if (err) {
+          reject(err);
+          return;
+        }
+        
+        if (row.count === 0) {
             db.run("INSERT INTO tags (name) VALUES (?)", ['General'], (err) => {
-              if (err) {
-                reject(err);
-              } else {
-                resolve();
-              }
-            });
-          } else {
-            resolve();
-          }
+            if (err) {
+              reject(err);
+            } else {
+              resolve();
+            }
+          });
+        } else {
+          resolve();
+        }
         });
       });
     });
