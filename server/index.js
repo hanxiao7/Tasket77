@@ -1,7 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
-const moment = require('moment');
+const moment = require('moment-timezone');
 const { db, initializeDatabase, updateTaskModified, addTaskHistory } = require('./database');
 
 const app = express();
@@ -21,8 +21,8 @@ initializeDatabase().then(() => {
 
 // Helper function to get next business day
 function getNextBusinessDay() {
-  const today = moment();
-  let nextDay = moment().add(1, 'day');
+  const today = moment().tz('America/New_York');
+  let nextDay = moment().tz('America/New_York').add(1, 'day');
   
   // Skip weekends
   while (nextDay.day() === 0 || nextDay.day() === 6) {
@@ -116,8 +116,9 @@ app.get('/api/tasks', (req, res) => {
   if (view === 'planner' && show_completed !== 'true') {
     query += " AND t.status != 'done'";
   } else if (view === 'tracker' && days) {
-    const daysAgo = moment().subtract(parseInt(days), 'days').format('YYYY-MM-DD HH:mm:ss');
-    query += " AND t.last_modified >= ?";
+    const daysAgo = moment().tz('America/New_York').subtract(parseInt(days), 'days').format('YYYY-MM-DD');
+    // Show tasks that were completed in the past X days OR are currently in progress or paused
+    query += " AND (t.completion_date >= ? OR t.status IN ('in_progress', 'paused'))";
     params.push(daysAgo);
   }
   
@@ -169,7 +170,7 @@ app.post('/api/tasks', async (req, res) => {
   
   // Check if due date is tomorrow and set priority to urgent
   let finalPriority = priority || 'normal';
-  if (due_date && moment(due_date).format('YYYY-MM-DD') === getNextBusinessDay()) {
+  if (due_date && moment(due_date).tz('America/New_York').format('YYYY-MM-DD') === getNextBusinessDay()) {
     finalPriority = 'urgent';
   }
   
@@ -223,12 +224,15 @@ app.patch('/api/tasks/:id/status', async (req, res) => {
     
     // Update relevant dates based on status change
     if (status === 'in_progress' && currentTask.status !== 'in_progress') {
-      updateFields.push('start_date = CURRENT_TIMESTAMP');
+      updateFields.push('start_date = ?');
+      updateParams.push(moment().tz('America/New_York').format('YYYY-MM-DD HH:mm:ss'));
     } else if (status === 'done' && currentTask.status !== 'done') {
-      updateFields.push('completion_date = CURRENT_TIMESTAMP');
+      updateFields.push('completion_date = ?');
+      updateParams.push(moment().tz('America/New_York').format('YYYY-MM-DD HH:mm:ss'));
     }
     
-    updateFields.push('last_modified = CURRENT_TIMESTAMP');
+    updateFields.push('last_modified = ?');
+    updateParams.push(moment().tz('America/New_York').format('YYYY-MM-DD HH:mm:ss'));
     
     // Add id to updateParams so the WHERE clause works
     updateParams.push(id);
@@ -318,7 +322,8 @@ app.put('/api/tasks/:id', async (req, res) => {
     }
     
     // Always update last_modified
-    updateFields.push('last_modified = CURRENT_TIMESTAMP');
+    updateFields.push('last_modified = ?');
+    updateParams.push(moment().tz('America/New_York').format('YYYY-MM-DD HH:mm:ss'));
     
     // Add id to updateParams for WHERE clause
     updateParams.push(id);

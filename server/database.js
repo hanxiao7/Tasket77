@@ -146,9 +146,11 @@ function initializeDatabase() {
 // Helper function to update task's last_modified timestamp
 function updateTaskModified(taskId) {
   return new Promise((resolve, reject) => {
+    const moment = require('moment-timezone');
+    const now = moment().tz('America/New_York').format('YYYY-MM-DD HH:mm:ss');
     db.run(
-      "UPDATE tasks SET last_modified = CURRENT_TIMESTAMP WHERE id = ?",
-      [taskId],
+      "UPDATE tasks SET last_modified = ? WHERE id = ?",
+      [now, taskId],
       function(err) {
         if (err) reject(err);
         else resolve(this.changes);
@@ -160,9 +162,11 @@ function updateTaskModified(taskId) {
 // Helper function to add task history entry
 function addTaskHistory(taskId, status, notes = null) {
   return new Promise((resolve, reject) => {
+    const moment = require('moment-timezone');
+    const now = moment().tz('America/New_York').format('YYYY-MM-DD HH:mm:ss');
     db.run(
-      "INSERT INTO task_history (task_id, status, notes) VALUES (?, ?, ?)",
-      [taskId, status, notes],
+      "INSERT INTO task_history (task_id, status, notes, action_date) VALUES (?, ?, ?, ?)",
+      [taskId, status, notes, now],
       function(err) {
         if (err) reject(err);
         else resolve(this.lastID);
