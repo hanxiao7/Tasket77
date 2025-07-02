@@ -40,7 +40,7 @@ const TaskList: React.FC<TaskListProps> = ({ viewMode, filters, onFiltersChange 
   const [isCreatingTag, setIsCreatingTag] = useState(false);
   const [showTagInput, setShowTagInput] = useState(false);
   const [editingDateTaskId, setEditingDateTaskId] = useState<number | null>(null);
-  const [editingDateType, setEditingDateType] = useState<'due_date' | 'start_date' | null>(null);
+  const [editingDateType, setEditingDateType] = useState<'due_date' | 'start_date' | 'completion_date' | null>(null);
   const [editingDateValue, setEditingDateValue] = useState('');
   const [editingTagTaskId, setEditingTagTaskId] = useState<number | null>(null);
   const [editingTagValue, setEditingTagValue] = useState('');
@@ -650,7 +650,7 @@ const TaskList: React.FC<TaskListProps> = ({ viewMode, filters, onFiltersChange 
     }
   };
 
-  const handleDateClick = (task: Task, dateType: 'due_date' | 'start_date') => {
+  const handleDateClick = (task: Task, dateType: 'due_date' | 'start_date' | 'completion_date') => {
     setEditingDateTaskId(task.id);
     setEditingDateType(dateType);
     setEditingDateValue(task[dateType] || '');
@@ -748,7 +748,7 @@ const TaskList: React.FC<TaskListProps> = ({ viewMode, filters, onFiltersChange 
         newMap.delete(taskId);
         return newMap;
       });
-    }, 500);
+    }, 800);
 
     // Store the timer
     setTooltipTimers(prev => new Map(prev).set(taskId, timer));
@@ -877,6 +877,7 @@ const TaskList: React.FC<TaskListProps> = ({ viewMode, filters, onFiltersChange 
                 <div className="flex-1">Task</div>
                 {viewMode === 'planner' && <div className="w-20 text-center">Tag</div>}
                 <div className="w-16 text-center">Start</div>
+                {viewMode === 'tracker' && <div className="w-16 text-center">Complete</div>}
                 <div className="w-16 text-center">Due</div>
               </div>
               
@@ -1100,6 +1101,39 @@ const TaskList: React.FC<TaskListProps> = ({ viewMode, filters, onFiltersChange 
                     )}
                   </div>
 
+                  {/* Completion date - only show in tracker view */}
+                  {viewMode === 'tracker' && (
+                    <div className="flex-shrink-0 w-16 text-center">
+                      {editingDateTaskId === task.id && editingDateType === 'completion_date' ? (
+                        <input
+                          ref={dateInputRef}
+                          type="date"
+                          value={editingDateValue}
+                          onChange={(e) => setEditingDateValue(e.target.value)}
+                          onKeyPress={(e) => handleDateKeyPress(e, task.id)}
+                          onBlur={() => handleDateSave(task.id)}
+                          className="text-xs border border-gray-300 rounded px-1 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500 w-full"
+                          title="Press Enter to save, Escape to cancel"
+                        />
+                      ) : (
+                        <div 
+                          className="flex items-center justify-center text-xs text-gray-500 cursor-pointer hover:text-blue-600 hover:bg-blue-50 px-1 py-1 rounded min-h-[20px]"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDateClick(task, 'completion_date');
+                          }}
+                          title="Click to set completion date"
+                        >
+                          {task.completion_date ? (
+                            <span>{formatDate(task.completion_date)}</span>
+                          ) : (
+                            <Calendar className="w-3 h-3" />
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   {/* Due date */}
                   <div className="flex-shrink-0 w-16 text-center">
                     {editingDateTaskId === task.id && editingDateType === 'due_date' ? (
@@ -1154,7 +1188,8 @@ const TaskList: React.FC<TaskListProps> = ({ viewMode, filters, onFiltersChange 
                 priority: updatedTask.priority,
                 status: updatedTask.status,
                 start_date: updatedTask.start_date,
-                due_date: updatedTask.due_date
+                due_date: updatedTask.due_date,
+                completion_date: updatedTask.completion_date
               });
               await loadData();
               setEditingTask(null);

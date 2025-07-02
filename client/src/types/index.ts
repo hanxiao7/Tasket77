@@ -48,6 +48,7 @@ export interface UpdateTaskData {
   status?: 'todo' | 'in_progress' | 'paused' | 'done';
   start_date?: string;
   due_date?: string;
+  completion_date?: string;
 }
 
 export interface TaskFilters {

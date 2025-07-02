@@ -257,7 +257,7 @@ app.patch('/api/tasks/:id/status', async (req, res) => {
 // Update task
 app.put('/api/tasks/:id', async (req, res) => {
   const { id } = req.params;
-  const { title, description, tag_id, priority, status, start_date, due_date } = req.body;
+  const { title, description, tag_id, priority, status, start_date, due_date, completion_date } = req.body;
   
   try {
     const currentTask = await new Promise((resolve, reject) => {
@@ -310,6 +310,11 @@ app.put('/api/tasks/:id', async (req, res) => {
     if (due_date !== undefined) {
       updateFields.push('due_date = ?');
       updateParams.push(due_date);
+    }
+    
+    if (completion_date !== undefined) {
+      updateFields.push('completion_date = ?');
+      updateParams.push(completion_date);
     }
     
     // Always update last_modified

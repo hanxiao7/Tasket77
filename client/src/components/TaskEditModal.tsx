@@ -17,7 +17,8 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, tags, onClose, onSa
     priority: task.priority,
     status: task.status,
     start_date: task.start_date || '',
-    due_date: task.due_date || ''
+    due_date: task.due_date || '',
+    completion_date: task.completion_date || ''
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -138,6 +139,18 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, tags, onClose, onSa
               type="date"
               value={formData.due_date}
               onChange={(e) => setFormData({ ...formData, due_date: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Completion Date
+            </label>
+            <input
+              type="date"
+              value={formData.completion_date}
+              onChange={(e) => setFormData({ ...formData, completion_date: e.target.value })}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
