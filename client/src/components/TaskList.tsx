@@ -12,7 +12,8 @@ import {
   Plus,
   ChevronDown,
   ChevronRight,
-  Tag as TagIcon
+  Tag as TagIcon,
+  Trash2
 } from 'lucide-react';
 import clsx from 'clsx';
 import TaskEditModal from './TaskEditModal';
@@ -49,6 +50,17 @@ const TaskList: React.FC<TaskListProps> = ({ viewMode, filters, onFiltersChange 
   const [tooltipTimers, setTooltipTimers] = useState<Map<number, NodeJS.Timeout>>(new Map());
   const [visibleTooltips, setVisibleTooltips] = useState<Set<number>>(new Set());
   const [titleTooltips, setTitleTooltips] = useState<Set<number>>(new Set());
+  const [contextMenu, setContextMenu] = useState<{
+    visible: boolean;
+    x: number;
+    y: number;
+    taskId: number | null;
+  }>({
+    visible: false,
+    x: 0,
+    y: 0,
+    taskId: null
+  });
   const titleRefs = useRef<Map<number, HTMLDivElement | null>>(new Map());
   const truncationTimeouts = useRef<Map<number, NodeJS.Timeout>>(new Map());
   const positionCache = useRef<Map<number, React.CSSProperties>>(new Map());
@@ -242,6 +254,20 @@ const TaskList: React.FC<TaskListProps> = ({ viewMode, filters, onFiltersChange 
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // Close context menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = () => {
+      if (contextMenu.visible) {
+        handleContextMenuClose();
+      }
+    };
+
+    document.addEventListener('click', handleClickOutside);
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+    };
+  }, [contextMenu.visible]);
 
   const handleStatusClick = async (task: Task) => {
     try {
@@ -754,6 +780,36 @@ const TaskList: React.FC<TaskListProps> = ({ viewMode, filters, onFiltersChange 
     setTooltipTimers(prev => new Map(prev).set(taskId, timer));
   };
 
+  // Context menu handlers
+  const handleContextMenu = (e: React.MouseEvent, taskId: number) => {
+    e.preventDefault();
+    setContextMenu({
+      visible: true,
+      x: e.clientX,
+      y: e.clientY,
+      taskId
+    });
+  };
+
+  const handleContextMenuClose = () => {
+    setContextMenu({
+      visible: false,
+      x: 0,
+      y: 0,
+      taskId: null
+    });
+  };
+
+  const handleDeleteTask = async (taskId: number) => {
+    try {
+      await apiService.deleteTask(taskId);
+      await loadData();
+      handleContextMenuClose();
+    } catch (error) {
+      console.error('Error deleting task:', error);
+    }
+  };
+
   if (loading) {
     return <div className="flex justify-center items-center h-64">Loading...</div>;
   }
@@ -888,6 +944,7 @@ const TaskList: React.FC<TaskListProps> = ({ viewMode, filters, onFiltersChange 
                   onMouseEnter={() => setHoveredTask(task.id)}
                   onMouseLeave={() => setHoveredTask(null)}
                   onDoubleClick={() => setEditingTask(task)}
+                  onContextMenu={(e) => handleContextMenu(e, task.id)}
                   draggable
                   onDragStart={(e) => handleDragStart(e, task)}
                 >
@@ -1198,6 +1255,27 @@ const TaskList: React.FC<TaskListProps> = ({ viewMode, filters, onFiltersChange 
             }
           }}
         />
+      )}
+
+      {/* Context Menu */}
+      {contextMenu.visible && contextMenu.taskId && (
+        <div
+          className="fixed bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-50"
+          style={{
+            left: contextMenu.x,
+            top: contextMenu.y,
+            minWidth: '150px'
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            onClick={() => handleDeleteTask(contextMenu.taskId!)}
+            className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center space-x-2"
+          >
+            <Trash2 className="w-4 h-4" />
+            <span>Delete Task</span>
+          </button>
+        </div>
       )}
     </div>
   );
