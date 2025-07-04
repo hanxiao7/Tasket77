@@ -71,7 +71,16 @@ async function updateParentTaskStatus(parentTaskId) {
 
 // Get all tags
 app.get('/api/tags', (req, res) => {
-  db.all("SELECT * FROM tags ORDER BY name", (err, rows) => {
+  const { include_hidden } = req.query;
+  let query = "SELECT * FROM tags";
+  
+  if (include_hidden !== 'true') {
+    query += " WHERE hidden = 0";
+  }
+  
+  query += " ORDER BY name";
+  
+  db.all(query, (err, rows) => {
     if (err) {
       res.status(500).json({ error: err.message });
       return;
@@ -88,12 +97,102 @@ app.post('/api/tags', (req, res) => {
     return;
   }
   
-  db.run("INSERT INTO tags (name) VALUES (?)", [name], function(err) {
+  db.run("INSERT INTO tags (name, hidden) VALUES (?, 0)", [name], function(err) {
     if (err) {
       res.status(500).json({ error: err.message });
       return;
     }
-    res.json({ id: this.lastID, name });
+    
+    // Get the complete tag data
+    db.get("SELECT * FROM tags WHERE id = ?", [this.lastID], (err, row) => {
+      if (err) {
+        res.status(500).json({ error: err.message });
+        return;
+      }
+      res.json(row);
+    });
+  });
+});
+
+// Update tag
+app.put('/api/tags/:id', (req, res) => {
+  const { id } = req.params;
+  const { name } = req.body;
+  
+  if (!name) {
+    res.status(400).json({ error: 'Tag name is required' });
+    return;
+  }
+  
+  db.run("UPDATE tags SET name = ? WHERE id = ?", [name, id], function(err) {
+    if (err) {
+      res.status(500).json({ error: err.message });
+      return;
+    }
+    if (this.changes === 0) {
+      res.status(404).json({ error: 'Tag not found' });
+      return;
+    }
+    
+    // Get the complete updated tag data
+    db.get("SELECT * FROM tags WHERE id = ?", [id], (err, row) => {
+      if (err) {
+        res.status(500).json({ error: err.message });
+        return;
+      }
+      res.json(row);
+    });
+  });
+});
+
+// Toggle tag hidden status
+app.patch('/api/tags/:id/toggle-hidden', (req, res) => {
+  const { id } = req.params;
+  
+  db.run("UPDATE tags SET hidden = CASE WHEN hidden = 0 THEN 1 ELSE 0 END WHERE id = ?", [id], function(err) {
+    if (err) {
+      res.status(500).json({ error: err.message });
+      return;
+    }
+    if (this.changes === 0) {
+      res.status(404).json({ error: 'Tag not found' });
+      return;
+    }
+    
+    // Get the updated tag
+    db.get("SELECT * FROM tags WHERE id = ?", [id], (err, row) => {
+      if (err) {
+        res.status(500).json({ error: err.message });
+        return;
+      }
+      res.json(row);
+    });
+  });
+});
+
+// Delete tag
+app.delete('/api/tags/:id', (req, res) => {
+  const { id } = req.params;
+  
+  // First, remove the tag from all tasks
+  db.run("UPDATE tasks SET tag_id = NULL WHERE tag_id = ?", [id], function(err) {
+    if (err) {
+      res.status(500).json({ error: err.message });
+      return;
+    }
+    
+    // Then delete the tag
+    db.run("DELETE FROM tags WHERE id = ?", [id], function(err) {
+      if (err) {
+        res.status(500).json({ error: err.message });
+        return;
+      }
+      if (this.changes === 0) {
+        res.status(404).json({ error: 'Tag not found' });
+        return;
+      }
+      res.json({ success: true });
+    });
   });
 });
 

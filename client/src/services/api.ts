@@ -21,14 +21,40 @@ class ApiService {
   }
 
   // Tags
-  async getTags(): Promise<Tag[]> {
-    return this.request<Tag[]>('/tags');
+  async getTags(includeHidden?: boolean): Promise<Tag[]> {
+    const params = new URLSearchParams();
+    if (includeHidden) {
+      params.append('include_hidden', 'true');
+    }
+    
+    const queryString = params.toString();
+    const endpoint = queryString ? `/tags?${queryString}` : '/tags';
+    return this.request<Tag[]>(endpoint);
   }
 
   async createTag(name: string): Promise<Tag> {
     return this.request<Tag>('/tags', {
       method: 'POST',
       body: JSON.stringify({ name }),
+    });
+  }
+
+  async updateTag(id: number, name: string): Promise<Tag> {
+    return this.request<Tag>(`/tags/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ name }),
+    });
+  }
+
+  async deleteTag(id: number): Promise<{ success: boolean }> {
+    return this.request<{ success: boolean }>(`/tags/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async toggleTagHidden(id: number): Promise<Tag> {
+    return this.request<Tag>(`/tags/${id}/toggle-hidden`, {
+      method: 'PATCH',
     });
   }
 

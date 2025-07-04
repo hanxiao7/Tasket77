@@ -1,6 +1,7 @@
 export interface Tag {
   id: number;
   name: string;
+  hidden: number;
   created_at: string;
   updated_at: string;
 }

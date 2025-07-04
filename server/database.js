@@ -27,13 +27,14 @@ function initializeDatabase() {
             CREATE TABLE IF NOT EXISTS tags (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           name TEXT NOT NULL UNIQUE,
+          hidden INTEGER DEFAULT 0,
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
       `);
 
           // Copy data from areas to tags
-          db.run("INSERT OR IGNORE INTO tags (id, name, created_at, updated_at) SELECT id, name, created_at, updated_at FROM areas");
+          db.run("INSERT OR IGNORE INTO tags (id, name, hidden, created_at, updated_at) SELECT id, name, 0, created_at, updated_at FROM areas");
           
           // Add tag_id column to tasks if it doesn't exist
           db.run("ALTER TABLE tasks ADD COLUMN tag_id INTEGER");
@@ -81,6 +82,7 @@ function initializeDatabase() {
             CREATE TABLE IF NOT EXISTS tags (
               id INTEGER PRIMARY KEY AUTOINCREMENT,
               name TEXT NOT NULL UNIQUE,
+              hidden INTEGER DEFAULT 0,
               created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
               updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )
@@ -138,6 +140,7 @@ function initializeDatabase() {
           resolve();
         }
         });
+
       });
     });
   });
