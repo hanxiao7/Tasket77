@@ -1094,7 +1094,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ v
               ) : (
                 <ChevronRight className="w-4 h-4" />
               )}
-              <span className="font-medium text-sm">{groupName}</span>
+              <span className="font-medium text-sm">{groupName === 'Unassigned' ? '' : groupName}</span>
               <span className="text-xs text-gray-500">({groupedTasks[groupName].length})</span>
             </div>
           </div>
@@ -1309,7 +1309,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ v
                         )}
                         title={editingTagTaskId === task.id ? "Press Enter to save, Escape to cancel" : "Click to edit tag"}
                       >
-                        <option value="">Unassigned</option>
+                        <option value=""></option>
                         {tags.map((tag) => (
                           <option key={tag.id} value={tag.id}>
                             {tag.name}
