@@ -42,6 +42,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ v
   const [newTagName, setNewTagName] = useState('');
   const [isCreatingTag, setIsCreatingTag] = useState(false);
   const [showTagInput, setShowTagInput] = useState(false);
+  const [selectedNewTaskTag, setSelectedNewTaskTag] = useState<string>('');
   const [editingDateTaskId, setEditingDateTaskId] = useState<number | null>(null);
   const [editingDateType, setEditingDateType] = useState<'due_date' | 'start_date' | 'completion_date' | null>(null);
   const [editingDateValue, setEditingDateValue] = useState('');
@@ -290,8 +291,6 @@ const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ v
     }
   }, [viewMode]);
 
-
-
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
@@ -482,14 +481,19 @@ const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ v
     
     try {
       setIsCreatingTask(true);
-      console.log(`➕ Creating new task: "${newTaskTitle.trim()}"`);
+      const selectedTagId = selectedNewTaskTag ? Number(selectedNewTaskTag) : undefined;
+      const selectedTagName = selectedTagId ? tags.find(t => t.id === selectedTagId)?.name : undefined;
+      
+      console.log(`➕ Creating new task: "${newTaskTitle.trim()}" with tag: ${selectedTagName || 'none'}`);
+      
       const newTask = await apiService.createTask({
         title: newTaskTitle.trim(),
-        tag_id: filters.tag_id
+        tag_id: selectedTagId
       });
+      
       setNewTaskTitle('');
       
-      // Add new task to local state
+      // Add new task to local state (server now returns complete task info)
       setTasks(prevTasks => {
         const updatedTasks = [...prevTasks, newTask as Task];
         return updatedTasks;
@@ -1020,9 +1024,20 @@ const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ v
           disabled={isCreatingTask}
           className="flex-1 bg-transparent border-none outline-none text-sm"
         />
+        <select
+          value={selectedNewTaskTag}
+          onChange={(e) => setSelectedNewTaskTag(e.target.value)}
+          className="text-xs rounded px-1 py-1 border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 w-40"
+          title="Select tag for new task"
+        >
+          <option value=""></option>
+          {tags.map((tag) => (
+            <option key={tag.id} value={tag.id}>
+              {tag.name}
+            </option>
+          ))}
+        </select>
       </div>
-
-
 
       {/* New tag input */}
       <div className="flex items-center space-x-2 p-2 bg-blue-50 rounded border">

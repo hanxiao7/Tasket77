@@ -194,7 +194,19 @@ app.post('/api/tasks', async (req, res) => {
       await updateParentTaskStatus(parent_task_id);
     }
     
-    res.json({ id: taskId, title, status: 'todo', priority: finalPriority });
+    // Get the complete task information including tag details
+    db.get(`
+      SELECT t.*, tg.name as tag_name
+      FROM tasks t
+      LEFT JOIN tags tg ON t.tag_id = tg.id
+      WHERE t.id = ?
+    `, [taskId], (err, row) => {
+      if (err) {
+        res.status(500).json({ error: err.message });
+        return;
+      }
+      res.json(row);
+    });
   });
 });
 
