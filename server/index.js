@@ -170,14 +170,17 @@ app.post('/api/tasks', async (req, res) => {
   
   // Check if due date is tomorrow and set priority to urgent
   let finalPriority = priority || 'normal';
-  if (due_date && moment(due_date).tz('America/New_York').format('YYYY-MM-DD') === getNextBusinessDay()) {
+  if (due_date && moment.tz(due_date, 'America/New_York').format('YYYY-MM-DD') === getNextBusinessDay()) {
     finalPriority = 'urgent';
   }
+  
+  // Parse the due date in New York timezone to ensure correct local date
+  const parsedDueDate = due_date ? moment.tz(due_date, 'America/New_York').startOf('day').format('YYYY-MM-DD HH:mm:ss') : null;
   
   db.run(`
     INSERT INTO tasks (title, description, tag_id, parent_task_id, priority, due_date)
     VALUES (?, ?, ?, ?, ?, ?)
-  `, [title, description, tag_id, parent_task_id, finalPriority, due_date], async function(err) {
+  `, [title, description, tag_id, parent_task_id, finalPriority, parsedDueDate], async function(err) {
     if (err) {
       res.status(500).json({ error: err.message });
       return;
@@ -308,17 +311,23 @@ app.put('/api/tasks/:id', async (req, res) => {
     
     if (start_date !== undefined) {
       updateFields.push('start_date = ?');
-      updateParams.push(start_date);
+      // Parse the date in New York timezone to ensure correct local date
+      const parsedStartDate = start_date ? moment.tz(start_date, 'America/New_York').startOf('day').format('YYYY-MM-DD HH:mm:ss') : null;
+      updateParams.push(parsedStartDate);
     }
     
     if (due_date !== undefined) {
       updateFields.push('due_date = ?');
-      updateParams.push(due_date);
+      // Parse the date in New York timezone to ensure correct local date
+      const parsedDueDate = due_date ? moment.tz(due_date, 'America/New_York').startOf('day').format('YYYY-MM-DD HH:mm:ss') : null;
+      updateParams.push(parsedDueDate);
     }
     
     if (completion_date !== undefined) {
       updateFields.push('completion_date = ?');
-      updateParams.push(completion_date);
+      // Parse the date in New York timezone to ensure correct local date
+      const parsedCompletionDate = completion_date ? moment.tz(completion_date, 'America/New_York').startOf('day').format('YYYY-MM-DD HH:mm:ss') : null;
+      updateParams.push(parsedCompletionDate);
     }
     
     // Always update last_modified
