@@ -153,7 +153,7 @@ function App() {
             <li>• Double-click status button to mark as Done</li>
             <li>• Click task title to edit it inline</li>
             <li>• Click start date or due date to set/edit dates</li>
-            <li>• Double-click task to edit all details including status</li>
+            <li>• Right-click task for Edit Task or Delete options</li>
             <li>• Hover over tasks to see descriptions</li>
             <li>• Type in the input field and press Enter to create new tasks</li>
             <li>• Click "+ Create new tag" to add new tags for organizing tasks</li>

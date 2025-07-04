@@ -1136,7 +1136,6 @@ const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ v
                   className="flex items-center space-x-3 p-3 hover:bg-gray-50 relative"
                   onMouseEnter={() => setHoveredTask(task.id)}
                   onMouseLeave={() => setHoveredTask(null)}
-                  onDoubleClick={() => setEditingTask(task)}
                   onContextMenu={(e) => handleContextMenu(e, task.id)}
                   draggable
                   onDragStart={(e) => handleDragStart(e, task)}
@@ -1461,6 +1460,21 @@ const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ v
           }}
           onClick={(e) => e.stopPropagation()}
         >
+          <button
+            onClick={() => {
+              const task = tasks.find(t => t.id === contextMenu.taskId);
+              if (task) {
+                setEditingTask(task);
+              }
+              handleContextMenuClose();
+            }}
+            className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center space-x-2"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            </svg>
+            <span>Edit Task</span>
+          </button>
           <button
             onClick={() => handleDeleteTask(contextMenu.taskId!)}
             className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center space-x-2"
