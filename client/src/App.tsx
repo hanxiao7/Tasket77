@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { TaskFilters, ViewMode } from './types';
 import TaskList from './components/TaskList';
-import { Download } from 'lucide-react';
+import { Download, ArrowUpDown } from 'lucide-react';
 
 function App() {
   const [viewMode, setViewMode] = useState<ViewMode>('planner');
@@ -10,9 +10,17 @@ function App() {
     show_completed: false,
     days: 7
   });
+  const [isSorting, setIsSorting] = useState(false);
+  const taskListRef = useRef<{ sortTasks: () => void }>(null);
 
   const handleFiltersChange = (newFilters: TaskFilters) => {
     setFilters(newFilters);
+  };
+
+  const handleSort = () => {
+    setIsSorting(true);
+    taskListRef.current?.sortTasks();
+    setTimeout(() => setIsSorting(false), 500);
   };
 
   const handleExport = async () => {
@@ -105,6 +113,16 @@ function App() {
             )}
 
             <button
+              onClick={handleSort}
+              disabled={isSorting}
+              className="flex items-center space-x-2 px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-white rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Sort tasks"
+            >
+              <ArrowUpDown className="w-4 h-4" />
+              <span>{isSorting ? 'Sorting...' : 'Sort Tasks'}</span>
+            </button>
+
+            <button
               onClick={handleExport}
               className="flex items-center space-x-2 px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-white rounded-md transition-colors"
               title="Export tasks"
@@ -118,9 +136,12 @@ function App() {
         {/* Task List */}
         <div className="bg-white rounded-lg shadow-sm border">
           <TaskList
+            ref={taskListRef}
             viewMode={viewMode}
             filters={filters}
             onFiltersChange={handleFiltersChange}
+            onSort={handleSort}
+            isSorting={isSorting}
           />
         </div>
 

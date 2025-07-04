@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useImperativeHandle } from 'react';
 import { Task, TaskFilters, Tag } from '../types';
 import { apiService } from '../services/api';
 import { format } from 'date-fns';
@@ -24,9 +24,11 @@ interface TaskListProps {
   viewMode: 'planner' | 'tracker';
   filters: TaskFilters;
   onFiltersChange: (filters: TaskFilters) => void;
+  onSort: () => void;
+  isSorting: boolean;
 }
 
-const TaskList: React.FC<TaskListProps> = ({ viewMode, filters, onFiltersChange }) => {
+const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ viewMode, filters, onFiltersChange, onSort, isSorting }, ref) => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
   const [loading, setLoading] = useState(true);
@@ -215,6 +217,81 @@ const TaskList: React.FC<TaskListProps> = ({ viewMode, filters, onFiltersChange 
     return 400; // Fallback width
   }, []);
 
+  // Manual sorting function that applies the same logic as the backend
+  const sortTasks = useCallback((tasksToSort: Task[]) => {
+    if (viewMode === 'planner') {
+      return [...tasksToSort].sort((a, b) => {
+        // First sort by status: in_progress/paused first, then todo, then done
+        const getStatusOrder = (status: Task['status']) => {
+          if (status === 'in_progress' || status === 'paused') return 1;
+          if (status === 'todo') return 3;
+          if (status === 'done') return 4;
+          return 5;
+        };
+        
+        const statusOrderA = getStatusOrder(a.status);
+        const statusOrderB = getStatusOrder(b.status);
+        
+        if (statusOrderA !== statusOrderB) {
+          return statusOrderA - statusOrderB;
+        }
+        
+        // Then sort by priority: urgent, high, normal, low
+        const getPriorityOrder = (priority: Task['priority']) => {
+          if (priority === 'urgent') return 1;
+          if (priority === 'high') return 2;
+          if (priority === 'normal') return 3;
+          if (priority === 'low') return 4;
+          return 5;
+        };
+        
+        const priorityOrderA = getPriorityOrder(a.priority);
+        const priorityOrderB = getPriorityOrder(b.priority);
+        
+        if (priorityOrderA !== priorityOrderB) {
+          return priorityOrderA - priorityOrderB;
+        }
+        
+        // Finally sort by title alphabetically
+        return a.title.localeCompare(b.title);
+      });
+    } else {
+      // Tracker view: sort by tag name, then status, then title
+      return [...tasksToSort].sort((a, b) => {
+        // First sort by tag name
+        const tagA = a.tag_name || 'Unassigned';
+        const tagB = b.tag_name || 'Unassigned';
+        
+        if (tagA !== tagB) {
+          if (tagA === 'Unassigned') return -1;
+          if (tagB === 'Unassigned') return 1;
+          return tagA.localeCompare(tagB);
+        }
+        
+        // Then sort by status: done first, then in_progress, paused, todo
+        const getStatusOrder = (status: Task['status']) => {
+          if (status === 'done') return 1;
+          if (status === 'in_progress') return 2;
+          if (status === 'paused') return 3;
+          if (status === 'todo') return 4;
+          return 5;
+        };
+        
+        const statusOrderA = getStatusOrder(a.status);
+        const statusOrderB = getStatusOrder(b.status);
+        
+        if (statusOrderA !== statusOrderB) {
+          return statusOrderA - statusOrderB;
+        }
+        
+        // Finally sort by title alphabetically
+        return a.title.localeCompare(b.title);
+      });
+    }
+  }, [viewMode]);
+
+
+
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
@@ -222,7 +299,10 @@ const TaskList: React.FC<TaskListProps> = ({ viewMode, filters, onFiltersChange 
         apiService.getTasks({ ...filters, view: viewMode }),
         apiService.getTags()
       ]);
-      setTasks(tasksData);
+      
+      // Apply sorting to the loaded data
+      const sortedTasks = sortTasks(tasksData);
+      setTasks(sortedTasks);
       setTags(tagsData);
       console.log(`📋 Loaded ${tasksData.length} tasks and ${tagsData.length} tags`);
       
@@ -249,7 +329,7 @@ const TaskList: React.FC<TaskListProps> = ({ viewMode, filters, onFiltersChange 
     } finally {
       setLoading(false);
     }
-  }, [filters, viewMode]);
+  }, [filters, viewMode, sortTasks]);
 
   useEffect(() => {
     loadData();
@@ -292,7 +372,20 @@ const TaskList: React.FC<TaskListProps> = ({ viewMode, filters, onFiltersChange 
       
       console.log(`🔄 Updating task "${task.title}" status: ${task.status} → ${newStatus}`);
       await apiService.updateTaskStatus(task.id, newStatus);
-      await loadData();
+      
+      // Update local state instead of reloading
+      setTasks(prevTasks => {
+        const updatedTasks = prevTasks.map(t => {
+          if (t.id === task.id) {
+            return {
+              ...t,
+              status: newStatus
+            } as Task;
+          }
+          return t;
+        });
+        return updatedTasks;
+      });
     } catch (error) {
       console.error('Error updating task status:', error);
     }
@@ -302,7 +395,14 @@ const TaskList: React.FC<TaskListProps> = ({ viewMode, filters, onFiltersChange 
     try {
       console.log(`✅ Marking task "${task.title}" as done`);
       await apiService.updateTaskStatus(task.id, 'done');
-      await loadData();
+      
+      // Update local state instead of reloading
+      setTasks(prevTasks => {
+        const updatedTasks = prevTasks.map(t => 
+          t.id === task.id ? { ...t, status: 'done' } as Task : t
+        );
+        return updatedTasks;
+      });
     } catch (error) {
       console.error('Error completing task:', error);
     }
@@ -331,7 +431,14 @@ const TaskList: React.FC<TaskListProps> = ({ viewMode, filters, onFiltersChange 
       
       console.log(`🚩 Updating task "${task.title}" priority: ${task.priority} → ${newPriority}`);
       await apiService.updateTask(task.id, { priority: newPriority });
-      await loadData();
+      
+      // Update local state instead of reloading
+      setTasks(prevTasks => {
+        const updatedTasks = prevTasks.map(t => 
+          t.id === task.id ? { ...t, priority: newPriority } as Task : t
+        );
+        return updatedTasks;
+      });
     } catch (error) {
       console.error('Error updating task priority:', error);
     }
@@ -341,7 +448,14 @@ const TaskList: React.FC<TaskListProps> = ({ viewMode, filters, onFiltersChange 
     try {
       console.log(`🚩 Updating task priority: "${editingPriorityValue}"`);
       await apiService.updateTask(taskId, { priority: editingPriorityValue });
-      await loadData();
+      
+      // Update local state instead of reloading
+      setTasks(prevTasks => {
+        const updatedTasks = prevTasks.map(t => 
+          t.id === taskId ? { ...t, priority: editingPriorityValue } as Task : t
+        );
+        return updatedTasks;
+      });
     } catch (error) {
       console.error('Error updating task priority:', error);
     } finally {
@@ -369,12 +483,17 @@ const TaskList: React.FC<TaskListProps> = ({ viewMode, filters, onFiltersChange 
     try {
       setIsCreatingTask(true);
       console.log(`➕ Creating new task: "${newTaskTitle.trim()}"`);
-      await apiService.createTask({
+      const newTask = await apiService.createTask({
         title: newTaskTitle.trim(),
         tag_id: filters.tag_id
       });
       setNewTaskTitle('');
-      await loadData();
+      
+      // Add new task to local state
+      setTasks(prevTasks => {
+        const updatedTasks = [...prevTasks, newTask as Task];
+        return updatedTasks;
+      });
     } catch (error) {
       console.error('Error creating task:', error);
     } finally {
@@ -572,6 +691,14 @@ const TaskList: React.FC<TaskListProps> = ({ viewMode, filters, onFiltersChange 
         
         console.log(`📦 Moving task "${task.title}" to status: ${task.status} → ${newStatus}`);
         await apiService.updateTaskStatus(taskId, newStatus);
+        
+        // Update local state instead of reloading
+        setTasks(prevTasks => {
+          const updatedTasks = prevTasks.map(t => 
+            t.id === taskId ? { ...t, status: newStatus } as Task : t
+          );
+          return updatedTasks;
+        });
       } else {
         // In tracker view, we're moving between tag groups
         const tagId = targetId === -1 ? undefined : targetId;
@@ -579,9 +706,15 @@ const TaskList: React.FC<TaskListProps> = ({ viewMode, filters, onFiltersChange 
         
         console.log(`📦 Moving task "${task.title}" to tag: ${task.tag_name || 'Unassigned'} → ${targetTagName}`);
         await apiService.updateTask(taskId, { tag_id: tagId });
+        
+        // Update local state instead of reloading
+        setTasks(prevTasks => {
+          const updatedTasks = prevTasks.map(t => 
+            t.id === taskId ? { ...t, tag_id: tagId, tag_name: targetTagName } as Task : t
+          );
+          return updatedTasks;
+        });
       }
-      
-      await loadData();
     } catch (error) {
       console.error('Error updating task:', error);
     }
@@ -603,7 +736,14 @@ const TaskList: React.FC<TaskListProps> = ({ viewMode, filters, onFiltersChange 
     try {
       console.log(`✏️ Updating task title: "${editingTitleValue.trim()}"`);
       await apiService.updateTask(taskId, { title: editingTitleValue.trim() });
-      await loadData();
+      
+      // Update local state instead of reloading
+      setTasks(prevTasks => {
+        const updatedTasks = prevTasks.map(t => 
+          t.id === taskId ? { ...t, title: editingTitleValue.trim() } as Task : t
+        );
+        return updatedTasks;
+      });
     } catch (error) {
       console.error('Error updating task title:', error);
     } finally {
@@ -631,10 +771,12 @@ const TaskList: React.FC<TaskListProps> = ({ viewMode, filters, onFiltersChange 
     try {
       setIsCreatingTag(true);
       console.log(`➕ Creating new tag: "${newTagName.trim()}"`);
-      await apiService.createTag(newTagName.trim());
+      const newTag = await apiService.createTag(newTagName.trim());
       setNewTagName('');
       setShowTagInput(false);
-      await loadData();
+      
+      // Add new tag to local state
+      setTags(prevTags => [...prevTags, newTag]);
     } catch (error) {
       console.error('Error creating tag:', error);
     } finally {
@@ -648,7 +790,21 @@ const TaskList: React.FC<TaskListProps> = ({ viewMode, filters, onFiltersChange 
       const tagName = editingTagValue ? tags.find(t => t.id === Number(editingTagValue))?.name || 'Unknown' : 'Unassigned';
       console.log(`🏷️ Updating task tag: "${tagName}"`);
       await apiService.updateTask(taskId, { tag_id: tagId });
-      await loadData();
+      
+      // Update local state instead of reloading
+      setTasks(prevTasks => {
+        const updatedTasks = prevTasks.map(t => {
+          if (t.id === taskId) {
+            return {
+              ...t,
+              tag_id: tagId,
+              tag_name: tagName
+            } as Task;
+          }
+          return t;
+        });
+        return updatedTasks;
+      });
     } catch (error) {
       console.error('Error updating task tag:', error);
     } finally {
@@ -693,7 +849,20 @@ const TaskList: React.FC<TaskListProps> = ({ viewMode, filters, onFiltersChange 
     try {
       console.log(`📅 Updating task ${editingDateType}: "${editingDateValue}"`);
       await apiService.updateTask(taskId, { [editingDateType]: editingDateValue || null });
-      await loadData();
+      
+      // Update local state instead of reloading
+      setTasks(prevTasks => {
+        const updatedTasks = prevTasks.map(t => {
+          if (t.id === taskId) {
+            return {
+              ...t,
+              [editingDateType]: editingDateValue || null
+            } as Task;
+          }
+          return t;
+        });
+        return updatedTasks;
+      });
     } catch (error) {
       console.error('Error updating task date:', error);
     } finally {
@@ -730,7 +899,14 @@ const TaskList: React.FC<TaskListProps> = ({ viewMode, filters, onFiltersChange 
     try {
       console.log(`📝 Updating task description: "${description}"`);
       await apiService.updateTask(taskId, { description });
-      await loadData();
+      
+      // Update local state instead of reloading
+      setTasks(prevTasks => {
+        const updatedTasks = prevTasks.map(t => 
+          t.id === taskId ? { ...t, description } as Task : t
+        );
+        return updatedTasks;
+      });
     } catch (error) {
       console.error('Error updating task description:', error);
       throw error;
@@ -803,12 +979,27 @@ const TaskList: React.FC<TaskListProps> = ({ viewMode, filters, onFiltersChange 
   const handleDeleteTask = async (taskId: number) => {
     try {
       await apiService.deleteTask(taskId);
-      await loadData();
+      
+      // Update local state instead of reloading
+      setTasks(prevTasks => {
+        const updatedTasks = prevTasks.filter(t => t.id !== taskId);
+        return updatedTasks;
+      });
       handleContextMenuClose();
     } catch (error) {
       console.error('Error deleting task:', error);
     }
   };
+
+  // Expose sort function to parent component
+  useImperativeHandle(ref, () => ({
+    sortTasks: () => {
+      console.log('🔄 Manually sorting tasks...');
+      const sortedTasks = sortTasks(tasks);
+      setTasks(sortedTasks);
+      console.log('✅ Tasks sorted successfully');
+    }
+  }), [tasks, sortTasks]);
 
   if (loading) {
     return <div className="flex justify-center items-center h-64">Loading...</div>;
@@ -830,6 +1021,8 @@ const TaskList: React.FC<TaskListProps> = ({ viewMode, filters, onFiltersChange 
           className="flex-1 bg-transparent border-none outline-none text-sm"
         />
       </div>
+
+
 
       {/* New tag input */}
       <div className="flex items-center space-x-2 p-2 bg-blue-50 rounded border">
@@ -1279,6 +1472,6 @@ const TaskList: React.FC<TaskListProps> = ({ viewMode, filters, onFiltersChange 
       )}
     </div>
   );
-};
+});
 
 export default TaskList; 
