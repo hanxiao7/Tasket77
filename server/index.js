@@ -2,7 +2,10 @@ const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const moment = require('moment-timezone');
+const fs = require('fs');
+const path = require('path');
 const { db, initializeDatabase, updateTaskModified, addTaskHistory } = require('./database');
+const BackupManager = require('./backup');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -12,12 +15,33 @@ app.use(cors());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
-// Initialize database on startup
-initializeDatabase().then(() => {
-  console.log('Database initialized successfully');
-}).catch(err => {
-  console.error('Database initialization failed:', err);
-});
+// Initialize database and perform automatic backup on startup
+async function initializeServer() {
+  try {
+    // Initialize database first
+    await initializeDatabase();
+    console.log('Database initialized successfully');
+    
+    // Perform automatic backup with change detection
+    const backupManager = new BackupManager();
+    const backupResult = await backupManager.performAutomaticBackup();
+    
+    if (backupResult.success) {
+      if (backupResult.skipped) {
+        console.log(`Backup skipped: ${backupResult.reason}`);
+      } else {
+        console.log(`Backup completed: ${backupResult.reason}`);
+      }
+    } else {
+      console.error('Backup failed:', backupResult.error);
+    }
+    
+  } catch (err) {
+    console.error('Server initialization failed:', err);
+  }
+}
+
+initializeServer();
 
 // Helper function to get next business day
 function getNextBusinessDay() {
@@ -565,6 +589,79 @@ app.get('/api/export', (req, res) => {
     res.setHeader('Content-Disposition', 'attachment; filename=tasks-export.json');
     res.json(rows);
   });
+});
+
+// Backup management endpoints
+
+// Get backup statistics
+app.get('/api/backup/stats', (req, res) => {
+  try {
+    const backupManager = new BackupManager();
+    const stats = backupManager.getBackupStats();
+    res.json(stats);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Create manual backup
+app.post('/api/backup/create', async (req, res) => {
+  try {
+    const backupManager = new BackupManager();
+    const result = await backupManager.performAutomaticBackup();
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// List all backups
+app.get('/api/backup/list', (req, res) => {
+  try {
+    const fs = require('fs');
+    const path = require('path');
+    const backupDir = path.join(__dirname, 'backups');
+    
+    if (!fs.existsSync(backupDir)) {
+      res.json([]);
+      return;
+    }
+    
+    const files = fs.readdirSync(backupDir)
+      .filter(file => file.startsWith('tasks-backup-') && file.endsWith('.db'))
+      .map(file => {
+        const filePath = path.join(backupDir, file);
+        const stats = fs.statSync(filePath);
+        return {
+          name: file,
+          size: stats.size,
+          created: stats.birthtime,
+          modified: stats.mtime
+        };
+      })
+      .sort((a, b) => new Date(b.modified) - new Date(a.modified));
+    
+    res.json(files);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Download a specific backup
+app.get('/api/backup/download/:filename', (req, res) => {
+  try {
+    const { filename } = req.params;
+    const backupPath = path.join(__dirname, 'backups', filename);
+    
+    if (!fs.existsSync(backupPath)) {
+      res.status(404).json({ error: 'Backup file not found' });
+      return;
+    }
+    
+    res.download(backupPath);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
 app.listen(PORT, () => {

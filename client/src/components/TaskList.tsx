@@ -13,12 +13,14 @@ import {
   ChevronDown,
   ChevronRight,
   Tag as TagIcon,
-  Trash2
+  Trash2,
+  Edit3
 } from 'lucide-react';
 import clsx from 'clsx';
 import TaskEditModal from './TaskEditModal';
 import TaskTooltip from './TaskTooltip';
 import TitleTooltip from './TitleTooltip';
+import TagEditModal from './TagEditModal';
 
 interface TaskListProps {
   viewMode: 'planner' | 'tracker';
@@ -33,6 +35,8 @@ const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ v
   const [tags, setTags] = useState<Tag[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [showTagEditModal, setShowTagEditModal] = useState(false);
+  const [showNewTaskTagDropdown, setShowNewTaskTagDropdown] = useState(false);
   const [hoveredTask, setHoveredTask] = useState<number | null>(null);
   const [expandedTags, setExpandedTags] = useState<Set<number>>(new Set());
   const [newTaskTitle, setNewTaskTitle] = useState('');
@@ -340,13 +344,28 @@ const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ v
       if (contextMenu.visible) {
         handleContextMenuClose();
       }
+      // Also close tag dropdown when clicking outside
+      if (editingTagTaskId !== null) {
+        console.log('Closing tag dropdown due to outside click');
+        setEditingTagTaskId(null);
+        setEditingTagValue('');
+      }
+      // Also close new task tag dropdown when clicking outside
+      if (showNewTaskTagDropdown) {
+        setShowNewTaskTagDropdown(false);
+      }
     };
 
     document.addEventListener('click', handleClickOutside);
     return () => {
       document.removeEventListener('click', handleClickOutside);
     };
-  }, [contextMenu.visible]);
+  }, [contextMenu.visible, editingTagTaskId]);
+
+  // Debug editingTagTaskId changes
+  useEffect(() => {
+    console.log('editingTagTaskId changed to:', editingTagTaskId);
+  }, [editingTagTaskId]);
 
   const handleStatusClick = async (task: Task) => {
     try {
@@ -589,6 +608,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ v
 
   // Use different grouping based on view mode
   const groupedTasks = viewMode === 'planner' ? groupTasksByStatus() : groupTasksByTag();
+
 
   // Sort status groups for planner view
   const sortedStatusNames = viewMode === 'planner' ? 
@@ -1024,70 +1044,64 @@ const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ v
           disabled={isCreatingTask}
           className="flex-1 bg-transparent border-none outline-none text-sm"
         />
-        <select
-          value={selectedNewTaskTag}
-          onChange={(e) => setSelectedNewTaskTag(e.target.value)}
-          className="text-xs rounded px-1 py-1 border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 w-40"
-          title="Select tag for new task"
-        >
-          <option value=""></option>
-          {tags.map((tag) => (
-            <option key={tag.id} value={tag.id}>
-              {tag.name}
-            </option>
-          ))}
-        </select>
+        <div className="relative">
+          <div
+            className="text-xs rounded px-1 py-1 border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 w-40 cursor-pointer bg-white"
+            onClick={() => setShowNewTaskTagDropdown(!showNewTaskTagDropdown)}
+            title="Select tag for new task"
+          >
+            {selectedNewTaskTag ? tags.find(t => t.id.toString() === selectedNewTaskTag)?.name || '' : 'Select tag'}
+          </div>
+          
+          {/* New task tag dropdown menu */}
+          {showNewTaskTagDropdown && (
+            <div 
+              className="absolute top-full left-0 right-0 bg-white border border-gray-200 rounded-lg shadow-lg z-50 mt-1"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="max-h-40 overflow-y-auto">
+                <div 
+                  className="px-2 py-1 text-xs text-gray-500 hover:bg-gray-50 cursor-pointer border-b"
+                  onClick={() => {
+                    setSelectedNewTaskTag('');
+                    setShowNewTaskTagDropdown(false);
+                  }}
+                >
+                  No tag
+                </div>
+                {tags.filter(tag => !tag.hidden).map((tag) => (
+                  <div
+                    key={tag.id}
+                    className={clsx(
+                      "px-2 py-1 text-xs cursor-pointer hover:bg-blue-50",
+                      selectedNewTaskTag === tag.id.toString() && "bg-blue-100"
+                    )}
+                    onClick={() => {
+                      setSelectedNewTaskTag(tag.id.toString());
+                      setShowNewTaskTagDropdown(false);
+                    }}
+                  >
+                    {tag.name}
+                  </div>
+                ))}
+                <div className="border-t border-gray-200">
+                  <div 
+                    className="px-2 py-1 text-xs text-blue-600 hover:bg-blue-50 cursor-pointer"
+                    onClick={() => {
+                      setShowTagEditModal(true);
+                      setShowNewTaskTagDropdown(false);
+                    }}
+                  >
+                    Edit tags
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* New tag input */}
-      <div className="flex items-center space-x-2 p-2 bg-blue-50 rounded border">
-        <TagIcon className="w-4 h-4 text-blue-400" />
-        {showTagInput ? (
-          <>
-            <input
-              ref={newTagInputRef}
-              type="text"
-              placeholder="Enter tag name..."
-              value={newTagName}
-              onChange={(e) => setNewTagName(e.target.value)}
-              onKeyPress={handleCreateTagKeyPress}
-              disabled={isCreatingTag}
-              className="flex-1 bg-transparent border-none outline-none text-sm"
-              onBlur={() => {
-                if (!newTagName.trim()) {
-                  setShowTagInput(false);
-                }
-              }}
-            />
-            <button
-              onClick={handleCreateTag}
-              disabled={isCreatingTag || !newTagName.trim()}
-              className="px-2 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
-            >
-              {isCreatingTag ? 'Creating...' : 'Create'}
-            </button>
-            <button
-              onClick={() => {
-                setShowTagInput(false);
-                setNewTagName('');
-              }}
-              className="px-2 py-1 text-xs text-gray-500 hover:text-gray-700"
-            >
-              Cancel
-            </button>
-          </>
-        ) : (
-          <button
-            onClick={() => {
-              setShowTagInput(true);
-              setTimeout(() => newTagInputRef.current?.focus(), 10);
-            }}
-            className="flex-1 text-left text-sm text-blue-600 hover:text-blue-800"
-          >
-            + Create new tag
-          </button>
-        )}
-      </div>
+
 
       {/* Tasks by status/tag */}
       {sortedStatusNames.map((groupName) => (
@@ -1287,50 +1301,73 @@ const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ v
 
                   {/* Tag */}
                   {viewMode === 'planner' && (
-                    <div className="flex-shrink-0 w-20 text-center">
-                      <select
-                        ref={editingTagTaskId === task.id ? tagInputRef : undefined}
-                        value={editingTagTaskId === task.id ? editingTagValue : (task.tag_id?.toString() || '')}
-                        onChange={(e) => {
-                          if (editingTagTaskId === task.id) {
-                            setEditingTagValue(e.target.value);
-                          } else {
-                            // If not in editing mode, start editing and set the value
-                            setEditingTagTaskId(task.id);
-                            setEditingTagValue(e.target.value);
-                          }
-                        }}
-                        onKeyPress={(e) => {
-                          if (editingTagTaskId === task.id) {
-                            handleTagKeyPress(e, task.id);
-                          }
-                        }}
-                        onBlur={() => {
-                          if (editingTagTaskId === task.id) {
-                            handleTagSave(task.id);
-                          }
-                        }}
-                        onFocus={() => {
+                    <div className="flex-shrink-0 w-20 text-center relative">
+                      <div
+                        className={clsx(
+                          "text-xs rounded px-1 py-1 w-full transition-all cursor-pointer",
+                          editingTagTaskId === task.id 
+                            ? "border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500" 
+                            : "border border-transparent hover:border-gray-300 hover:bg-blue-50 text-sm font-medium"
+                        )}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          console.log('Tag clicked:', task.id, 'Current editing:', editingTagTaskId);
                           if (editingTagTaskId !== task.id) {
                             setEditingTagTaskId(task.id);
                             setEditingTagValue(task.tag_id?.toString() || '');
+                            console.log('Setting editing tag to:', task.id);
                           }
                         }}
-                        className={clsx(
-                          "text-xs rounded px-1 py-1 w-full transition-all",
-                          editingTagTaskId === task.id 
-                            ? "border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500" 
-                            : "border border-transparent hover:border-gray-300 hover:bg-blue-50 cursor-pointer text-sm font-medium"
-                        )}
-                        title={editingTagTaskId === task.id ? "Press Enter to save, Escape to cancel" : "Click to edit tag"}
+                        title="Click to edit tag"
                       >
-                        <option value=""></option>
-                        {tags.map((tag) => (
-                          <option key={tag.id} value={tag.id}>
-                            {tag.name}
-                          </option>
-                        ))}
-                      </select>
+                        {task.tag_name || ''}
+                      </div>
+                      
+                      {/* Tag dropdown menu */}
+                      {editingTagTaskId === task.id && (
+                        <div 
+                          className="absolute top-full left-0 right-0 bg-white border border-gray-200 rounded-lg shadow-lg z-50 mt-1"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <div className="max-h-40 overflow-y-auto">
+                            <div 
+                              className="px-2 py-1 text-xs text-gray-500 hover:bg-gray-50 cursor-pointer border-b"
+                              onClick={() => {
+                                setEditingTagValue('');
+                                handleTagSave(task.id);
+                              }}
+                            >
+                              Unassigned
+                            </div>
+                            {tags.filter(tag => !tag.hidden).map((tag) => (
+                              <div
+                                key={tag.id}
+                                className={clsx(
+                                  "px-2 py-1 text-xs cursor-pointer hover:bg-blue-50",
+                                  editingTagValue === tag.id.toString() && "bg-blue-100"
+                                )}
+                                onClick={() => {
+                                  setEditingTagValue(tag.id.toString());
+                                  handleTagSave(task.id);
+                                }}
+                              >
+                                {tag.name}
+                              </div>
+                            ))}
+                            <div className="border-t border-gray-200">
+                              <div 
+                                className="px-2 py-1 text-xs text-blue-600 hover:bg-blue-50 cursor-pointer"
+                                onClick={() => {
+                                  setShowTagEditModal(true);
+                                  setEditingTagTaskId(null);
+                                }}
+                              >
+                                Edit tags
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -1461,6 +1498,15 @@ const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ v
               console.error('Error updating task:', error);
             }
           }}
+        />
+      )}
+
+      {/* Tag Edit Modal */}
+      {showTagEditModal && (
+        <TagEditModal
+          tags={tags}
+          onClose={() => setShowTagEditModal(false)}
+          onTagsUpdate={loadData}
         />
       )}
 

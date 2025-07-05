@@ -9,25 +9,39 @@ A minimal, fast-to-use task management tool designed for handling many small tas
 - **Quick task creation** by typing at the end of the list
 - **One-click status cycling**: To Do → In Progress → Paused
 - **Double-click to complete** tasks
-- **Hover tooltips** for task descriptions
+- **Smart tooltip system** for task descriptions and truncated titles
 - **Double-click to edit** task details in a modal
+- **Drag and drop** task reordering
+
+### Enhanced UI/UX
+- **Intelligent title tooltips** that show only truncated text, positioned below titles
+- **Dynamic tooltip positioning** that adapts to available space
+- **Context menus** for quick task actions
+- **Inline editing** for titles, dates, priorities, and tags
+- **Auto-save functionality** for descriptions and other fields
+- **Keyboard shortcuts** (Ctrl+Enter to save, Esc to cancel)
+- **Responsive design** with Tailwind CSS
 
 ### Task Organization
-- **Areas/Categories** for organizing tasks by subject or project
+- **Tag-based categorization** for organizing tasks by subject or project
 - **Sub-tasks support** with automatic parent status updates
 - **Priority levels**: Urgent (red), High (yellow), Normal (green), Low (gray)
 - **Automatic urgent priority** for tasks due tomorrow
+- **Date tracking** for due dates, start dates, and completion dates
 
 ### Views
 - **Planner View**: Focus on active tasks, hide completed by default
 - **Tracker View**: Work log showing tasks worked on in the last X days
 - **Flexible sorting** by status, priority, and last modified date
+- **Collapsible sections** for better organization
 
 ### Data Management
 - **Automatic date tracking**: start, pause, resume, completion dates
 - **Task history** for all status changes
 - **SQLite database** for reliable data storage
+- **Automatic backup system** with change detection
 - **Export functionality** for reporting and backups
+- **Real-time updates** with optimistic UI updates
 
 ## Data Structure
 
@@ -113,18 +127,39 @@ This will start:
 ### Task Management
 - **Create**: Type in the input field and press Enter
 - **Edit**: Double-click any task to open the edit modal
+- **Inline Edit**: Click on title, date, priority, or tag fields to edit directly
 - **Status Change**: Click status button to cycle through states
 - **Complete**: Double-click status button to mark as done
 - **View Details**: Hover over tasks to see descriptions
+- **Reorder**: Drag and drop tasks to reorder them
+
+### Enhanced Tooltips
+- **Description Tooltips**: Hover over tasks to see full descriptions
+- **Title Tooltips**: Automatically appear for truncated titles, showing only the hidden text
+- **Smart Positioning**: Tooltips adapt to available space and avoid overlapping
+- **Edit in Tooltip**: Click on description tooltips to edit directly
+
+### Tag Management
+- **Create Tags**: Use the "+" button in the tag column
+- **Assign Tags**: Click on tag field to select from existing tags
+- **Filter by Tags**: Use tag filters in the view options
+- **Tag Organization**: Tasks are grouped by tags for better organization
 
 ### Views
 - **Planner**: Focus on active work, tasks sorted by status and priority
 - **Tracker**: Review recent work, shows tasks modified in last X days
 
-### Areas/Categories
-- Tasks are automatically grouped by area
-- Click area headers to expand/collapse
-- Create new areas through the API (future enhancement)
+### Keyboard Shortcuts
+- **Ctrl+Enter**: Save changes in edit mode
+- **Esc**: Cancel editing
+- **Enter**: Create new task or save inline edits
+
+### Backup System
+- **Automatic backups** are created on every app startup if changes are detected
+- **Change detection** uses SHA-256 hashing to compare database content
+- **Backup retention** keeps the last 10 backups automatically
+- **Manual backups** can be created via API endpoints
+- **Backup statistics** show total backups, size, and last backup date
 
 ## API Endpoints
 
@@ -136,17 +171,23 @@ This will start:
 - `DELETE /api/tasks/:id` - Delete task
 - `GET /api/tasks/:id/history` - Get task history
 
-### Areas
-- `GET /api/areas` - Get all areas
-- `POST /api/areas` - Create new area
+### Tags
+- `GET /api/tags` - Get all tags
+- `POST /api/tags` - Create new tag
+- `PUT /api/tags/:id` - Update tag
+- `DELETE /api/tags/:id` - Delete tag
 
-### Export
+### Export & Backup
 - `GET /api/export` - Export all tasks as JSON
+- `GET /api/backup/stats` - Get backup statistics
+- `POST /api/backup/create` - Create manual backup
+- `GET /api/backup/list` - List all available backups
+- `GET /api/backup/download/:filename` - Download specific backup file
 
 ## Database Schema
 
 ### Tables
-- **areas**: Task categories/subjects
+- **tags**: Task categorization system
 - **tasks**: Main task data with status, priority, dates
 - **task_history**: Complete audit trail of status changes
 
@@ -155,6 +196,24 @@ This will start:
 - Automatic timestamp management
 - Status validation constraints
 - Priority validation constraints
+- Tag-based organization
+
+## Technical Improvements
+
+### Frontend Enhancements
+- **Optimized tooltip system** with dynamic positioning and width calculation
+- **Performance optimizations** with React.memo and useCallback
+- **Better state management** with proper cleanup and error handling
+- **Responsive design** with mobile-friendly interactions
+- **Accessibility improvements** with proper ARIA labels and keyboard navigation
+
+### Backend Improvements
+- **Robust error handling** with proper HTTP status codes
+- **Data validation** for all input fields
+- **Efficient queries** with proper indexing
+- **Real-time data consistency** with optimistic updates
+- **Automatic backup system** with SHA-256 change detection
+- **Backup management API** for manual backups and statistics
 
 ## Future Enhancements
 
@@ -166,13 +225,16 @@ This will start:
 - **Team collaboration** features
 - **Time tracking** integration
 - **Calendar integration**
+- **Dark mode** support
+- **Offline support** with service workers
 
 ### Technical Improvements
 - **Real-time updates** with WebSocket
-- **Offline support** with service workers
 - **Data synchronization** across devices
 - **Advanced reporting** and analytics
 - **API rate limiting** and authentication
+- **Unit and integration tests**
+- **Performance monitoring** and analytics
 
 ## Development
 
@@ -182,10 +244,16 @@ ToDoList/
 ├── server/           # Backend Node.js/Express server
 │   ├── index.js     # Main server file
 │   ├── database.js  # Database setup and helpers
+│   ├── backup.js    # Automatic backup system
+│   ├── backups/     # Backup files directory
 │   └── package.json
 ├── client/          # Frontend React application
 │   ├── src/
 │   │   ├── components/  # React components
+│   │   │   ├── TaskList.tsx      # Main task list component
+│   │   │   ├── TaskEditModal.tsx # Task editing modal
+│   │   │   ├── TaskTooltip.tsx   # Description tooltip
+│   │   │   └── TitleTooltip.tsx  # Title truncation tooltip
 │   │   ├── services/    # API service layer
 │   │   ├── types/       # TypeScript type definitions
 │   │   └── App.tsx      # Main application component
@@ -194,18 +262,16 @@ ToDoList/
 ```
 
 ### Technologies Used
-- **Frontend**: React 18, TypeScript, Tailwind CSS, Lucide React icons
+- **Frontend**: React 18, TypeScript, Tailwind CSS, Lucide React icons, date-fns
 - **Backend**: Node.js, Express, SQLite3, Moment.js
 - **Development**: Concurrently for running both servers
 
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test thoroughly
-5. Submit a pull request
-
-## License
-
-MIT License - see LICENSE file for details. 
+### Key Dependencies
+- **React 18.2.0** with latest features and hooks
+- **TypeScript 4.9.5** for type safety
+- **Tailwind CSS 3.3.6** for styling
+- **Lucide React 0.294.0** for icons
+- **date-fns 2.30.0** for date manipulation
+- **clsx 2.0.0** for conditional styling
+- **Express 4.18.2** for backend API
+- **SQLite3 5.1.6** for data persistence 
