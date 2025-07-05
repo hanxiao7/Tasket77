@@ -121,7 +121,7 @@ app.post('/api/tags', (req, res) => {
     return;
   }
   
-  db.run("INSERT INTO tags (name, hidden) VALUES (?, 0)", [name], function(err) {
+  db.run("INSERT INTO tags (name, hidden, created_at, updated_at) VALUES (?, 0, ?, ?)", [name, moment().tz('America/New_York').format('YYYY-MM-DD HH:mm:ss'), moment().tz('America/New_York').format('YYYY-MM-DD HH:mm:ss')], function(err) {
     if (err) {
       res.status(500).json({ error: err.message });
       return;
@@ -148,7 +148,7 @@ app.put('/api/tags/:id', (req, res) => {
     return;
   }
   
-  db.run("UPDATE tags SET name = ? WHERE id = ?", [name, id], function(err) {
+  db.run("UPDATE tags SET name = ?, updated_at = ? WHERE id = ?", [name, moment().tz('America/New_York').format('YYYY-MM-DD HH:mm:ss'), id], function(err) {
     if (err) {
       res.status(500).json({ error: err.message });
       return;
@@ -173,7 +173,7 @@ app.put('/api/tags/:id', (req, res) => {
 app.patch('/api/tags/:id/toggle-hidden', (req, res) => {
   const { id } = req.params;
   
-  db.run("UPDATE tags SET hidden = CASE WHEN hidden = 0 THEN 1 ELSE 0 END WHERE id = ?", [id], function(err) {
+  db.run("UPDATE tags SET hidden = CASE WHEN hidden = 0 THEN 1 ELSE 0 END, updated_at = ? WHERE id = ?", [moment().tz('America/New_York').format('YYYY-MM-DD HH:mm:ss'), id], function(err) {
     if (err) {
       res.status(500).json({ error: err.message });
       return;
@@ -301,9 +301,9 @@ app.post('/api/tasks', async (req, res) => {
   const parsedDueDate = due_date ? moment.tz(due_date, 'America/New_York').startOf('day').format('YYYY-MM-DD HH:mm:ss') : null;
   
   db.run(`
-    INSERT INTO tasks (title, description, tag_id, parent_task_id, priority, due_date)
-    VALUES (?, ?, ?, ?, ?, ?)
-  `, [title, description, tag_id, parent_task_id, finalPriority, parsedDueDate], async function(err) {
+    INSERT INTO tasks (title, description, tag_id, parent_task_id, priority, due_date, created_at, last_modified)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `, [title, description, tag_id, parent_task_id, finalPriority, parsedDueDate, moment().tz('America/New_York').format('YYYY-MM-DD HH:mm:ss'), moment().tz('America/New_York').format('YYYY-MM-DD HH:mm:ss')], async function(err) {
     if (err) {
       res.status(500).json({ error: err.message });
       return;
@@ -362,8 +362,11 @@ app.patch('/api/tasks/:id/status', async (req, res) => {
     
     // Update relevant dates based on status change
     if (status === 'in_progress' && currentTask.status !== 'in_progress') {
-      updateFields.push('start_date = ?');
-      updateParams.push(moment().tz('America/New_York').format('YYYY-MM-DD HH:mm:ss'));
+      // Only set start_date if it's not already set (keep the earliest date)
+      if (!currentTask.start_date) {
+        updateFields.push('start_date = ?');
+        updateParams.push(moment().tz('America/New_York').format('YYYY-MM-DD HH:mm:ss'));
+      }
     } else if (status === 'done' && currentTask.status !== 'done') {
       updateFields.push('completion_date = ?');
       updateParams.push(moment().tz('America/New_York').format('YYYY-MM-DD HH:mm:ss'));

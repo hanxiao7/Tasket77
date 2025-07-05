@@ -10,10 +10,17 @@
     "build": "cd client && npm run build",
     "install-all": "npm install && cd server && npm install && cd ../client && npm install"
   },
-  "keywords": ["task-management", "productivity", "web-app"],
+  "keywords": [
+    "task-management",
+    "productivity",
+    "web-app"
+  ],
   "author": "",
   "license": "MIT",
   "devDependencies": {
     "concurrently": "^8.2.2"
+  },
+  "dependencies": {
+    "sqlite3": "^5.1.7"
   }
-} 
+}

@@ -129,7 +129,9 @@ function initializeDatabase() {
         }
         
         if (row.count === 0) {
-            db.run("INSERT INTO tags (name) VALUES (?)", ['General'], (err) => {
+            const moment = require('moment-timezone');
+            const now = moment().tz('America/New_York').format('YYYY-MM-DD HH:mm:ss');
+            db.run("INSERT INTO tags (name, created_at, updated_at) VALUES (?, ?, ?)", ['General', now, now], (err) => {
             if (err) {
               reject(err);
             } else {
