@@ -300,7 +300,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ v
       setLoading(true);
       const [tasksData, tagsData] = await Promise.all([
         apiService.getTasks({ ...filters, view: viewMode }),
-        apiService.getTags()
+        apiService.getTags(true) // Include hidden tags
       ]);
       
       // Apply sorting to the loaded data
@@ -360,7 +360,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ v
     return () => {
       document.removeEventListener('click', handleClickOutside);
     };
-  }, [contextMenu.visible, editingTagTaskId]);
+  }, [contextMenu.visible, editingTagTaskId, showNewTaskTagDropdown]);
 
   // Debug editingTagTaskId changes
   useEffect(() => {
@@ -1047,7 +1047,10 @@ const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ v
         <div className="relative">
           <div
             className="text-xs rounded px-1 py-1 border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 w-40 cursor-pointer bg-white"
-            onClick={() => setShowNewTaskTagDropdown(!showNewTaskTagDropdown)}
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowNewTaskTagDropdown(!showNewTaskTagDropdown);
+            }}
             title="Select tag for new task"
           >
             {selectedNewTaskTag ? tags.find(t => t.id.toString() === selectedNewTaskTag)?.name || '' : 'Select tag'}
@@ -1069,7 +1072,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ v
                 >
                   No tag
                 </div>
-                {tags.filter(tag => !tag.hidden).map((tag) => (
+                {tags.filter(tag => tag.hidden !== 1).map((tag) => (
                   <div
                     key={tag.id}
                     className={clsx(
@@ -1339,7 +1342,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ v
                             >
                               Unassigned
                             </div>
-                            {tags.filter(tag => !tag.hidden).map((tag) => (
+                            {tags.filter(tag => tag.hidden !== 1).map((tag) => (
                               <div
                                 key={tag.id}
                                 className={clsx(

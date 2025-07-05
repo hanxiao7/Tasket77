@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Tag } from '../types';
 import { apiService } from '../services/api';
-import { X, Edit3, Eye, EyeOff, Trash2, Save, RotateCcw, Plus } from 'lucide-react';
+import { X, Edit3, Eye, EyeOff, Trash2, Plus } from 'lucide-react';
 
 interface TagEditModalProps {
   tags: Tag[];
@@ -109,6 +109,24 @@ const TagEditModal: React.FC<TagEditModalProps> = ({ tags, onClose, onTagsUpdate
     };
   }, [onClose]);
 
+  // Save tag when clicking outside the edited tag
+  useEffect(() => {
+    const handleClickOutsideTag = (e: MouseEvent) => {
+      if (editingTagId !== null) {
+        const target = e.target as Element;
+        const inputElement = document.querySelector('.tag-item input');
+        if (inputElement && !inputElement.contains(target)) {
+          handleSave();
+        }
+      }
+    };
+
+    document.addEventListener('click', handleClickOutsideTag);
+    return () => {
+      document.removeEventListener('click', handleClickOutsideTag);
+    };
+  }, [editingTagId, editingTagName]);
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 modal-overlay">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
@@ -160,8 +178,8 @@ const TagEditModal: React.FC<TagEditModalProps> = ({ tags, onClose, onTagsUpdate
               {tags.map((tag) => (
                 <div
                   key={tag.id}
-                  className={`flex items-center justify-between p-3 rounded-lg border ${
-                    tag.hidden ? 'bg-gray-50 border-gray-200' : 'bg-white border-gray-300'
+                  className={`tag-item flex items-center justify-between p-3 rounded-lg border ${
+                    tag.hidden === 1 ? 'bg-gray-50 border-gray-200' : 'bg-white border-gray-300'
                   }`}
                 >
                   {/* Tag name */}
@@ -176,11 +194,11 @@ const TagEditModal: React.FC<TagEditModalProps> = ({ tags, onClose, onTagsUpdate
                         autoFocus
                       />
                     ) : (
-                      <div className={`text-sm font-medium ${tag.hidden ? 'text-gray-500 line-through' : 'text-gray-900'}`}>
+                      <div className={`text-sm font-medium ${tag.hidden === 1 ? 'text-gray-500 line-through' : 'text-gray-900'}`}>
                         {tag.name}
                       </div>
                     )}
-                    {tag.hidden && (
+                    {tag.hidden === 1 && (
                       <div className="text-xs text-gray-400 mt-1">Hidden</div>
                     )}
                   </div>
@@ -188,28 +206,14 @@ const TagEditModal: React.FC<TagEditModalProps> = ({ tags, onClose, onTagsUpdate
                   {/* Actions */}
                   <div className="flex items-center space-x-1 ml-3">
                     {editingTagId === tag.id ? (
-                      <>
-                        <button
-                          onClick={handleSave}
-                          disabled={isUpdating || !editingTagName.trim()}
-                          className="p-1 text-green-600 hover:bg-green-50 rounded transition-colors disabled:opacity-50"
-                          title="Save changes"
-                        >
-                          <Save className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={handleCancel}
-                          disabled={isUpdating}
-                          className="p-1 text-gray-500 hover:bg-gray-100 rounded transition-colors disabled:opacity-50"
-                          title="Cancel editing"
-                        >
-                          <RotateCcw className="w-4 h-4" />
-                        </button>
-                      </>
+                      <div></div>
                     ) : (
                       <>
                         <button
-                          onClick={() => handleEditClick(tag)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEditClick(tag);
+                          }}
                           className="p-1 text-blue-600 hover:bg-blue-50 rounded transition-colors"
                           title="Edit tag name"
                         >
@@ -219,9 +223,9 @@ const TagEditModal: React.FC<TagEditModalProps> = ({ tags, onClose, onTagsUpdate
                           onClick={() => handleToggleHidden(tag)}
                           disabled={isToggling === tag.id}
                           className="p-1 text-gray-600 hover:bg-gray-100 rounded transition-colors disabled:opacity-50"
-                          title={tag.hidden ? "Show tag" : "Hide tag"}
+                          title={tag.hidden === 1 ? "Show tag" : "Hide tag"}
                         >
-                          {tag.hidden ? (
+                          {tag.hidden === 1 ? (
                             <Eye className="w-4 h-4" />
                           ) : (
                             <EyeOff className="w-4 h-4" />
@@ -247,7 +251,7 @@ const TagEditModal: React.FC<TagEditModalProps> = ({ tags, onClose, onTagsUpdate
         {/* Footer */}
         <div className="flex items-center justify-between p-4 border-t border-gray-200">
           <div className="text-sm text-gray-500">
-            {tags.filter(t => !t.hidden).length} visible, {tags.filter(t => t.hidden).length} hidden
+            {tags.filter(t => t.hidden !== 1).length} visible, {tags.filter(t => t.hidden === 1).length} hidden
           </div>
           <button
             onClick={onClose}
