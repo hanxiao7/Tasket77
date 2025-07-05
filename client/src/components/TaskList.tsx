@@ -913,7 +913,11 @@ const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ v
   const formatDate = (dateString: string | undefined) => {
     if (!dateString) return '';
     try {
-      return format(new Date(dateString), 'MMM d');
+      // Handle both date-only strings (YYYY-MM-DD) and datetime strings (YYYY-MM-DD HH:mm:ss)
+      const datePart = dateString.split(' ')[0]; // Get just the date part
+      const [year, month, day] = datePart.split('-').map(Number);
+      const localDate = new Date(year, month - 1, day); // month is 0-indexed
+      return format(localDate, 'MMM d');
     } catch {
       return '';
     }
