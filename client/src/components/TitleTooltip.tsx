@@ -85,7 +85,7 @@ const TitleTooltip: React.FC<TitleTooltipProps> = ({ title, titleRef }) => {
   }
   
   return (
-    <div className="absolute z-50 left-0 top-full bg-gray-50 text-gray-800 text-sm px-1 py-1 w-full whitespace-pre-wrap break-words border-t border-gray-200 font-bold">
+    <div className="absolute z-50 left-0 top-full bg-blue-50 text-blue-600 text-sm px-1 py-1 w-full whitespace-pre-wrap break-words border-t border-gray-200">
       {truncatedPart}
     </div>
   );

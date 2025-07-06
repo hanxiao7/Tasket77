@@ -81,6 +81,9 @@ const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ v
   const checkTitleTruncation = (taskId: number) => {
     const titleRef = titleRefs.current.get(taskId);
     if (titleRef) {
+      // Force a reflow to ensure accurate measurements
+      void titleRef.offsetHeight;
+      
       const isTruncated = titleRef.scrollWidth > titleRef.clientWidth;
       setTitleTooltips(prev => {
         const newSet = new Set(prev);
@@ -111,11 +114,11 @@ const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ v
         clearTimeout(existingTimeout);
       }
       
-      // Set new timeout
+      // Set new timeout with longer delay to ensure DOM is fully rendered
       const timeout = setTimeout(() => {
         checkTitleTruncation(taskId);
         truncationTimeouts.current.delete(taskId);
-      }, 100);
+      }, 200);
       
       truncationTimeouts.current.set(taskId, timeout);
     }
@@ -327,6 +330,9 @@ const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ v
         allTagIds.add(-1); // Add unassigned tag ID
         setExpandedTags(allTagIds);
       }
+      
+      // Clear title tooltips when data changes to force recalculation
+      setTitleTooltips(new Set());
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
@@ -337,6 +343,22 @@ const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ v
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // Recheck title truncation when view mode changes
+  useEffect(() => {
+    // Clear existing timeouts
+    truncationTimeouts.current.forEach(timeout => clearTimeout(timeout));
+    truncationTimeouts.current.clear();
+    
+    // Recheck truncation for all tasks after a delay
+    const timeout = setTimeout(() => {
+      tasks.forEach(task => {
+        checkTitleTruncation(task.id);
+      });
+    }, 300);
+    
+    return () => clearTimeout(timeout);
+  }, [viewMode, tasks]);
 
   // Close context menu when clicking outside
   useEffect(() => {
@@ -1170,8 +1192,6 @@ const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ v
                 <div
                   key={task.id}
                   className="flex items-center space-x-3 p-3 hover:bg-gray-50 relative"
-                  onMouseEnter={() => setHoveredTask(task.id)}
-                  onMouseLeave={() => setHoveredTask(null)}
                   onContextMenu={(e) => handleContextMenu(e, task.id)}
                   draggable
                   onDragStart={(e) => handleDragStart(e, task)}
@@ -1251,19 +1271,35 @@ const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ v
                             e.stopPropagation();
                             handleTitleClick(task);
                           }}
-                                                  onMouseEnter={() => {
-                          showTooltip(task.id);
-                        }}
-                        onMouseLeave={() => {
-                          hideTooltip(task.id);
-                        }}
+                          onMouseEnter={(e) => {
+                            // Set hovered task immediately for responsive UI
+                            setHoveredTask(task.id);
+                            
+                            // Check if title is actually truncated on hover as a fallback
+                            const target = e.currentTarget;
+                            const isTruncated = target.scrollWidth > target.clientWidth;
+                            
+                            // Update title tooltips state if needed
+                            if (isTruncated && !titleTooltips.has(task.id)) {
+                              setTitleTooltips(prev => new Set(prev).add(task.id));
+                            }
+                            
+                            showTooltip(task.id);
+                          }}
+                          onMouseLeave={() => {
+                            setHoveredTask(null);
+                            hideTooltip(task.id);
+                          }}
                         >
-                      {task.title}
-                    </div>
+                          {task.title}
+                        </div>
                         
                         {/* Title Tooltip - show on hover for truncated titles only */}
-                        {titleTooltips.has(task.id) && hoveredTask === task.id && (
-                          <TitleTooltip title={task.title} titleRef={titleRefs.current.get(task.id)} />
+                        {hoveredTask === task.id && (
+                          <TitleTooltip 
+                            title={task.title} 
+                            titleRef={titleRefs.current.get(task.id)} 
+                          />
                         )}
                       </div>
                     )}
