@@ -769,6 +769,14 @@ const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ v
   const handleTitleClick = (task: Task) => {
     setEditingTitleTaskId(task.id);
     setEditingTitleValue(task.title);
+    
+    // Close description tooltip when editing title
+    setVisibleTooltips(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(task.id);
+      return newSet;
+    });
+    
     // Focus the input after a brief delay to ensure it's rendered
     setTimeout(() => {
       titleInputRef.current?.focus();
@@ -790,6 +798,15 @@ const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ v
         );
         return updatedTasks;
       });
+      
+      // Clear position cache for this task to force recalculation of tooltip position
+      positionCache.current.delete(taskId);
+      maxWidthCache.current.delete(taskId);
+      
+      // Recheck title truncation for this task
+      setTimeout(() => {
+        checkTitleTruncation(taskId);
+      }, 100);
     } catch (error) {
       console.error('Error updating task title:', error);
     } finally {
