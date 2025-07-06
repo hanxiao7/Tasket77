@@ -119,49 +119,7 @@ const TaskTooltip: React.FC<TaskTooltipProps> = ({
       onClick={handleClick}
       onMouseLeave={handleMouseLeave}
     >
-      {/* Header */}
-      <div className="flex items-center justify-between p-2 border-b border-gray-100 bg-gray-50 rounded-t-lg">
-        <div className="flex items-center space-x-2">
-          <Edit3 className="w-3 h-3 text-gray-500" />
-          <span className="text-xs font-medium text-gray-700">Description</span>
-        </div>
-        <div className="flex items-center space-x-1">
-          {isEditing ? (
-            <>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleSave();
-                }}
-                disabled={isSaving}
-                className="p-1 text-green-600 hover:bg-green-50 rounded transition-colors disabled:opacity-50"
-                title="Save (Ctrl+Enter)"
-              >
-                <Save className="w-3 h-3" />
-              </button>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleCancel();
-                }}
-                disabled={isSaving}
-                className="p-1 text-gray-500 hover:bg-gray-100 rounded transition-colors disabled:opacity-50"
-                title="Cancel (Esc)"
-              >
-                <RotateCcw className="w-3 h-3" />
-              </button>
-            </>
-          ) : (
-            <button
-              onClick={handleClose}
-              className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors"
-              title="Close"
-            >
-              <X className="w-3 h-3" />
-            </button>
-          )}
-        </div>
-      </div>
+
 
       {/* Content */}
       <div className="p-3">
@@ -174,14 +132,14 @@ const TaskTooltip: React.FC<TaskTooltipProps> = ({
             onBlur={handleSave}
             placeholder="Enter task description..."
             className="w-full resize-none border-none outline-none text-sm text-gray-700 bg-transparent placeholder-gray-400 select-text"
-            style={{ minHeight: '60px', maxHeight: '200px' }}
+            style={{ minHeight: '30px', maxHeight: '200px' }}
             draggable={false}
           />
         ) : (
           <div 
             className={clsx(
-              "text-sm text-gray-700 whitespace-pre-wrap break-words select-text",
-              description ? "min-h-[60px]" : "min-h-[60px] flex items-center justify-center text-gray-400 italic"
+              "text-sm whitespace-pre-wrap break-words select-text",
+              description ? "text-gray-700 min-h-[30px]" : "text-gray-300 min-h-[30px] flex items-center justify-center italic"
             )}
             style={{ 
               maxHeight: '200px',
