@@ -10,6 +10,7 @@ interface TaskTooltipProps {
   position?: 'right' | 'end-of-title' | 'end-of-content';
   positionStyle?: React.CSSProperties;
   maxWidth?: number;
+  startEditing?: boolean;
 }
 
 const TaskTooltip: React.FC<TaskTooltipProps> = ({ 
@@ -19,9 +20,10 @@ const TaskTooltip: React.FC<TaskTooltipProps> = ({
   onClose,
   position = 'right',
   positionStyle,
-  maxWidth = 1100
+  maxWidth = 1100,
+  startEditing = false
 }) => {
-  const [isEditing, setIsEditing] = useState(false);
+  const [isEditing, setIsEditing] = useState(startEditing);
   const [editValue, setEditValue] = useState(description);
   const [isSaving, setIsSaving] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -53,6 +55,13 @@ const TaskTooltip: React.FC<TaskTooltipProps> = ({
       textareaRef.current.setSelectionRange(editValue.length, editValue.length);
     }
   }, [isEditing, editValue.length]);
+
+  // Handle startEditing prop changes
+  useEffect(() => {
+    if (startEditing && !isEditing) {
+      setIsEditing(true);
+    }
+  }, [startEditing, isEditing]);
 
   const handleSave = async () => {
     if (editValue.trim() === description) {

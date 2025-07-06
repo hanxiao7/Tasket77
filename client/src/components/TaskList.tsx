@@ -59,6 +59,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ v
   const [visibleTooltips, setVisibleTooltips] = useState<Set<number>>(new Set());
   const [titleTooltips, setTitleTooltips] = useState<Set<number>>(new Set());
   const [chatIcons, setChatIcons] = useState<Set<number>>(new Set());
+  const [editingTooltips, setEditingTooltips] = useState<Set<number>>(new Set());
   const [contextMenu, setContextMenu] = useState<{
     visible: boolean;
     x: number;
@@ -989,6 +990,18 @@ const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ v
           return newSet;
         });
         setChatIcons(prev => new Set(prev).add(taskId));
+        setEditingTooltips(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(taskId);
+          return newSet;
+        });
+      } else {
+        // Clear editing state when description is saved
+        setEditingTooltips(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(taskId);
+          return newSet;
+        });
       }
     } catch (error) {
       console.error('Error updating task description:', error);
@@ -999,6 +1012,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ v
   const handleDescriptionTooltipClose = () => {
     setVisibleTooltips(new Set());
     setChatIcons(new Set());
+    setEditingTooltips(new Set());
   };
 
   const handleChatIconClick = (taskId: number) => {
@@ -1013,13 +1027,14 @@ const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ v
       });
     }
 
-    // Hide chat icon and show tooltip
+    // Hide chat icon and show tooltip in editing mode
     setChatIcons(prev => {
       const newSet = new Set(prev);
       newSet.delete(taskId);
       return newSet;
     });
     setVisibleTooltips(prev => new Set(prev).add(taskId));
+    setEditingTooltips(prev => new Set(prev).add(taskId));
   };
 
   const showTooltip = (taskId: number) => {
@@ -1473,6 +1488,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ v
                           position={getTitleEndPosition(task.id)}
                           positionStyle={getTitleEndPositionStyle(task.id)}
                           maxWidth={getMaxTooltipWidth(task.id)}
+                          startEditing={editingTooltips.has(task.id)}
                         />
                       </div>
                     )}
