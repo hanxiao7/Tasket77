@@ -14,7 +14,8 @@ import {
   ChevronRight,
   Tag as TagIcon,
   Trash2,
-  Edit3
+  Edit3,
+  MessageSquarePlus
 } from 'lucide-react';
 import clsx from 'clsx';
 import TaskEditModal from './TaskEditModal';
@@ -57,6 +58,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ v
   const [tooltipTimers, setTooltipTimers] = useState<Map<number, NodeJS.Timeout>>(new Map());
   const [visibleTooltips, setVisibleTooltips] = useState<Set<number>>(new Set());
   const [titleTooltips, setTitleTooltips] = useState<Set<number>>(new Set());
+  const [chatIcons, setChatIcons] = useState<Set<number>>(new Set());
   const [contextMenu, setContextMenu] = useState<{
     visible: boolean;
     x: number;
@@ -965,15 +967,29 @@ const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ v
   const handleDescriptionSave = async (taskId: number, description: string) => {
     try {
       console.log(`📝 Updating task description: "${description}"`);
-      await apiService.updateTask(taskId, { description });
+      
+      // If description is empty or just whitespace, set it to undefined
+      const finalDescription = description.trim() || undefined;
+      
+      await apiService.updateTask(taskId, { description: finalDescription });
       
       // Update local state instead of reloading
       setTasks(prevTasks => {
         const updatedTasks = prevTasks.map(t => 
-          t.id === taskId ? { ...t, description } as Task : t
+          t.id === taskId ? { ...t, description: finalDescription } as Task : t
         );
         return updatedTasks;
       });
+      
+      // If description is now blank, show chat icon instead of tooltip
+      if (!finalDescription) {
+        setVisibleTooltips(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(taskId);
+          return newSet;
+        });
+        setChatIcons(prev => new Set(prev).add(taskId));
+      }
     } catch (error) {
       console.error('Error updating task description:', error);
       throw error;
@@ -982,6 +998,28 @@ const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ v
 
   const handleDescriptionTooltipClose = () => {
     setVisibleTooltips(new Set());
+    setChatIcons(new Set());
+  };
+
+  const handleChatIconClick = (taskId: number) => {
+    // Clear any existing timer
+    const existingTimer = tooltipTimers.get(taskId);
+    if (existingTimer) {
+      clearTimeout(existingTimer);
+      setTooltipTimers(prev => {
+        const newMap = new Map(prev);
+        newMap.delete(taskId);
+        return newMap;
+      });
+    }
+
+    // Hide chat icon and show tooltip
+    setChatIcons(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(taskId);
+      return newSet;
+    });
+    setVisibleTooltips(prev => new Set(prev).add(taskId));
   };
 
   const showTooltip = (taskId: number) => {
@@ -996,12 +1034,19 @@ const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ v
       });
     }
 
-    // Add to visible tooltips
-    setVisibleTooltips(prev => new Set(Array.from(prev).concat([taskId])));
+    // Check if task has a description
+    const task = tasks.find(t => t.id === taskId);
+    if (task && !task.description) {
+      // Show chat icon for blank descriptions
+      setChatIcons(prev => new Set(prev).add(taskId));
+    } else {
+      // Show tooltip for tasks with descriptions
+      setVisibleTooltips(prev => new Set(Array.from(prev).concat([taskId])));
+    }
   };
 
   const hideTooltip = (taskId: number) => {
-    // Set a timer to hide the tooltip after 0.5 seconds
+    // Set a timer to hide the tooltip/chat icon after 800ms
     const timer = setTimeout(() => {
       setVisibleTooltips(prev => {
         const newSet = new Set(prev);
@@ -1009,7 +1054,11 @@ const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ v
         return newSet;
       });
       
-      // No need to track active tooltip anymore
+      setChatIcons(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(taskId);
+        return newSet;
+      });
       
       // Clear the timer from the map
       setTooltipTimers(prev => {
@@ -1303,7 +1352,17 @@ const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ v
                             
                             showTooltip(task.id);
                           }}
-                          onMouseLeave={() => {
+                          onMouseLeave={(e) => {
+                            // Check if we're moving to the chat icon or tooltip container
+                            const relatedTarget = e.relatedTarget as Element;
+                            const isMovingToChatIcon = relatedTarget?.closest('[data-chat-icon]');
+                            const isMovingToTooltip = relatedTarget?.closest('[style*="z-index: 1000"]');
+                            
+                            if (isMovingToChatIcon || isMovingToTooltip) {
+                              // Don't hide if moving to chat icon or tooltip
+                              return;
+                            }
+                            
                             setHoveredTask(null);
                             hideTooltip(task.id);
                           }}
@@ -1326,6 +1385,55 @@ const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ v
                       </div>
                     )}
                     
+                    {/* Chat Icon for blank descriptions */}
+                    {chatIcons.has(task.id) && (
+                      <div
+                        data-chat-icon
+                        onMouseEnter={(e) => {
+                          // Clear any existing timer when mouse enters chat icon
+                          const existingTimer = tooltipTimers.get(task.id);
+                          if (existingTimer) {
+                            clearTimeout(existingTimer);
+                            setTooltipTimers(prev => {
+                              const newMap = new Map(prev);
+                              newMap.delete(task.id);
+                              return newMap;
+                            });
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          // Check if we're moving to the tooltip container
+                          const relatedTarget = e.relatedTarget as Element;
+                          const isMovingToTooltip = relatedTarget?.closest('[style*="z-index: 1000"]');
+                          
+                          if (isMovingToTooltip) {
+                            // Don't hide if moving to tooltip
+                            return;
+                          }
+                          
+                          hideTooltip(task.id);
+                        }}
+                        style={{ 
+                          zIndex: 1000
+                        }}
+                      >
+                        <div
+                          className="absolute top-0 left-0 rounded px-2 py-1 cursor-pointer transition-colors hover:bg-gray-100"
+                          style={{
+                            ...getTitleEndPositionStyle(task.id),
+                            transform: 'translateY(-12px)'
+                          }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleChatIconClick(task.id);
+                          }}
+                          title="Click to add description"
+                        >
+                          <MessageSquarePlus className="w-6 h-6 text-gray-600 hover:text-blue-600" />
+                        </div>
+                      </div>
+                    )}
+                    
                     {/* Description Tooltip */}
                     {visibleTooltips.has(task.id) && (
                       <div
@@ -1341,7 +1449,18 @@ const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ v
                             });
                           }
                         }}
-                        onMouseLeave={() => hideTooltip(task.id)}
+                        onMouseLeave={(e) => {
+                          // Check if we're moving to the chat icon
+                          const relatedTarget = e.relatedTarget as Element;
+                          const isMovingToChatIcon = relatedTarget?.closest('[data-chat-icon]');
+                          
+                          if (isMovingToChatIcon) {
+                            // Don't hide if moving to chat icon
+                            return;
+                          }
+                          
+                          hideTooltip(task.id);
+                        }}
                         style={{ 
                           zIndex: 1000
                         }}
