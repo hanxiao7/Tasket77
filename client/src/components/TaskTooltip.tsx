@@ -29,6 +29,7 @@ const TaskTooltip: React.FC<TaskTooltipProps> = ({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
   const [tooltipWidth, setTooltipWidth] = useState(200);
+  const hasSetInitialCursor = useRef(false);
 
   // Auto-resize textarea
   useEffect(() => {
@@ -52,7 +53,14 @@ const TaskTooltip: React.FC<TaskTooltipProps> = ({
   useEffect(() => {
     if (isEditing && textareaRef.current) {
       textareaRef.current.focus();
-      textareaRef.current.setSelectionRange(editValue.length, editValue.length);
+      // Only set cursor to end when first entering edit mode, not on every keystroke
+      if (!hasSetInitialCursor.current) {
+        textareaRef.current.setSelectionRange(editValue.length, editValue.length);
+        hasSetInitialCursor.current = true;
+      }
+    } else {
+      // Reset the flag when not editing
+      hasSetInitialCursor.current = false;
     }
   }, [isEditing, editValue.length]);
 
