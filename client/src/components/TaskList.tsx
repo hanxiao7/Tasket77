@@ -1275,7 +1275,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ v
                   key={task.id}
                   className="flex items-center space-x-3 p-3 hover:bg-gray-50 relative"
                   onContextMenu={(e) => handleContextMenu(e, task.id)}
-                  draggable
+                  draggable={editingTitleTaskId !== task.id}
                   onDragStart={(e) => handleDragStart(e, task)}
                 >
                   {/* Status button */}
