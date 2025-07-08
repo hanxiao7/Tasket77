@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Task, Tag } from '../types';
 import { X, Save, Flag, Circle, Play, Pause, CheckCircle } from 'lucide-react';
 import clsx from 'clsx';
@@ -47,6 +47,7 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, tags, onClose, onSa
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editingTitleValue, setEditingTitleValue] = useState(task.title);
   const titleInputRef = useRef<HTMLInputElement>(null);
+  const descriptionRef = useRef<HTMLTextAreaElement>(null);
 
   const getStatusIcon = (status: Task['status']) => {
     switch (status) {
@@ -168,6 +169,21 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, tags, onClose, onSa
       handleTitleCancel();
     }
   };
+
+  const autoResizeTextarea = () => {
+    if (descriptionRef.current) {
+      descriptionRef.current.style.height = 'auto';
+      const scrollHeight = descriptionRef.current.scrollHeight;
+      const minHeight = 100; // Minimum height (4 rows * 25px per row)
+      const maxHeight = 400; // Maximum height before scrolling
+      descriptionRef.current.style.height = `${Math.min(Math.max(scrollHeight, minHeight), maxHeight)}px`;
+    }
+  };
+
+  // Auto-resize textarea when description changes
+  useEffect(() => {
+    autoResizeTextarea();
+  }, [formData.description]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -337,11 +353,12 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, tags, onClose, onSa
               Description
             </label>
             <textarea
+              ref={descriptionRef}
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              rows={4}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
               placeholder="Enter task description..."
+              style={{ minHeight: '100px', maxHeight: '400px' }}
             />
           </div>
 
