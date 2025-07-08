@@ -850,12 +850,13 @@ const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ v
     }
   };
 
-  const handleTagSave = async (taskId: number) => {
+  const handleTagSave = async (taskId: number, tagId?: number) => {
     try {
-      const tagId = editingTagValue ? Number(editingTagValue) : undefined;
-      const tagName = editingTagValue ? tags.find(t => t.id === Number(editingTagValue))?.name || 'Unknown' : 'Unassigned';
+      // Use provided tagId or fall back to editingTagValue
+      const finalTagId = tagId !== undefined ? tagId : (editingTagValue ? Number(editingTagValue) : undefined);
+      const tagName = finalTagId ? tags.find(t => t.id === finalTagId)?.name || 'Unknown' : 'Unassigned';
       console.log(`🏷️ Updating task tag: "${tagName}"`);
-      await apiService.updateTask(taskId, { tag_id: tagId });
+      await apiService.updateTask(taskId, { tag_id: finalTagId });
       
       // Update local state instead of reloading
       setTasks(prevTasks => {
@@ -863,7 +864,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ v
           if (t.id === taskId) {
             return {
               ...t,
-              tag_id: tagId,
+              tag_id: finalTagId,
               tag_name: tagName
             } as Task;
           }
@@ -1529,7 +1530,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ v
                               className="px-2 py-1 text-xs text-gray-500 hover:bg-gray-50 cursor-pointer border-b"
                               onClick={() => {
                                 setEditingTagValue('');
-                                handleTagSave(task.id);
+                                handleTagSave(task.id, undefined);
                               }}
                             >
                               Unassigned
@@ -1543,7 +1544,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ v
                                 )}
                                 onClick={() => {
                                   setEditingTagValue(tag.id.toString());
-                                  handleTagSave(task.id);
+                                  handleTagSave(task.id, tag.id);
                                 }}
                               >
                                 {tag.name}
