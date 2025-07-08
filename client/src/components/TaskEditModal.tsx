@@ -11,15 +11,38 @@ interface TaskEditModalProps {
 }
 
 const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, tags, onClose, onSave }) => {
+  const formatDateForInput = (dateString: string | undefined) => {
+    if (!dateString) return '';
+    
+    try {
+      // Handle different date formats that might come from the database
+      const date = new Date(dateString);
+      
+      // Check if the date is valid
+      if (isNaN(date.getTime())) {
+        return '';
+      }
+      
+      // Format as YYYY-MM-DD for HTML date input
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      
+      return `${year}-${month}-${day}`;
+    } catch {
+      return '';
+    }
+  };
+
   const [formData, setFormData] = useState({
     title: task.title,
     description: task.description || '',
     tag_id: task.tag_id || '',
     priority: task.priority,
     status: task.status,
-    start_date: task.start_date || '',
-    due_date: task.due_date || '',
-    completion_date: task.completion_date || ''
+    start_date: formatDateForInput(task.start_date),
+    due_date: formatDateForInput(task.due_date),
+    completion_date: formatDateForInput(task.completion_date)
   });
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editingTitleValue, setEditingTitleValue] = useState(task.title);
