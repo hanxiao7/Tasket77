@@ -1371,8 +1371,8 @@ const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ v
                           onMouseLeave={(e) => {
                             // Check if we're moving to the chat icon or tooltip container
                             const relatedTarget = e.relatedTarget as Element | null;
-                            const isMovingToChatIcon = relatedTarget?.closest('[data-chat-icon]');
-                            const isMovingToTooltip = relatedTarget?.closest('[style*="z-index: 1000"]');
+                            const isMovingToChatIcon = relatedTarget && typeof relatedTarget.closest === 'function' ? relatedTarget.closest('[data-chat-icon]') : null;
+                            const isMovingToTooltip = relatedTarget && typeof relatedTarget.closest === 'function' ? relatedTarget.closest('[style*="z-index: 1000"]') : null;
                             
                             if (isMovingToChatIcon || isMovingToTooltip) {
                               // Don't hide if moving to chat icon or tooltip
@@ -1420,7 +1420,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ v
                         onMouseLeave={(e) => {
                           // Check if we're moving to the tooltip container
                           const relatedTarget = e.relatedTarget as Element | null;
-                          const isMovingToTooltip = relatedTarget?.closest('[style*="z-index: 1000"]');
+                          const isMovingToTooltip = relatedTarget && typeof relatedTarget.closest === 'function' ? relatedTarget.closest('[style*="z-index: 1000"]') : null;
                           
                           if (isMovingToTooltip) {
                             // Don't hide if moving to tooltip
@@ -1468,7 +1468,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ v
                         onMouseLeave={(e) => {
                           // Check if we're moving to the chat icon
                           const relatedTarget = e.relatedTarget as Element | null;
-                          const isMovingToChatIcon = relatedTarget?.closest('[data-chat-icon]');
+                          const isMovingToChatIcon = relatedTarget && typeof relatedTarget.closest === 'function' ? relatedTarget.closest('[data-chat-icon]') : null;
                           
                           if (isMovingToChatIcon) {
                             // Don't hide if moving to chat icon
