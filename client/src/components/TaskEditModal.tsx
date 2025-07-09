@@ -39,6 +39,7 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, tags, onClose, onSa
   const [editingTitleValue, setEditingTitleValue] = useState(task.title);
   const titleInputRef = useRef<HTMLInputElement>(null);
   const descriptionRef = useRef<HTMLTextAreaElement>(null);
+  const statusClickTimer = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     setFormData({
@@ -377,7 +378,26 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, tags, onClose, onSa
               <div className="flex items-center space-x-2">
                 <button
                   type="button"
-                  onClick={handleStatusClick}
+                  onClick={async (e) => {
+                    e.stopPropagation();
+                    if (statusClickTimer.current) {
+                      clearTimeout(statusClickTimer.current);
+                    }
+                    statusClickTimer.current = setTimeout(async () => {
+                      await handleStatusClick();
+                      statusClickTimer.current = null;
+                    }, 250);
+                  }}
+                  onDoubleClick={async (e) => {
+                    e.stopPropagation();
+                    if (statusClickTimer.current) {
+                      clearTimeout(statusClickTimer.current);
+                      statusClickTimer.current = null;
+                    }
+                    // Set status to done directly
+                    await handleStatusAutoSave('done');
+                    setFormData((prev) => ({ ...prev, status: 'done' }));
+                  }}
                   className={clsx(
                     "px-3 py-2 rounded-md border border-gray-300 bg-white hover:bg-gray-200 transition-colors min-w-[44px] flex items-center justify-center",
                     getStatusColor(formData.status)
