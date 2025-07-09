@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Task, Tag } from '../types';
+import { apiService } from '../services/api';
 import { X, Save, Flag, Circle, Play, Pause, CheckCircle } from 'lucide-react';
 import clsx from 'clsx';
 
@@ -93,7 +94,7 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, tags, onClose, onSa
     }
   };
 
-  const handleStatusClick = () => {
+  const handleStatusClick = async () => {
     let newStatus: Task['status'];
     
     switch (formData.status) {
@@ -114,9 +115,10 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, tags, onClose, onSa
     }
     
     setFormData({ ...formData, status: newStatus });
+    await handleStatusAutoSave(newStatus);
   };
 
-  const handlePriorityClick = () => {
+  const handlePriorityClick = async () => {
     let newPriority: Task['priority'];
     
     switch (formData.priority) {
@@ -137,6 +139,7 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, tags, onClose, onSa
     }
     
     setFormData({ ...formData, priority: newPriority });
+    await handlePriorityAutoSave(newPriority);
   };
 
   const handleTitleClick = () => {
@@ -150,11 +153,14 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, tags, onClose, onSa
     }, 10);
   };
 
-  const handleTitleSave = () => {
+  const handleTitleSave = async () => {
     if (!editingTitleValue.trim()) return;
     
     setFormData({ ...formData, title: editingTitleValue.trim() });
     setIsEditingTitle(false);
+    
+    // Trigger autosave
+    await handleTitleAutoSave(editingTitleValue.trim());
   };
 
   const handleTitleCancel = () => {
@@ -167,6 +173,89 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, tags, onClose, onSa
       handleTitleSave();
     } else if (e.key === 'Escape') {
       handleTitleCancel();
+    }
+  };
+
+  // Autosave functions for each field
+  const handleTitleAutoSave = async (newTitle: string) => {
+    if (!newTitle.trim() || newTitle.trim() === task.title) return;
+    
+    try {
+      console.log(`✏️ Auto-saving task title: "${newTitle.trim()}"`);
+      await apiService.updateTask(task.id, { title: newTitle.trim() });
+      onSave({ ...task, title: newTitle.trim() });
+    } catch (error) {
+      console.error('Error auto-saving task title:', error);
+    }
+  };
+
+  const handleDescriptionAutoSave = async (newDescription: string) => {
+    const currentDescription = task.description || '';
+    const finalDescription = newDescription.trim() || undefined;
+    
+    if (finalDescription === currentDescription) return;
+    
+    try {
+      console.log(`📝 Auto-saving task description: "${finalDescription}"`);
+      await apiService.updateTask(task.id, { description: finalDescription });
+      onSave({ ...task, description: finalDescription });
+    } catch (error) {
+      console.error('Error auto-saving task description:', error);
+    }
+  };
+
+  const handleTagAutoSave = async (newTagId: string) => {
+    const currentTagId = task.tag_id || '';
+    const finalTagId = newTagId ? Number(newTagId) : undefined;
+    
+    if (finalTagId === currentTagId) return;
+    
+    try {
+      const tagName = finalTagId ? tags.find(t => t.id === finalTagId)?.name || 'Unknown' : 'Unassigned';
+      console.log(`🏷️ Auto-saving task tag: "${tagName}"`);
+      await apiService.updateTask(task.id, { tag_id: finalTagId });
+      onSave({ ...task, tag_id: finalTagId });
+    } catch (error) {
+      console.error('Error auto-saving task tag:', error);
+    }
+  };
+
+  const handleStatusAutoSave = async (newStatus: Task['status']) => {
+    if (newStatus === task.status) return;
+    
+    try {
+      console.log(`🔄 Auto-saving task status: ${task.status} → ${newStatus}`);
+      await apiService.updateTaskStatus(task.id, newStatus);
+      onSave({ ...task, status: newStatus });
+    } catch (error) {
+      console.error('Error auto-saving task status:', error);
+    }
+  };
+
+  const handlePriorityAutoSave = async (newPriority: Task['priority']) => {
+    if (newPriority === task.priority) return;
+    
+    try {
+      console.log(`🚩 Auto-saving task priority: ${task.priority} → ${newPriority}`);
+      await apiService.updateTask(task.id, { priority: newPriority });
+      onSave({ ...task, priority: newPriority });
+    } catch (error) {
+      console.error('Error auto-saving task priority:', error);
+    }
+  };
+
+  const handleDateAutoSave = async (dateType: 'start_date' | 'due_date' | 'completion_date', newDate: string) => {
+    const currentDate = task[dateType] || '';
+    const finalDate = newDate || null;
+    
+    if (finalDate === currentDate) return;
+    
+    try {
+      console.log(`📅 Auto-saving task ${dateType}: "${finalDate}"`);
+      await apiService.updateTask(task.id, { [dateType]: finalDate });
+      onSave({ ...task, [dateType]: finalDate });
+    } catch (error) {
+      console.error(`Error auto-saving task ${dateType}:`, error);
     }
   };
 
@@ -185,14 +274,7 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, tags, onClose, onSa
     autoResizeTextarea();
   }, [formData.description]);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onSave({
-      ...task,
-      ...formData,
-      tag_id: formData.tag_id ? Number(formData.tag_id) : undefined
-    });
-  };
+
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-6">
@@ -228,7 +310,7 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, tags, onClose, onSa
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form className="space-y-4">
           {/* Tag and Due Date - side by side */}
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -237,7 +319,10 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, tags, onClose, onSa
               </label>
               <select
                 value={formData.tag_id}
-                onChange={(e) => setFormData({ ...formData, tag_id: e.target.value })}
+                onChange={async (e) => {
+                  setFormData({ ...formData, tag_id: e.target.value });
+                  await handleTagAutoSave(e.target.value);
+                }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">Select a tag</option>
@@ -256,7 +341,10 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, tags, onClose, onSa
               <input
                 type="date"
                 value={formData.due_date}
-                onChange={(e) => setFormData({ ...formData, due_date: e.target.value })}
+                onChange={async (e) => {
+                  setFormData({ ...formData, due_date: e.target.value });
+                  await handleDateAutoSave('due_date', e.target.value);
+                }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
@@ -282,7 +370,11 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, tags, onClose, onSa
                 </button>
                 <select
                   value={formData.status}
-                  onChange={(e) => setFormData({ ...formData, status: e.target.value as Task['status'] })}
+                  onChange={async (e) => {
+                    const newStatus = e.target.value as Task['status'];
+                    setFormData({ ...formData, status: newStatus });
+                    await handleStatusAutoSave(newStatus);
+                  }}
                   className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="todo">To Do</option>
@@ -308,7 +400,11 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, tags, onClose, onSa
                 </button>
                 <select
                   value={formData.priority}
-                  onChange={(e) => setFormData({ ...formData, priority: e.target.value as Task['priority'] })}
+                  onChange={async (e) => {
+                    const newPriority = e.target.value as Task['priority'];
+                    setFormData({ ...formData, priority: newPriority });
+                    await handlePriorityAutoSave(newPriority);
+                  }}
                   className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="low">Low</option>
@@ -329,7 +425,10 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, tags, onClose, onSa
               <input
                 type="date"
                 value={formData.start_date}
-                onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
+                onChange={async (e) => {
+                  setFormData({ ...formData, start_date: e.target.value });
+                  await handleDateAutoSave('start_date', e.target.value);
+                }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
@@ -341,7 +440,10 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, tags, onClose, onSa
               <input
                 type="date"
                 value={formData.completion_date}
-                onChange={(e) => setFormData({ ...formData, completion_date: e.target.value })}
+                onChange={async (e) => {
+                  setFormData({ ...formData, completion_date: e.target.value });
+                  await handleDateAutoSave('completion_date', e.target.value);
+                }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
@@ -356,28 +458,14 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, tags, onClose, onSa
               ref={descriptionRef}
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              onBlur={async () => await handleDescriptionAutoSave(formData.description)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
               placeholder="Enter task description..."
               style={{ minHeight: '100px', maxHeight: '400px' }}
             />
           </div>
 
-          <div className="flex space-x-3 pt-4">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="flex-1 px-4 py-2 text-white bg-blue-600 rounded-md hover:bg-blue-700 flex items-center justify-center space-x-2"
-            >
-              <Save className="w-4 h-4" />
-              <span>Save</span>
-            </button>
-          </div>
+
         </form>
       </div>
     </div>
