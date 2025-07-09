@@ -1694,6 +1694,14 @@ const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ v
               console.error('Error updating task:', error);
             }
           }}
+          onUpdate={(updatedTask) => {
+            // Update local state for autosave operations
+            setTasks(prevTasks => 
+              prevTasks.map(t => t.id === updatedTask.id ? updatedTask : t)
+            );
+            // Also update the editingTask state to keep modal in sync
+            setEditingTask(updatedTask);
+          }}
         />
       )}
 

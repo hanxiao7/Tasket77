@@ -9,9 +9,10 @@ interface TaskEditModalProps {
   tags: Tag[];
   onClose: () => void;
   onSave: (task: Task) => void;
+  onUpdate?: (task: Task) => void;
 }
 
-const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, tags, onClose, onSave }) => {
+const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, tags, onClose, onSave, onUpdate }) => {
   const formatDateForInput = (dateString: string | undefined) => {
     if (!dateString) return '';
     
@@ -183,7 +184,7 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, tags, onClose, onSa
     try {
       console.log(`✏️ Auto-saving task title: "${newTitle.trim()}"`);
       await apiService.updateTask(task.id, { title: newTitle.trim() });
-      onSave({ ...task, title: newTitle.trim() });
+      onUpdate?.({ ...task, title: newTitle.trim() });
     } catch (error) {
       console.error('Error auto-saving task title:', error);
     }
@@ -198,7 +199,7 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, tags, onClose, onSa
     try {
       console.log(`📝 Auto-saving task description: "${finalDescription}"`);
       await apiService.updateTask(task.id, { description: finalDescription });
-      onSave({ ...task, description: finalDescription });
+      onUpdate?.({ ...task, description: finalDescription });
     } catch (error) {
       console.error('Error auto-saving task description:', error);
     }
@@ -214,7 +215,7 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, tags, onClose, onSa
       const tagName = finalTagId ? tags.find(t => t.id === finalTagId)?.name || 'Unknown' : 'Unassigned';
       console.log(`🏷️ Auto-saving task tag: "${tagName}"`);
       await apiService.updateTask(task.id, { tag_id: finalTagId });
-      onSave({ ...task, tag_id: finalTagId });
+      onUpdate?.({ ...task, tag_id: finalTagId, tag_name: tagName });
     } catch (error) {
       console.error('Error auto-saving task tag:', error);
     }
@@ -226,7 +227,7 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, tags, onClose, onSa
     try {
       console.log(`🔄 Auto-saving task status: ${task.status} → ${newStatus}`);
       await apiService.updateTaskStatus(task.id, newStatus);
-      onSave({ ...task, status: newStatus });
+      onUpdate?.({ ...task, status: newStatus });
     } catch (error) {
       console.error('Error auto-saving task status:', error);
     }
@@ -238,7 +239,7 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, tags, onClose, onSa
     try {
       console.log(`🚩 Auto-saving task priority: ${task.priority} → ${newPriority}`);
       await apiService.updateTask(task.id, { priority: newPriority });
-      onSave({ ...task, priority: newPriority });
+      onUpdate?.({ ...task, priority: newPriority });
     } catch (error) {
       console.error('Error auto-saving task priority:', error);
     }
@@ -253,7 +254,7 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, tags, onClose, onSa
     try {
       console.log(`📅 Auto-saving task ${dateType}: "${finalDate}"`);
       await apiService.updateTask(task.id, { [dateType]: finalDate });
-      onSave({ ...task, [dateType]: finalDate });
+      onUpdate?.({ ...task, [dateType]: finalDate });
     } catch (error) {
       console.error(`Error auto-saving task ${dateType}:`, error);
     }
