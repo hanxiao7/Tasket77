@@ -369,7 +369,7 @@ app.patch('/api/tasks/:id/status', async (req, res) => {
       }
     } else if (status === 'done' && currentTask.status !== 'done') {
       updateFields.push('completion_date = ?');
-      updateParams.push(moment().tz('America/New_York').endOf('day').format('YYYY-MM-DD HH:mm:ss'));
+      updateParams.push(moment().tz('America/New_York').format('YYYY-MM-DD HH:mm:ss'));
     }
     
     updateFields.push('last_modified = ?');
