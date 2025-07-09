@@ -10,9 +10,10 @@ interface TaskEditModalProps {
   onClose: () => void;
   onSave: (task: Task) => void;
   onUpdate?: (task: Task) => void;
+  onTagSave?: (taskId: number, tagId?: number) => Promise<void>;
 }
 
-const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, tags, onClose, onSave, onUpdate }) => {
+const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, tags, onClose, onSave, onUpdate, onTagSave }) => {
   const formatDateForInput = (dateString: string | undefined) => {
     if (!dateString) return '';
     
@@ -211,13 +212,19 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, tags, onClose, onSa
     
     if (finalTagId === currentTagId) return;
     
-    try {
-      const tagName = finalTagId ? tags.find(t => t.id === finalTagId)?.name || 'Unknown' : 'Unassigned';
-      console.log(`🏷️ Auto-saving task tag: "${tagName}"`);
-      await apiService.updateTask(task.id, { tag_id: finalTagId });
-      onUpdate?.({ ...task, tag_id: finalTagId, tag_name: tagName });
-    } catch (error) {
-      console.error('Error auto-saving task tag:', error);
+    if (onTagSave) {
+      // Use the parent's tag save function if provided
+      await onTagSave(task.id, finalTagId);
+    } else {
+      // Fallback to local implementation if not provided
+      try {
+        const tagName = finalTagId ? tags.find(t => t.id === finalTagId)?.name || 'Unknown' : 'Unassigned';
+        console.log(`🏷️ Auto-saving task tag: "${tagName}"`);
+        await apiService.updateTask(task.id, { tag_id: finalTagId });
+        onUpdate?.({ ...task, tag_id: finalTagId, tag_name: tagName });
+      } catch (error) {
+        console.error('Error auto-saving task tag:', error);
+      }
     }
   };
 
@@ -327,7 +334,7 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, tags, onClose, onSa
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">Select a tag</option>
-                {tags.map((tag) => (
+                {tags.filter(tag => tag.hidden !== 1).map((tag) => (
                   <option key={tag.id} value={tag.id}>
                     {tag.name}
                   </option>

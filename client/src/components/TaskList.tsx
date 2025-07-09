@@ -1702,6 +1702,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ v
             // Also update the editingTask state to keep modal in sync
             setEditingTask(updatedTask);
           }}
+          onTagSave={handleTagSave}
         />
       )}
 
