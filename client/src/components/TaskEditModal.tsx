@@ -52,6 +52,19 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, tags, onClose, onSa
   const titleInputRef = useRef<HTMLInputElement>(null);
   const descriptionRef = useRef<HTMLTextAreaElement>(null);
 
+  useEffect(() => {
+    setFormData({
+      title: task.title,
+      description: task.description || '',
+      tag_id: task.tag_id || '',
+      priority: task.priority,
+      status: task.status,
+      start_date: formatDateForInput(task.start_date),
+      due_date: formatDateForInput(task.due_date),
+      completion_date: formatDateForInput(task.completion_date)
+    });
+  }, [task]);
+
   const getStatusIcon = (status: Task['status']) => {
     switch (status) {
       case 'todo':
@@ -234,7 +247,15 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, tags, onClose, onSa
     try {
       console.log(`🔄 Auto-saving task status: ${task.status} → ${newStatus}`);
       await apiService.updateTaskStatus(task.id, newStatus);
-      onUpdate?.({ ...task, status: newStatus });
+      // Fetch the updated task to get new dates and last_modified
+      const updatedTasks = await apiService.getTasks();
+      const updatedTask = updatedTasks.find(t => t.id === task.id);
+      if (updatedTask) {
+        onUpdate?.(updatedTask);
+      } else {
+        // fallback if not found
+        onUpdate?.({ ...task, status: newStatus });
+      }
     } catch (error) {
       console.error('Error auto-saving task status:', error);
     }
