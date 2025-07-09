@@ -80,6 +80,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ v
   const newTagInputRef = useRef<HTMLInputElement>(null);
   const dateInputRef = useRef<HTMLInputElement>(null);
   const tagInputRef = useRef<HTMLSelectElement>(null);
+  const statusClickTimers = useRef<{ [taskId: number]: NodeJS.Timeout }>({});
 
   const checkTitleTruncation = (taskId: number) => {
     const titleRef = titleRefs.current.get(taskId);
@@ -1283,10 +1284,22 @@ const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ v
                   <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleStatusClick(task);
+                        // Start a timer for single click
+                        if (statusClickTimers.current[task.id]) {
+                          clearTimeout(statusClickTimers.current[task.id]);
+                        }
+                        statusClickTimers.current[task.id] = setTimeout(() => {
+                          handleStatusClick(task);
+                          delete statusClickTimers.current[task.id];
+                        }, 250); // 250ms delay to distinguish from double click
                       }}
                       onDoubleClick={(e) => {
                         e.stopPropagation();
+                        // If timer exists, cancel single click
+                        if (statusClickTimers.current[task.id]) {
+                          clearTimeout(statusClickTimers.current[task.id]);
+                          delete statusClickTimers.current[task.id];
+                        }
                         handleStatusDoubleClick(task);
                       }}
                     className={clsx(
