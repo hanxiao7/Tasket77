@@ -1141,28 +1141,20 @@ const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ v
   return (
     <div className="space-y-2">
       {/* New task input */}
-      <div className="flex items-center space-x-2 p-2 bg-gray-50 rounded border">
-        <Plus className="w-4 h-4 text-gray-400" />
-        <input
-          ref={newTaskInputRef}
-          type="text"
-          placeholder="Add new task..."
-          value={newTaskTitle}
-          onChange={(e) => setNewTaskTitle(e.target.value)}
-          onKeyPress={handleKeyPress}
-          disabled={isCreatingTask}
-          className="flex-1 bg-transparent border-none outline-none text-sm"
-        />
+      <div className="flex items-center gap-3 p-2 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200 shadow-sm">
+        <Plus className="w-5 h-5 text-blue-500" />
         <div className="relative">
           <div
-            className="text-xs rounded px-1 py-1 border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 w-40 cursor-pointer bg-white"
+            className="text-sm rounded-md px-3 py-1.5 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-44 cursor-pointer bg-white hover:bg-gray-50 transition-colors"
             onClick={(e) => {
               e.stopPropagation();
               setShowNewTaskTagDropdown(!showNewTaskTagDropdown);
             }}
             title="Select tag for new task"
           >
-            {selectedNewTaskTag ? tags.find(t => t.id.toString() === selectedNewTaskTag)?.name || '' : 'Select tag'}
+            <span className="text-gray-600">
+              {selectedNewTaskTag ? tags.find(t => t.id.toString() === selectedNewTaskTag)?.name || '' : 'Select tag'}
+            </span>
           </div>
           
           {/* New task tag dropdown menu */}
@@ -1171,9 +1163,9 @@ const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ v
               className="absolute top-full left-0 right-0 bg-white border border-gray-200 rounded-lg shadow-lg z-50 mt-1"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="max-h-40 overflow-y-auto">
+              <div className="max-h-60 overflow-y-auto">
                 <div 
-                  className="px-2 py-1 text-xs text-gray-500 hover:bg-gray-50 cursor-pointer border-b"
+                  className="px-3 py-1.5 text-sm text-gray-500 hover:bg-gray-50 cursor-pointer border-b"
                   onClick={() => {
                     setSelectedNewTaskTag('');
                     setShowNewTaskTagDropdown(false);
@@ -1185,8 +1177,8 @@ const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ v
                   <div
                     key={tag.id}
                     className={clsx(
-                      "px-2 py-1 text-xs cursor-pointer hover:bg-blue-50",
-                      selectedNewTaskTag === tag.id.toString() && "bg-blue-100"
+                      "px-3 py-1.5 text-sm cursor-pointer hover:bg-blue-50 transition-colors",
+                      selectedNewTaskTag === tag.id.toString() && "bg-blue-100 text-blue-700"
                     )}
                     onClick={() => {
                       setSelectedNewTaskTag(tag.id.toString());
@@ -1198,7 +1190,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ v
                 ))}
                 <div className="border-t border-gray-200">
                   <div 
-                    className="px-2 py-1 text-xs text-blue-600 hover:bg-blue-50 cursor-pointer"
+                    className="px-3 py-1.5 text-sm text-blue-600 hover:bg-blue-50 cursor-pointer transition-colors"
                     onClick={() => {
                       setShowTagEditModal(true);
                       setShowNewTaskTagDropdown(false);
@@ -1211,6 +1203,16 @@ const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ v
             </div>
           )}
         </div>
+        <input
+          ref={newTaskInputRef}
+          type="text"
+          placeholder="Add new task..."
+          value={newTaskTitle}
+          onChange={(e) => setNewTaskTitle(e.target.value)}
+          onKeyPress={handleKeyPress}
+          disabled={isCreatingTask}
+          className="flex-1 bg-white border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder-gray-400"
+        />
       </div>
 
 
