@@ -53,6 +53,9 @@ out/
 *.sqlite3
 server/tasks.db
 
+# Backup files
+server/backups/
+
 # IDE and editor files
 .vscode/
 .idea/
