@@ -1,10 +1,12 @@
 import React, { useState, useRef } from 'react';
 import { TaskFilters, ViewMode } from './types';
 import TaskList from './components/TaskList';
+import WorkspaceSelector from './components/WorkspaceSelector';
 import { Download, ArrowUpDown } from 'lucide-react';
 
 function App() {
   const [viewMode, setViewMode] = useState<ViewMode>('planner');
+  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<number>(0);
   const [filters, setFilters] = useState<TaskFilters>({
     view: 'planner',
     show_completed: false,
@@ -15,6 +17,12 @@ function App() {
 
   const handleFiltersChange = (newFilters: TaskFilters) => {
     setFilters(newFilters);
+  };
+
+  const handleWorkspaceChange = (workspaceId: number) => {
+    setSelectedWorkspaceId(workspaceId);
+    // Update filters to include the new workspace
+    setFilters(prev => ({ ...prev, workspace_id: workspaceId }));
   };
 
   const handleSort = () => {
@@ -45,7 +53,13 @@ function App() {
       <div className="max-w-6xl mx-auto p-6">
         {/* Header */}
         <div className="mb-6">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Task Management Tool</h1>
+          <div className="flex items-center justify-between mb-2">
+            <h1 className="text-3xl font-bold text-gray-900">Task Management Tool</h1>
+            <WorkspaceSelector 
+              selectedWorkspaceId={selectedWorkspaceId}
+              onWorkspaceChange={handleWorkspaceChange}
+            />
+          </div>
           <p className="text-gray-600">Minimal, fast-to-use task management for fast-paced environments</p>
         </div>
 
@@ -139,6 +153,7 @@ function App() {
             ref={taskListRef}
             viewMode={viewMode}
             filters={filters}
+            selectedWorkspaceId={selectedWorkspaceId}
             onFiltersChange={handleFiltersChange}
             onSort={handleSort}
             isSorting={isSorting}
@@ -149,6 +164,7 @@ function App() {
         <div className="mt-6 p-4 bg-blue-50 rounded-lg">
           <h3 className="font-medium text-blue-900 mb-2">Quick Tips:</h3>
           <ul className="text-sm text-blue-800 space-y-1">
+            <li>• Use the workspace selector to switch between different task spaces</li>
             <li>• Click status button to cycle: To Do → In Progress → Paused → To Do</li>
             <li>• Double-click status button to mark as Done</li>
             <li>• Click task title to edit it inline</li>

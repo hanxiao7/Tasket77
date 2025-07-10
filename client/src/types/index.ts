@@ -1,6 +1,15 @@
+export interface Workspace {
+  id: number;
+  name: string;
+  description?: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Tag {
   id: number;
   name: string;
+  workspace_id: number;
   hidden: number;
   created_at: string;
   updated_at: string;
@@ -13,6 +22,7 @@ export interface Task {
   tag_id?: number;
   tag_name?: string;
   parent_task_id?: number;
+  workspace_id: number;
   status: 'todo' | 'in_progress' | 'paused' | 'done';
   priority: 'urgent' | 'high' | 'normal' | 'low';
   due_date?: string;
@@ -37,6 +47,7 @@ export interface CreateTaskData {
   description?: string;
   tag_id?: number;
   parent_task_id?: number;
+  workspace_id: number;
   priority?: 'urgent' | 'high' | 'normal' | 'low';
   due_date?: string;
 }
@@ -59,6 +70,7 @@ export interface TaskFilters {
   status?: string;
   priority?: string;
   show_completed?: boolean;
+  workspace_id?: number;
 }
 
 export type ViewMode = 'planner' | 'tracker'; 

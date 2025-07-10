@@ -95,16 +95,28 @@ async function updateParentTaskStatus(parentTaskId) {
 
 // Get all tags
 app.get('/api/tags', (req, res) => {
-  const { include_hidden } = req.query;
+  const { include_hidden, workspace_id } = req.query;
   let query = "SELECT * FROM tags";
+  let params = [];
+  
+  const conditions = [];
   
   if (include_hidden !== 'true') {
-    query += " WHERE hidden = 0";
+    conditions.push("hidden = 0");
+  }
+  
+  if (workspace_id) {
+    conditions.push("workspace_id = ?");
+    params.push(workspace_id);
+  }
+  
+  if (conditions.length > 0) {
+    query += " WHERE " + conditions.join(" AND ");
   }
   
   query += " ORDER BY name";
   
-  db.all(query, (err, rows) => {
+  db.all(query, params, (err, rows) => {
     if (err) {
       res.status(500).json({ error: err.message });
       return;
@@ -115,13 +127,19 @@ app.get('/api/tags', (req, res) => {
 
 // Create new tag
 app.post('/api/tags', (req, res) => {
-  const { name } = req.body;
+  const { name, workspace_id } = req.body;
   if (!name) {
     res.status(400).json({ error: 'Tag name is required' });
     return;
   }
   
-  db.run("INSERT INTO tags (name, hidden, created_at, updated_at) VALUES (?, 0, ?, ?)", [name, moment().tz('America/New_York').format('YYYY-MM-DD HH:mm:ss'), moment().tz('America/New_York').format('YYYY-MM-DD HH:mm:ss')], function(err) {
+  if (!workspace_id) {
+    res.status(400).json({ error: 'Workspace ID is required' });
+    return;
+  }
+  
+  db.run("INSERT INTO tags (name, workspace_id, hidden, created_at, updated_at) VALUES (?, ?, 0, ?, ?)", 
+    [name, workspace_id, moment().tz('America/New_York').format('YYYY-MM-DD HH:mm:ss'), moment().tz('America/New_York').format('YYYY-MM-DD HH:mm:ss')], function(err) {
     if (err) {
       res.status(500).json({ error: err.message });
       return;
@@ -222,7 +240,7 @@ app.delete('/api/tags/:id', (req, res) => {
 
 // Get tasks with optional filters
 app.get('/api/tasks', (req, res) => {
-  const { view, days, tag_id, status, priority, show_completed } = req.query;
+  const { view, days, tag_id, status, priority, show_completed, workspace_id } = req.query;
   
   let query = `
     SELECT t.*, tg.name as tag_name, 
@@ -234,6 +252,12 @@ app.get('/api/tasks', (req, res) => {
   `;
   
   const params = [];
+  
+  // Filter by workspace
+  if (workspace_id) {
+    query += " AND t.workspace_id = ?";
+    params.push(workspace_id);
+  }
   
   // Filter by view type
   if (view === 'planner' && show_completed !== 'true') {
@@ -284,10 +308,15 @@ app.get('/api/tasks', (req, res) => {
 
 // Create new task
 app.post('/api/tasks', async (req, res) => {
-  const { title, description, tag_id, parent_task_id, priority, due_date } = req.body;
+  const { title, description, tag_id, parent_task_id, priority, due_date, workspace_id } = req.body;
   
   if (!title) {
     res.status(400).json({ error: 'Task title is required' });
+    return;
+  }
+  
+  if (!workspace_id) {
+    res.status(400).json({ error: 'Workspace ID is required' });
     return;
   }
   
@@ -301,9 +330,9 @@ app.post('/api/tasks', async (req, res) => {
   const parsedDueDate = due_date ? moment.tz(due_date, 'America/New_York').endOf('day').format('YYYY-MM-DD HH:mm:ss') : null;
   
   db.run(`
-    INSERT INTO tasks (title, description, tag_id, parent_task_id, priority, due_date, created_at, last_modified)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `, [title, description, tag_id, parent_task_id, finalPriority, parsedDueDate, moment().tz('America/New_York').format('YYYY-MM-DD HH:mm:ss'), moment().tz('America/New_York').format('YYYY-MM-DD HH:mm:ss')], async function(err) {
+    INSERT INTO tasks (title, description, tag_id, parent_task_id, workspace_id, priority, due_date, created_at, last_modified)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `, [title, description, tag_id, parent_task_id, workspace_id, finalPriority, parsedDueDate, moment().tz('America/New_York').format('YYYY-MM-DD HH:mm:ss'), moment().tz('America/New_York').format('YYYY-MM-DD HH:mm:ss')], async function(err) {
     if (err) {
       res.status(500).json({ error: err.message });
       return;
@@ -662,6 +691,124 @@ app.get('/api/backup/download/:filename', (req, res) => {
     }
     
     res.download(backupPath);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Workspace management endpoints
+
+// Get all workspaces
+app.get('/api/workspaces', (req, res) => {
+  db.all("SELECT * FROM workspaces ORDER BY name", (err, rows) => {
+    if (err) {
+      res.status(500).json({ error: err.message });
+      return;
+    }
+    res.json(rows);
+  });
+});
+
+// Create new workspace
+app.post('/api/workspaces', (req, res) => {
+  const { name, description } = req.body;
+  
+  if (!name) {
+    res.status(400).json({ error: 'Workspace name is required' });
+    return;
+  }
+  
+  const now = moment().tz('America/New_York').format('YYYY-MM-DD HH:mm:ss');
+  
+  db.run("INSERT INTO workspaces (name, description, created_at, updated_at) VALUES (?, ?, ?, ?)", 
+    [name, description || '', now, now], function(err) {
+    if (err) {
+      res.status(500).json({ error: err.message });
+      return;
+    }
+    
+    // Get the complete workspace data
+    db.get("SELECT * FROM workspaces WHERE id = ?", [this.lastID], (err, row) => {
+      if (err) {
+        res.status(500).json({ error: err.message });
+        return;
+      }
+      res.json(row);
+    });
+  });
+});
+
+// Update workspace
+app.put('/api/workspaces/:id', (req, res) => {
+  const { id } = req.params;
+  const { name, description } = req.body;
+  
+  if (!name) {
+    res.status(400).json({ error: 'Workspace name is required' });
+    return;
+  }
+  
+  const now = moment().tz('America/New_York').format('YYYY-MM-DD HH:mm:ss');
+  
+  db.run("UPDATE workspaces SET name = ?, description = ?, updated_at = ? WHERE id = ?", 
+    [name, description || '', now, id], function(err) {
+    if (err) {
+      res.status(500).json({ error: err.message });
+      return;
+    }
+    if (this.changes === 0) {
+      res.status(404).json({ error: 'Workspace not found' });
+      return;
+    }
+    
+    // Get the complete updated workspace data
+    db.get("SELECT * FROM workspaces WHERE id = ?", [id], (err, row) => {
+      if (err) {
+        res.status(500).json({ error: err.message });
+        return;
+      }
+      res.json(row);
+    });
+  });
+});
+
+// Delete workspace
+app.delete('/api/workspaces/:id', async (req, res) => {
+  const { id } = req.params;
+  
+  try {
+    // Check if this is the default workspace (id = 1)
+    if (id == 1) {
+      res.status(400).json({ error: 'Cannot delete the default workspace' });
+      return;
+    }
+    
+    // Delete all tasks in this workspace
+    await new Promise((resolve, reject) => {
+      db.run("DELETE FROM tasks WHERE workspace_id = ?", [id], (err) => {
+        if (err) reject(err);
+        else resolve();
+      });
+    });
+    
+    // Delete all tags in this workspace
+    await new Promise((resolve, reject) => {
+      db.run("DELETE FROM tags WHERE workspace_id = ?", [id], (err) => {
+        if (err) reject(err);
+        else resolve();
+      });
+    });
+    
+    // Delete the workspace
+    await new Promise((resolve, reject) => {
+      db.run("DELETE FROM workspaces WHERE id = ?", [id], (err) => {
+        if (err) reject(err);
+        else resolve();
+      });
+    });
+    
+    res.json({ success: true });
+    
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

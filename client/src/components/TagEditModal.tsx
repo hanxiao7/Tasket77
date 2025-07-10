@@ -5,11 +5,12 @@ import { X, Edit3, Eye, EyeOff, Trash2, Plus } from 'lucide-react';
 
 interface TagEditModalProps {
   tags: Tag[];
+  workspaceId: number;
   onClose: () => void;
   onTagsUpdate: () => void;
 }
 
-const TagEditModal: React.FC<TagEditModalProps> = ({ tags, onClose, onTagsUpdate }) => {
+const TagEditModal: React.FC<TagEditModalProps> = ({ tags, workspaceId, onClose, onTagsUpdate }) => {
   const [editingTagId, setEditingTagId] = useState<number | null>(null);
   const [editingTagName, setEditingTagName] = useState('');
   const [newTagName, setNewTagName] = useState('');
@@ -49,7 +50,7 @@ const TagEditModal: React.FC<TagEditModalProps> = ({ tags, onClose, onTagsUpdate
 
     try {
       setIsCreatingTag(true);
-      await apiService.createTag(newTagName.trim());
+      await apiService.createTag(newTagName.trim(), workspaceId);
       setNewTagName('');
       onTagsUpdate();
     } catch (error) {

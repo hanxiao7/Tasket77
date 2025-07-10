@@ -26,12 +26,13 @@ import TagEditModal from './TagEditModal';
 interface TaskListProps {
   viewMode: 'planner' | 'tracker';
   filters: TaskFilters;
+  selectedWorkspaceId: number;
   onFiltersChange: (filters: TaskFilters) => void;
   onSort: () => void;
   isSorting: boolean;
 }
 
-const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ viewMode, filters, onFiltersChange, onSort, isSorting }, ref) => {
+const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ viewMode, filters, selectedWorkspaceId, onFiltersChange, onSort, isSorting }, ref) => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
   const [loading, setLoading] = useState(true);
@@ -306,8 +307,8 @@ const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ v
     try {
       setLoading(true);
       const [tasksData, tagsData] = await Promise.all([
-        apiService.getTasks({ ...filters, view: viewMode }),
-        apiService.getTags(true) // Include hidden tags
+        apiService.getTasks({ ...filters, view: viewMode, workspace_id: selectedWorkspaceId }),
+        apiService.getTags(true, selectedWorkspaceId) // Include hidden tags and filter by workspace
       ]);
       
       // Apply sorting to the loaded data
@@ -342,7 +343,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ v
     } finally {
       setLoading(false);
     }
-  }, [filters, viewMode, sortTasks]);
+  }, [filters, viewMode, sortTasks, selectedWorkspaceId]);
 
   useEffect(() => {
     loadData();
@@ -524,8 +525,8 @@ const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ v
   const handleCreateTask = async () => {
     if (!newTaskTitle.trim()) return;
     
+    setIsCreatingTask(true);
     try {
-      setIsCreatingTask(true);
       const selectedTagId = selectedNewTaskTag ? Number(selectedNewTaskTag) : undefined;
       const selectedTagName = selectedTagId ? tags.find(t => t.id === selectedTagId)?.name : undefined;
       
@@ -533,7 +534,8 @@ const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ v
       
       const newTask = await apiService.createTask({
         title: newTaskTitle.trim(),
-        tag_id: selectedTagId
+        tag_id: selectedTagId,
+        workspace_id: selectedWorkspaceId
       });
       
       setNewTaskTitle('');
@@ -835,10 +837,10 @@ const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ v
   const handleCreateTag = async () => {
     if (!newTagName.trim()) return;
     
+    setIsCreatingTag(true);
     try {
-      setIsCreatingTag(true);
       console.log(`➕ Creating new tag: "${newTagName.trim()}"`);
-      const newTag = await apiService.createTag(newTagName.trim());
+      const newTag = await apiService.createTag(newTagName.trim(), selectedWorkspaceId);
       setNewTagName('');
       setShowTagInput(false);
       
@@ -1725,6 +1727,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ v
       {showTagEditModal && (
         <TagEditModal
           tags={tags}
+          workspaceId={selectedWorkspaceId}
           onClose={() => setShowTagEditModal(false)}
           onTagsUpdate={loadData}
         />

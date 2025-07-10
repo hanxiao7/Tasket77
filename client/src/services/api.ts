@@ -1,4 +1,4 @@
-import { Task, Tag, CreateTaskData, UpdateTaskData, TaskFilters, TaskHistory } from '../types';
+import { Task, Tag, Workspace, CreateTaskData, UpdateTaskData, TaskFilters, TaskHistory } from '../types';
 
 const API_BASE = 'http://localhost:3001/api';
 
@@ -20,11 +20,39 @@ class ApiService {
     return response.json();
   }
 
+  // Workspaces
+  async getWorkspaces(): Promise<Workspace[]> {
+    return this.request<Workspace[]>('/workspaces');
+  }
+
+  async createWorkspace(name: string, description?: string): Promise<Workspace> {
+    return this.request<Workspace>('/workspaces', {
+      method: 'POST',
+      body: JSON.stringify({ name, description }),
+    });
+  }
+
+  async updateWorkspace(id: number, name: string, description?: string): Promise<Workspace> {
+    return this.request<Workspace>(`/workspaces/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ name, description }),
+    });
+  }
+
+  async deleteWorkspace(id: number): Promise<{ success: boolean }> {
+    return this.request<{ success: boolean }>(`/workspaces/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
   // Tags
-  async getTags(includeHidden?: boolean): Promise<Tag[]> {
+  async getTags(includeHidden?: boolean, workspaceId?: number): Promise<Tag[]> {
     const params = new URLSearchParams();
     if (includeHidden) {
       params.append('include_hidden', 'true');
+    }
+    if (workspaceId) {
+      params.append('workspace_id', workspaceId.toString());
     }
     
     const queryString = params.toString();
@@ -32,10 +60,10 @@ class ApiService {
     return this.request<Tag[]>(endpoint);
   }
 
-  async createTag(name: string): Promise<Tag> {
+  async createTag(name: string, workspaceId: number): Promise<Tag> {
     return this.request<Tag>('/tags', {
       method: 'POST',
-      body: JSON.stringify({ name }),
+      body: JSON.stringify({ name, workspace_id: workspaceId }),
     });
   }
 
