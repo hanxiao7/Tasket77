@@ -20,27 +20,15 @@ function initializeDatabase() {
         )
       `);
 
-      // Insert default workspace if none exists
-      db.get("SELECT COUNT(*) as count FROM workspaces", (err, row) => {
+      // Insert default workspace if none exists (use INSERT OR IGNORE to prevent duplicates)
+      const moment = require('moment-timezone');
+      const now = moment().tz('America/New_York').format('YYYY-MM-DD HH:mm:ss');
+      db.run("INSERT OR IGNORE INTO workspaces (id, name, description, created_at, updated_at) VALUES (1, ?, ?, ?, ?)", 
+        ['Default Workspace', 'Default workspace for existing tasks', now, now], (err) => {
         if (err) {
           reject(err);
-          return;
-        }
-        
-        if (row.count === 0) {
-          const moment = require('moment-timezone');
-          const now = moment().tz('America/New_York').format('YYYY-MM-DD HH:mm:ss');
-          db.run("INSERT INTO workspaces (name, description, created_at, updated_at) VALUES (?, ?, ?, ?)", 
-            ['Default Workspace', 'Default workspace for existing tasks', now, now], (err) => {
-            if (err) {
-              reject(err);
-            } else {
-              // Continue with migration after creating default workspace
-              performMigration();
-            }
-          });
         } else {
-          // Default workspace exists, perform migration
+          // Continue with migration after ensuring default workspace exists
           performMigration();
         }
       });
@@ -148,7 +136,7 @@ function initializeDatabase() {
               // Need to add workspace_id to existing tags table
               console.log('Adding workspace_id to existing tags table...');
               
-              // Drop any existing new table from previous runs
+                            // Drop any existing new table from previous runs
               db.run("DROP TABLE IF EXISTS tags_new");
               
               // Create new tags table with workspace_id
