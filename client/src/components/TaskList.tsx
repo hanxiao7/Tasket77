@@ -439,18 +439,21 @@ const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ v
 
   const handleStatusDoubleClick = async (task: Task) => {
     try {
-      console.log(`✅ Marking task "${task.title}" as done`);
+      console.log(`✅ Double-click detected! Marking task "${task.title}" as done`);
       await apiService.updateTaskStatus(task.id, 'done');
       
-      // Fetch updated task data to get new dates
-      const updatedTasks = await apiService.getTasks({ ...filters, view: viewMode, workspace_id: selectedWorkspaceId });
-      const updatedTask = updatedTasks.find(t => t.id === task.id);
+      // Update local state immediately for double-click (mark as done)
+      const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
       
-      // Update local state with the updated task data
       setTasks(prevTasks => {
         const updatedTasksList = prevTasks.map(t => {
-          if (t.id === task.id && updatedTask) {
-            return updatedTask;
+          if (t.id === task.id) {
+            return {
+              ...t,
+              status: 'done' as const,
+              completion_date: now,
+              last_modified: now
+            };
           }
           return t;
         });
@@ -1294,6 +1297,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ v
                   {/* Status button */}
                   <div className="w-8 flex justify-center">
                   <button
+                      type="button"
                       onClick={(e) => {
                         e.stopPropagation();
                         // Start a timer for single click

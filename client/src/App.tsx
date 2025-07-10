@@ -167,8 +167,8 @@ function App() {
             <li>• Planner view helps create and follow tasks. Switch to Tracker to review recent progress.</li>
             <li>• Use tags to classify tasks by category or theme</li>
             <li>• Click the status button to cycle through: To Do → In Progress → Paused → In Progress → …</li>
-            <li>• Double-click to mark as Done</li>
-            <li>• Click the priority flag to cycle: Normal → High → Urgent → Low → Normal</li>
+            <li>• Double-click the status button to mark as Done</li>
+            <li>• Click the priority flag to cycle: Normal → High → Urgent → Low → Normal → …</li>
             <li>• Hover over a task to add or view descriptions</li>
             <li>• Use the workspace selector to switch between isolated task sets</li>
           </ul>
