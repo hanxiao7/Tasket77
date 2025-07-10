@@ -48,7 +48,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ v
   const [newTagName, setNewTagName] = useState('');
   const [isCreatingTag, setIsCreatingTag] = useState(false);
   const [showTagInput, setShowTagInput] = useState(false);
-  const [selectedNewTaskTag, setSelectedNewTaskTag] = useState<string>('');
+  const [selectedNewTaskTag, setSelectedNewTaskTag] = useState<Record<number, string>>({});
   const [editingDateTaskId, setEditingDateTaskId] = useState<number | null>(null);
   const [editingDateType, setEditingDateType] = useState<'due_date' | 'start_date' | 'completion_date' | null>(null);
   const [editingDateValue, setEditingDateValue] = useState('');
@@ -418,18 +418,19 @@ const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ v
       console.log(`🔄 Updating task "${task.title}" status: ${task.status} → ${newStatus}`);
       await apiService.updateTaskStatus(task.id, newStatus);
       
-      // Update local state instead of reloading
+      // Fetch updated task data to get new dates
+      const updatedTasks = await apiService.getTasks({ ...filters, view: viewMode, workspace_id: selectedWorkspaceId });
+      const updatedTask = updatedTasks.find(t => t.id === task.id);
+      
+      // Update local state with the updated task data
       setTasks(prevTasks => {
-        const updatedTasks = prevTasks.map(t => {
-          if (t.id === task.id) {
-            return {
-              ...t,
-              status: newStatus
-            } as Task;
+        const updatedTasksList = prevTasks.map(t => {
+          if (t.id === task.id && updatedTask) {
+            return updatedTask;
           }
           return t;
         });
-        return updatedTasks;
+        return updatedTasksList;
       });
     } catch (error) {
       console.error('Error updating task status:', error);
@@ -441,12 +442,19 @@ const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ v
       console.log(`✅ Marking task "${task.title}" as done`);
       await apiService.updateTaskStatus(task.id, 'done');
       
-      // Update local state instead of reloading
+      // Fetch updated task data to get new dates
+      const updatedTasks = await apiService.getTasks({ ...filters, view: viewMode, workspace_id: selectedWorkspaceId });
+      const updatedTask = updatedTasks.find(t => t.id === task.id);
+      
+      // Update local state with the updated task data
       setTasks(prevTasks => {
-        const updatedTasks = prevTasks.map(t => 
-          t.id === task.id ? { ...t, status: 'done' } as Task : t
-        );
-        return updatedTasks;
+        const updatedTasksList = prevTasks.map(t => {
+          if (t.id === task.id && updatedTask) {
+            return updatedTask;
+          }
+          return t;
+        });
+        return updatedTasksList;
       });
     } catch (error) {
       console.error('Error completing task:', error);
@@ -527,7 +535,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ v
     
     setIsCreatingTask(true);
     try {
-      const selectedTagId = selectedNewTaskTag ? Number(selectedNewTaskTag) : undefined;
+      const selectedTagId = selectedNewTaskTag[selectedWorkspaceId] ? Number(selectedNewTaskTag[selectedWorkspaceId]) : undefined;
       const selectedTagName = selectedTagId ? tags.find(t => t.id === selectedTagId)?.name : undefined;
       
       console.log(`➕ Creating new task: "${newTaskTitle.trim()}" with tag: ${selectedTagName || 'none'}`);
@@ -1155,7 +1163,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ v
             title="Select tag for new task"
           >
             <span className="text-gray-600">
-              {selectedNewTaskTag ? tags.find(t => t.id.toString() === selectedNewTaskTag)?.name || '' : 'Select tag'}
+              {selectedNewTaskTag[selectedWorkspaceId] ? (tags.find(t => t.id.toString() === selectedNewTaskTag[selectedWorkspaceId])?.name || 'Select tag') : 'Select tag'}
             </span>
           </div>
           
@@ -1169,7 +1177,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ v
                 <div 
                   className="px-3 py-1.5 text-sm text-gray-500 hover:bg-gray-50 cursor-pointer border-b"
                   onClick={() => {
-                    setSelectedNewTaskTag('');
+                    setSelectedNewTaskTag(prev => ({ ...prev, [selectedWorkspaceId]: '' }));
                     setShowNewTaskTagDropdown(false);
                   }}
                 >
@@ -1180,10 +1188,10 @@ const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ v
                     key={tag.id}
                     className={clsx(
                       "px-3 py-1.5 text-sm cursor-pointer hover:bg-blue-50 transition-colors",
-                      selectedNewTaskTag === tag.id.toString() && "bg-blue-100 text-blue-700"
+                      selectedNewTaskTag[selectedWorkspaceId] === tag.id.toString() && "bg-blue-100 text-blue-700"
                     )}
                     onClick={() => {
-                      setSelectedNewTaskTag(tag.id.toString());
+                      setSelectedNewTaskTag(prev => ({ ...prev, [selectedWorkspaceId]: tag.id.toString() }));
                       setShowNewTaskTagDropdown(false);
                     }}
                   >
