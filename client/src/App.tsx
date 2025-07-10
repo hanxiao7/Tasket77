@@ -164,16 +164,13 @@ function App() {
         <div className="mt-6 p-4 bg-blue-50 rounded-lg">
           <h3 className="font-medium text-blue-900 mb-2">Quick Tips:</h3>
           <ul className="text-sm text-blue-800 space-y-1">
-            <li>• Use the workspace selector to switch between different task spaces</li>
-            <li>• Click status button to cycle: To Do → In Progress → Paused → To Do</li>
-            <li>• Double-click status button to mark as Done</li>
-            <li>• Click task title to edit it inline</li>
-            <li>• Click start date or due date to set/edit dates</li>
-            <li>• Right-click task for Edit Task or Delete options</li>
-            <li>• Hover over tasks to see descriptions</li>
-            <li>• Type in the input field and press Enter to create new tasks</li>
-            <li>• Click "+ Create new tag" to add new tags for organizing tasks</li>
-            <li>• Drag and drop tasks between tags to reorganize</li>
+            <li>• Planner view helps create and follow tasks. Switch to Tracker to review recent progress.</li>
+            <li>• Use tags to classify tasks by category or theme</li>
+            <li>• Click the status button to cycle through: To Do → In Progress → Paused → In Progress → …</li>
+            <li>• Double-click to mark as Done</li>
+            <li>• Click the priority flag to cycle: Normal → High → Urgent → Low → Normal</li>
+            <li>• Hover over a task to add or view descriptions</li>
+            <li>• Use the workspace selector to switch between isolated task sets</li>
           </ul>
         </div>
       </div>
