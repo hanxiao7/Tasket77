@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Workspace } from '../types';
 import { apiService } from '../services/api';
-import { ChevronDown, Plus, Edit, Trash2, Settings } from 'lucide-react';
+import { ChevronDown, Plus, Edit, Trash2, FolderOpen } from 'lucide-react';
 
 interface WorkspaceSelectorProps {
   selectedWorkspaceId: number;
@@ -114,22 +114,22 @@ const WorkspaceSelector: React.FC<WorkspaceSelectorProps> = ({
   };
 
   return (
-    <div className="relative">
+    <div className="relative w-64">
       {/* Main Selector */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center space-x-2 px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        className="flex items-center px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 w-full"
       >
-        <Settings className="w-4 h-4 text-gray-500" />
-        <span className="font-medium text-gray-900">
+        <FolderOpen className="w-4 h-4 text-gray-500 flex-shrink-0" />
+        <span className="font-medium text-gray-900 truncate flex-1 mx-2">
           {selectedWorkspace?.name || 'Select Workspace'}
         </span>
-        <ChevronDown className={`w-4 h-4 text-gray-500 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        <ChevronDown className={`w-4 h-4 text-gray-500 transition-transform flex-shrink-0 ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
       {/* Dropdown */}
       {isOpen && (
-        <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-50 max-h-96 overflow-y-auto">
+        <div className="absolute top-full left-0 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-50 max-h-96 overflow-y-auto">
           {/* Workspace List */}
           <div className="p-2">
             {workspaces.map((workspace) => (

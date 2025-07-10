@@ -1147,7 +1147,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ v
         <Plus className="w-5 h-5 text-blue-500" />
         <div className="relative">
           <div
-            className="text-sm rounded-md px-3 py-1.5 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-44 cursor-pointer bg-white hover:bg-gray-50 transition-colors"
+            className="text-sm rounded-md px-3 py-1.5 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-44 cursor-pointer bg-white hover:bg-gray-50 transition-colors min-h-[32px] flex items-center"
             onClick={(e) => {
               e.stopPropagation();
               setShowNewTaskTagDropdown(!showNewTaskTagDropdown);
