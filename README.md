@@ -13,6 +13,15 @@ A minimal, fast-to-use task management tool designed for handling many small tas
 - **Double-click to edit** task details in a modal
 - **Drag and drop** task reordering
 
+### Workspace Management
+- **Multiple workspaces** for organizing tasks by project, client, or context
+- **Default workspace** that loads automatically on app start
+- **Workspace selector** in the header to switch between workspaces
+- **Set default workspace** by clicking the star icon next to any workspace
+- **Create, edit, and delete** workspaces with descriptions
+- **Isolated task sets** - each workspace has its own tasks and tags
+- **Visual indicators** for default workspace (star icon)
+
 ### Enhanced UI/UX
 - **Intelligent title tooltips** that show only truncated text, positioned below titles
 - **Dynamic tooltip positioning** that adapts to available space
@@ -120,9 +129,18 @@ This will start:
 
 ### Quick Start
 1. Open http://localhost:3000 in your browser
-2. Type a task name in the input field and press Enter
-3. Click the status button to start working on the task
-4. Double-click the status button to mark as complete
+2. The app will load with the default workspace (marked with a star)
+3. Type a task name in the input field and press Enter
+4. Click the status button to start working on the task
+5. Double-click the status button to mark as complete
+
+### Workspace Management
+- **Switch Workspaces**: Use the workspace selector in the top-right corner
+- **Create Workspace**: Click "Create New Workspace" in the workspace dropdown
+- **Set Default**: Click the star icon next to any workspace to make it the default
+- **Edit Workspace**: Click the edit icon next to a workspace name
+- **Delete Workspace**: Click the trash icon (default workspace cannot be deleted)
+- **Workspace Isolation**: Each workspace has its own tasks and tags
 
 ### Task Management
 - **Create**: Type in the input field and press Enter
@@ -177,6 +195,13 @@ This will start:
 - `PUT /api/tags/:id` - Update tag
 - `DELETE /api/tags/:id` - Delete tag
 
+### Workspaces
+- `GET /api/workspaces` - Get all workspaces
+- `POST /api/workspaces` - Create new workspace
+- `PUT /api/workspaces/:id` - Update workspace
+- `DELETE /api/workspaces/:id` - Delete workspace
+- `PATCH /api/workspaces/:id/set-default` - Set workspace as default
+
 ### Export & Backup
 - `GET /api/export` - Export all tasks as JSON
 - `GET /api/backup/stats` - Get backup statistics
@@ -187,8 +212,9 @@ This will start:
 ## Database Schema
 
 ### Tables
-- **tags**: Task categorization system
-- **tasks**: Main task data with status, priority, dates
+- **workspaces**: Workspace management with default workspace support
+- **tags**: Task categorization system (workspace-scoped)
+- **tasks**: Main task data with status, priority, dates (workspace-scoped)
 - **task_history**: Complete audit trail of status changes
 
 ### Key Features
@@ -197,6 +223,8 @@ This will start:
 - Status validation constraints
 - Priority validation constraints
 - Tag-based organization
+- Workspace isolation for tasks and tags
+- Default workspace management
 
 ## Technical Improvements
 
@@ -206,6 +234,7 @@ This will start:
 - **Better state management** with proper cleanup and error handling
 - **Responsive design** with mobile-friendly interactions
 - **Accessibility improvements** with proper ARIA labels and keyboard navigation
+- **Workspace management** with default workspace selection and visual indicators
 
 ### Backend Improvements
 - **Robust error handling** with proper HTTP status codes
@@ -214,10 +243,12 @@ This will start:
 - **Real-time data consistency** with optimistic updates
 - **Automatic backup system** with SHA-256 change detection
 - **Backup management API** for manual backups and statistics
+- **Workspace API** with CRUD operations and default workspace management
 
 ## Future Enhancements
 
 ### Planned Features
+- **Task moving between workspaces** with automatic tag migration
 - **Long-press status menu** for manual status selection
 - **Sub-task confirmation dialog** when all sub-tasks are complete
 - **Advanced filtering** with AND/OR/NOT combinations
@@ -253,7 +284,8 @@ ToDoList/
 │   │   │   ├── TaskList.tsx      # Main task list component
 │   │   │   ├── TaskEditModal.tsx # Task editing modal
 │   │   │   ├── TaskTooltip.tsx   # Description tooltip
-│   │   │   └── TitleTooltip.tsx  # Title truncation tooltip
+│   │   │   ├── TitleTooltip.tsx  # Title truncation tooltip
+│   │   │   └── WorkspaceSelector.tsx # Workspace management
 │   │   ├── services/    # API service layer
 │   │   ├── types/       # TypeScript type definitions
 │   │   └── App.tsx      # Main application component
@@ -274,4 +306,4 @@ ToDoList/
 - **date-fns 2.30.0** for date manipulation
 - **clsx 2.0.0** for conditional styling
 - **Express 4.18.2** for backend API
-- **SQLite3 5.1.6** for data persistence 
+- **SQLite3 5.1.6** for data persistence
