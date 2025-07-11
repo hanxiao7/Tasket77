@@ -4,7 +4,7 @@ const bodyParser = require('body-parser');
 const moment = require('moment-timezone');
 const fs = require('fs');
 const path = require('path');
-const { db, initializeDatabase, updateTaskModified, addTaskHistory } = require('./database');
+const { db, initializeDatabase, updateTaskModified, addTaskHistory } = require('./database-pg');
 const BackupManager = require('./backup');
 
 const app = express();

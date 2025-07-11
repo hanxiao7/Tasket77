@@ -1,4 +1,6 @@
 ToolDesign.docx
+DEPLOYMENT.md
+POSTGRESQL_SETUP.md
 
 # Dependency directories (anywhere in project)
 **/node_modules/
