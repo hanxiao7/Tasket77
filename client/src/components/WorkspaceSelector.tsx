@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Workspace } from '../types';
 import { apiService } from '../services/api';
-import { ChevronDown, Plus, Edit, Trash2, FolderOpen } from 'lucide-react';
+import { ChevronDown, Plus, Edit, Trash2, FolderOpen, Star } from 'lucide-react';
 
 interface WorkspaceSelectorProps {
   selectedWorkspaceId: number;
@@ -30,9 +30,15 @@ const WorkspaceSelector: React.FC<WorkspaceSelectorProps> = ({
       const workspacesData = await apiService.getWorkspaces();
       setWorkspaces(workspacesData);
       
-      // If no workspace is selected and we have workspaces, select the first one
-      if (selectedWorkspaceId === 0 && workspacesData.length > 0) {
-        onWorkspaceChange(workspacesData[0].id);
+      // If no workspace is selected, select the default workspace (ID 1)
+      if (selectedWorkspaceId === 0) {
+        const defaultWorkspace = workspacesData.find(w => w.id === 1);
+        if (defaultWorkspace) {
+          onWorkspaceChange(defaultWorkspace.id);
+        } else if (workspacesData.length > 0) {
+          // Fallback to first workspace if default doesn't exist
+          onWorkspaceChange(workspacesData[0].id);
+        }
       }
     } catch (error) {
       console.error('Error loading workspaces:', error);
@@ -113,6 +119,19 @@ const WorkspaceSelector: React.FC<WorkspaceSelectorProps> = ({
     setEditWorkspaceDescription('');
   };
 
+  const handleSetDefault = async (workspaceId: number) => {
+    try {
+      const updatedWorkspace = await apiService.setDefaultWorkspace(workspaceId);
+      // Update the workspaces list to reflect the new default
+      setWorkspaces(workspaces.map(w => ({
+        ...w,
+        is_default: w.id === workspaceId
+      })));
+    } catch (error) {
+      console.error('Error setting default workspace:', error);
+    }
+  };
+
   return (
     <div className="relative w-64">
       {/* Main Selector */}
@@ -124,6 +143,9 @@ const WorkspaceSelector: React.FC<WorkspaceSelectorProps> = ({
         <span className="font-medium text-gray-900 truncate flex-1 mx-2">
           {selectedWorkspace?.name || 'Select Workspace'}
         </span>
+        {selectedWorkspace?.is_default && (
+          <Star className="w-4 h-4 text-yellow-500 fill-current flex-shrink-0" />
+        )}
         <ChevronDown className={`w-4 h-4 text-gray-500 transition-transform flex-shrink-0 ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
@@ -181,7 +203,12 @@ const WorkspaceSelector: React.FC<WorkspaceSelectorProps> = ({
                           setIsOpen(false);
                         }}
                       >
-                        <div className="font-medium text-gray-900">{workspace.name}</div>
+                        <div className="font-medium text-gray-900 flex items-center">
+                          {workspace.name}
+                          {workspace.is_default && (
+                            <Star className="w-3 h-3 text-yellow-500 fill-current ml-1" />
+                          )}
+                        </div>
                         {workspace.description && (
                           <div className="text-sm text-gray-500 mt-1">{workspace.description}</div>
                         )}
@@ -203,6 +230,13 @@ const WorkspaceSelector: React.FC<WorkspaceSelectorProps> = ({
                             <Trash2 className="w-3 h-3" />
                           </button>
                         )}
+                        <button
+                          onClick={() => handleSetDefault(workspace.id)}
+                          className={`p-1 ${workspace.is_default ? 'text-yellow-500' : 'text-gray-400 hover:text-yellow-500'}`}
+                          title={workspace.is_default ? 'Default workspace' : 'Set as default'}
+                        >
+                          <Star className={`w-3 h-3 ${workspace.is_default ? 'fill-current' : ''}`} />
+                        </button>
                       </div>
                     </div>
                   </div>

@@ -720,8 +720,8 @@ app.post('/api/workspaces', (req, res) => {
   
   const now = moment().tz('America/New_York').format('YYYY-MM-DD HH:mm:ss');
   
-  db.run("INSERT INTO workspaces (name, description, created_at, updated_at) VALUES (?, ?, ?, ?)", 
-    [name, description || '', now, now], function(err) {
+  db.run("INSERT INTO workspaces (name, description, is_default, created_at, updated_at) VALUES (?, ?, ?, ?, ?)", 
+    [name, description || '', 0, now, now], function(err) {
     if (err) {
       res.status(500).json({ error: err.message });
       return;
@@ -812,6 +812,42 @@ app.delete('/api/workspaces/:id', async (req, res) => {
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
+});
+
+// Set workspace as default
+app.patch('/api/workspaces/:id/set-default', (req, res) => {
+  const { id } = req.params;
+  
+  const now = moment().tz('America/New_York').format('YYYY-MM-DD HH:mm:ss');
+  
+  // First, clear all default flags
+  db.run("UPDATE workspaces SET is_default = 0, updated_at = ?", [now], function(err) {
+    if (err) {
+      res.status(500).json({ error: err.message });
+      return;
+    }
+    
+    // Then set the specified workspace as default
+    db.run("UPDATE workspaces SET is_default = 1, updated_at = ? WHERE id = ?", [now, id], function(err) {
+      if (err) {
+        res.status(500).json({ error: err.message });
+        return;
+      }
+      if (this.changes === 0) {
+        res.status(404).json({ error: 'Workspace not found' });
+        return;
+      }
+      
+      // Get the complete updated workspace data
+      db.get("SELECT * FROM workspaces WHERE id = ?", [id], (err, row) => {
+        if (err) {
+          res.status(500).json({ error: err.message });
+          return;
+        }
+        res.json(row);
+      });
+    });
+  });
 });
 
 app.listen(PORT, () => {

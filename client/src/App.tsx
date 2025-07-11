@@ -6,11 +6,12 @@ import { Download, ArrowUpDown } from 'lucide-react';
 
 function App() {
   const [viewMode, setViewMode] = useState<ViewMode>('planner');
-  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<number>(0);
+  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<number>(1);
   const [filters, setFilters] = useState<TaskFilters>({
     view: 'planner',
     show_completed: false,
-    days: 7
+    days: 7,
+    workspace_id: 1
   });
   const [isSorting, setIsSorting] = useState(false);
   const taskListRef = useRef<{ sortTasks: () => void }>(null);

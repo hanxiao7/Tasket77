@@ -15,6 +15,7 @@ function initializeDatabase() {
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           name TEXT NOT NULL,
           description TEXT,
+          is_default INTEGER DEFAULT 0,
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
@@ -23,8 +24,8 @@ function initializeDatabase() {
       // Insert default workspace if none exists (use INSERT OR IGNORE to prevent duplicates)
       const moment = require('moment-timezone');
       const now = moment().tz('America/New_York').format('YYYY-MM-DD HH:mm:ss');
-      db.run("INSERT OR IGNORE INTO workspaces (id, name, description, created_at, updated_at) VALUES (1, ?, ?, ?, ?)", 
-        ['Default Workspace', 'Default workspace for existing tasks', now, now], (err) => {
+      db.run("INSERT OR IGNORE INTO workspaces (id, name, description, is_default, created_at, updated_at) VALUES (1, ?, ?, ?, ?, ?)", 
+        ['Default Workspace', 'Default workspace for existing tasks', 1, now, now], (err) => {
         if (err) {
           reject(err);
         } else {

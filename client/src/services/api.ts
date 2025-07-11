@@ -45,6 +45,12 @@ class ApiService {
     });
   }
 
+  async setDefaultWorkspace(id: number): Promise<Workspace> {
+    return this.request<Workspace>(`/workspaces/${id}/set-default`, {
+      method: 'PATCH',
+    });
+  }
+
   // Tags
   async getTags(includeHidden?: boolean, workspaceId?: number): Promise<Tag[]> {
     const params = new URLSearchParams();
