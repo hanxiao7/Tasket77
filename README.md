@@ -77,7 +77,7 @@ To Do → In Progress ↔ Paused → Done
 - Node.js (v14 or higher)
 - npm or yarn
 
-### Setup
+### Local Development Setup
 
 1. **Clone and install dependencies**:
    ```bash
@@ -124,6 +124,46 @@ This will start:
    cd client
    npm start
    ```
+
+## Deployment
+
+### Backend Deployment (Render)
+
+1. **Create a new Web Service on Render**:
+   - Connect your GitHub repository
+   - Set the **Root Directory** to `server`
+   - Set the **Build Command** to `npm install`
+   - Set the **Start Command** to `npm start`
+
+2. **Environment Variables** (optional):
+   - `PORT`: Render will set this automatically
+   - `NODE_ENV`: Set to `production`
+
+3. **Deploy**: Render will automatically deploy your backend
+
+### Frontend Deployment (Vercel)
+
+1. **Connect to Vercel**:
+   - Import your GitHub repository
+   - Set the **Framework Preset** to `Create React App`
+   - Set the **Root Directory** to `client`
+
+2. **Environment Variables**:
+   - `REACT_APP_API_URL`: Set to your Render backend URL (e.g., `https://your-app.onrender.com/api`)
+
+3. **Deploy**: Vercel will automatically deploy your frontend
+
+### Environment Configuration
+
+For local development, create a `.env.local` file in the `client` directory:
+```
+REACT_APP_API_URL=http://localhost:3001/api
+```
+
+For production, set the environment variable in your Vercel dashboard:
+```
+REACT_APP_API_URL=https://your-render-app.onrender.com/api
+```
 
 ## Usage
 
