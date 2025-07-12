@@ -1551,23 +1551,27 @@ const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ v
                     <div className="flex-shrink-0 w-20 text-center relative">
                       <div
                         className={clsx(
-                          "text-xs rounded px-1 py-1 w-full transition-all cursor-pointer",
+                          "text-xs rounded px-1 py-1 w-full transition-all cursor-pointer min-h-[20px] flex items-center justify-center",
                           editingTagTaskId === task.id 
                             ? "border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500" 
-                            : "border border-transparent hover:border-gray-300 hover:bg-blue-50 text-sm font-medium"
+                            : "border border-transparent hover:border-gray-300 hover:bg-blue-50"
                         )}
                         onClick={(e) => {
                           e.stopPropagation();
-                          console.log('Tag clicked:', task.id, 'Current editing:', editingTagTaskId);
                           if (editingTagTaskId !== task.id) {
                             setEditingTagTaskId(task.id);
                             setEditingTagValue(task.tag_id?.toString() || '');
-                            console.log('Setting editing tag to:', task.id);
+                          } else {
+                            setEditingTagTaskId(null);
                           }
                         }}
                         title="Click to edit tag"
                       >
-                        {task.tag_name || ''}
+                        {task.tag_name ? (
+                          <span className="text-sm font-medium">{task.tag_name}</span>
+                        ) : (
+                          <span className="text-gray-400">-</span>
+                        )}
                       </div>
                       
                       {/* Tag dropdown menu */}
@@ -1582,20 +1586,22 @@ const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ v
                               onClick={() => {
                                 setEditingTagValue('');
                                 handleTagSave(task.id, undefined);
+                                setEditingTagTaskId(null);
                               }}
                             >
-                              Unassigned
+                              No tag
                             </div>
                             {tags.filter(tag => tag.hidden !== 1).map((tag) => (
                               <div
                                 key={tag.id}
                                 className={clsx(
-                                  "px-2 py-1 text-xs cursor-pointer hover:bg-blue-50",
-                                  editingTagValue === tag.id.toString() && "bg-blue-100"
+                                  "px-2 py-1 text-xs cursor-pointer hover:bg-blue-50 transition-colors",
+                                  editingTagValue === tag.id.toString() && "bg-blue-100 text-blue-700"
                                 )}
                                 onClick={() => {
                                   setEditingTagValue(tag.id.toString());
                                   handleTagSave(task.id, tag.id);
+                                  setEditingTagTaskId(null);
                                 }}
                               >
                                 {tag.name}
@@ -1603,7 +1609,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ v
                             ))}
                             <div className="border-t border-gray-200">
                               <div 
-                                className="px-2 py-1 text-xs text-blue-600 hover:bg-blue-50 cursor-pointer"
+                                className="px-2 py-1 text-xs text-blue-600 hover:bg-blue-50 cursor-pointer transition-colors"
                                 onClick={() => {
                                   setShowTagEditModal(true);
                                   setEditingTagTaskId(null);
