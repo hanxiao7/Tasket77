@@ -13,6 +13,26 @@ pool.on('error', (err) => {
   process.exit(-1);
 });
 
+// Helper function to convert SQLite-style queries to PostgreSQL
+function convertQuery(sqliteQuery, params) {
+  // Ensure params is always an array
+  const safeParams = Array.isArray(params) ? params : [];
+  
+  if (safeParams.length === 0) {
+    return { query: sqliteQuery, params: [] };
+  }
+  
+  let postgresQuery = sqliteQuery;
+  const postgresParams = [...safeParams];
+  
+  // Replace ? placeholders with $1, $2, etc.
+  // Use a more robust replacement that handles multiple occurrences
+  let paramIndex = 1;
+  postgresQuery = postgresQuery.replace(/\?/g, () => `$${paramIndex++}`);
+  
+  return { query: postgresQuery, params: postgresParams };
+}
+
 // Create compatibility layer for SQLite-style API
 const db = {
   // For SELECT queries (equivalent to db.all)
@@ -23,7 +43,9 @@ const db = {
       return;
     }
     
-    pool.query(query, params)
+    const { query: postgresQuery, params: postgresParams } = convertQuery(query, params);
+    
+    pool.query(postgresQuery, postgresParams)
       .then(result => {
         callback(null, result.rows);
       })
@@ -41,7 +63,9 @@ const db = {
       return;
     }
     
-    pool.query(query, params)
+    const { query: postgresQuery, params: postgresParams } = convertQuery(query, params);
+    
+    pool.query(postgresQuery, postgresParams)
       .then(result => {
         callback(null, result.rows[0] || null);
       })
@@ -59,7 +83,9 @@ const db = {
       return;
     }
     
-    pool.query(query, params)
+    const { query: postgresQuery, params: postgresParams } = convertQuery(query, params);
+    
+    pool.query(postgresQuery, postgresParams)
       .then(result => {
         // Create a mock 'this' object similar to SQLite
         const mockThis = {
