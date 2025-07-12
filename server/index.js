@@ -302,6 +302,9 @@ app.get('/api/tasks', (req, res) => {
       res.status(500).json({ error: err.message });
       return;
     }
+    
+
+    
     res.json(rows);
   });
 });
@@ -326,8 +329,8 @@ app.post('/api/tasks', async (req, res) => {
     finalPriority = 'urgent';
   }
   
-  // Parse the due date in New York timezone and set to end of day for due dates
-  const parsedDueDate = due_date ? moment.tz(due_date, 'America/New_York').endOf('day').format('YYYY-MM-DD HH:mm:ss') : null;
+  // Parse the due date in New York timezone - due_date is DATE type, not TIMESTAMP
+  const parsedDueDate = due_date ? moment.tz(due_date, 'America/New_York').format('YYYY-MM-DD') : null;
   
   db.run(`
     INSERT INTO tasks (title, description, tag_id, parent_task_id, workspace_id, priority, due_date, created_at, last_modified)
@@ -486,8 +489,8 @@ app.put('/api/tasks/:id', async (req, res) => {
     
     if (due_date !== undefined) {
       updateFields.push('due_date = ?');
-      // Parse the date in New York timezone and set to end of day for due dates
-      const parsedDueDate = due_date ? moment.tz(due_date, 'America/New_York').endOf('day').format('YYYY-MM-DD HH:mm:ss') : null;
+      // Parse the date in New York timezone - due_date is DATE type, not TIMESTAMP
+      const parsedDueDate = due_date ? moment.tz(due_date, 'America/New_York').format('YYYY-MM-DD') : null;
       updateParams.push(parsedDueDate);
     }
     

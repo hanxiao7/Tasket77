@@ -913,10 +913,26 @@ const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ v
     }
   };
 
+  const formatDateForInput = (dateString: string | undefined) => {
+    if (!dateString) return '';
+    try {
+      // Handle ISO date strings (2025-07-12T04:00:00.000Z) and convert to YYYY-MM-DD
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) {
+        // If it's not a valid ISO date, try to parse as YYYY-MM-DD
+        const datePart = dateString.split(' ')[0]; // Get just the date part
+        return datePart;
+      }
+      return date.toISOString().split('T')[0]; // Convert to YYYY-MM-DD
+    } catch {
+      return '';
+    }
+  };
+
   const handleDateClick = (task: Task, dateType: 'due_date' | 'start_date' | 'completion_date') => {
     setEditingDateTaskId(task.id);
     setEditingDateType(dateType);
-    setEditingDateValue(task[dateType] || '');
+    setEditingDateValue(formatDateForInput(task[dateType]));
     // Focus the input after a brief delay to ensure it's rendered
     setTimeout(() => {
       dateInputRef.current?.focus();
@@ -970,7 +986,13 @@ const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ v
   const formatDate = (dateString: string | undefined) => {
     if (!dateString) return '';
     try {
-      // Handle both date-only strings (YYYY-MM-DD) and datetime strings (YYYY-MM-DD HH:mm:ss)
+      // Handle ISO date strings (2025-07-12T04:00:00.000Z) and convert to local date
+      const date = new Date(dateString);
+      if (!isNaN(date.getTime())) {
+        return format(date, 'MMM d');
+      }
+      
+      // Fallback: Handle both date-only strings (YYYY-MM-DD) and datetime strings (YYYY-MM-DD HH:mm:ss)
       const datePart = dateString.split(' ')[0]; // Get just the date part
       const [year, month, day] = datePart.split('-').map(Number);
       const localDate = new Date(year, month - 1, day); // month is 0-indexed

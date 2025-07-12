@@ -18,7 +18,13 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, tags, onClose, onSa
     if (!dateString) return '';
     
     try {
-      // Handle both date-only strings (YYYY-MM-DD) and datetime strings (YYYY-MM-DD HH:mm:ss)
+      // Handle ISO date strings (2025-07-12T04:00:00.000Z) and convert to YYYY-MM-DD
+      const date = new Date(dateString);
+      if (!isNaN(date.getTime())) {
+        return date.toISOString().split('T')[0]; // Convert to YYYY-MM-DD
+      }
+      
+      // Fallback: Handle both date-only strings (YYYY-MM-DD) and datetime strings (YYYY-MM-DD HH:mm:ss)
       const datePart = dateString.split(' ')[0]; // Get just the date part
       return datePart; // Return YYYY-MM-DD format for input
     } catch {

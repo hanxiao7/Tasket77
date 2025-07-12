@@ -4,7 +4,9 @@ const moment = require('moment-timezone');
 // Create database connection
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL || 'postgresql://postgres:password@localhost:5432/taskmanagement',
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+  // Set timezone to match the application
+  options: '-c timezone=America/New_York'
 });
 
 // Test the pool connection
@@ -39,7 +41,7 @@ const db = {
   all: (query, params, callback) => {
     if (!pool || !pool.query) {
       console.error('Pool not initialized properly');
-      callback(new Error('Database connection not available'));
+      if (callback) callback(new Error('Database connection not available'));
       return;
     }
     
@@ -47,11 +49,11 @@ const db = {
     
     pool.query(postgresQuery, postgresParams)
       .then(result => {
-        callback(null, result.rows);
+        if (callback) callback(null, result.rows);
       })
       .catch(err => {
         console.error('Database query error:', err);
-        callback(err);
+        if (callback) callback(err);
       });
   },
 
@@ -59,7 +61,7 @@ const db = {
   get: (query, params, callback) => {
     if (!pool || !pool.query) {
       console.error('Pool not initialized properly');
-      callback(new Error('Database connection not available'));
+      if (callback) callback(new Error('Database connection not available'));
       return;
     }
     
@@ -67,11 +69,11 @@ const db = {
     
     pool.query(postgresQuery, postgresParams)
       .then(result => {
-        callback(null, result.rows[0] || null);
+        if (callback) callback(null, result.rows[0] || null);
       })
       .catch(err => {
         console.error('Database query error:', err);
-        callback(err);
+        if (callback) callback(err);
       });
   },
 
@@ -79,7 +81,7 @@ const db = {
   run: (query, params, callback) => {
     if (!pool || !pool.query) {
       console.error('Pool not initialized properly');
-      callback(new Error('Database connection not available'));
+      if (callback) callback(new Error('Database connection not available'));
       return;
     }
     
