@@ -48,3 +48,66 @@ Your app is now configured to use PostgreSQL! Here's how to get it running:
 - **Scalability** - Can handle growth and more users
 
 Your app is now ready for production deployment with data persistence! 
+
+
+## View SQL tables
+
+** Connect to PostgreSQL via Terminal
+
+docker exec -it task-management-db psql -U postgres -d taskmanagement
+
+Perfect! You're now connected to the PostgreSQL database. You should see the prompt `taskmanagement=#` which means you're connected and ready to run commands.
+
+## Useful psql Commands to Run:
+
+1. **List all tables:**
+   ```sql
+   \dt
+   ```
+
+2. **View table structure:**
+   ```sql
+   \d workspaces
+   \d tasks
+   \d tags
+   ```
+
+3. **View data in tables:**
+   ```sql
+   SELECT * FROM workspaces;
+   SELECT * FROM tasks;
+   SELECT * FROM tags;
+   ```
+
+4. **Count records:**
+   ```sql
+   SELECT COUNT(*) FROM workspaces;
+   SELECT COUNT(*) FROM tasks;
+   SELECT COUNT(*) FROM tags;
+   ```
+
+5. **View tasks with workspace info:**
+   ```sql
+   SELECT t.*, w.name as workspace_name 
+   FROM tasks t 
+   JOIN workspaces w ON t.workspace_id = w.id;
+   ```
+
+6. **Exit psql:**
+   ```sql
+   \q
+   ```
+
+## Quick Commands to Try:
+Start with these to see your data:
+
+```sql
+\dt
+SELECT * FROM workspaces;
+SELECT * FROM tasks;
+```
+
+Just type these commands in the terminal where you see the `taskmanagement=#` prompt and press Enter. The `\dt` command will show you all your tables, and the SELECT statements will show you the actual data.
+
+Let me know what you see when you run these commands!
+

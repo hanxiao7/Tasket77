@@ -138,7 +138,7 @@ app.post('/api/tags', (req, res) => {
     return;
   }
   
-  db.run("INSERT INTO tags (name, workspace_id, hidden, created_at, updated_at) VALUES (?, ?, 0, ?, ?)", 
+  db.run("INSERT INTO tags (name, workspace_id, hidden, created_at, updated_at) VALUES (?, ?, 0, ?, ?) RETURNING id", 
     [name, workspace_id, moment().tz('America/New_York').format('YYYY-MM-DD HH:mm:ss'), moment().tz('America/New_York').format('YYYY-MM-DD HH:mm:ss')], function(err) {
     if (err) {
       res.status(500).json({ error: err.message });
@@ -332,6 +332,7 @@ app.post('/api/tasks', async (req, res) => {
   db.run(`
     INSERT INTO tasks (title, description, tag_id, parent_task_id, workspace_id, priority, due_date, created_at, last_modified)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    RETURNING id
   `, [title, description, tag_id, parent_task_id, workspace_id, finalPriority, parsedDueDate, moment().tz('America/New_York').format('YYYY-MM-DD HH:mm:ss'), moment().tz('America/New_York').format('YYYY-MM-DD HH:mm:ss')], async function(err) {
     if (err) {
       res.status(500).json({ error: err.message });
@@ -720,7 +721,7 @@ app.post('/api/workspaces', (req, res) => {
   
   const now = moment().tz('America/New_York').format('YYYY-MM-DD HH:mm:ss');
   
-  db.run("INSERT INTO workspaces (name, description, is_default, created_at, updated_at) VALUES (?, ?, ?, ?, ?)", 
+  db.run("INSERT INTO workspaces (name, description, is_default, created_at, updated_at) VALUES (?, ?, ?, ?, ?) RETURNING id", 
     [name, description || '', 0, now, now], function(err) {
     if (err) {
       res.status(500).json({ error: err.message });
