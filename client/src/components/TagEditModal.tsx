@@ -149,6 +149,8 @@ const TagEditModal: React.FC<TagEditModalProps> = ({ tags, workspaceId, onClose,
             <div className="flex items-center space-x-2">
               <input
                 type="text"
+                id="new-tag-name"
+                name="new-tag-name"
                 placeholder="Enter new tag name..."
                 value={newTagName}
                 onChange={(e) => setNewTagName(e.target.value)}
@@ -180,7 +182,7 @@ const TagEditModal: React.FC<TagEditModalProps> = ({ tags, workspaceId, onClose,
                 <div
                   key={tag.id}
                   className={`tag-item flex items-center justify-between p-3 rounded-lg border ${
-                    tag.hidden === 1 ? 'bg-gray-50 border-gray-200' : 'bg-white border-gray-300'
+                    tag.hidden === true ? 'bg-gray-50 border-gray-200' : 'bg-white border-gray-300'
                   }`}
                 >
                   {/* Tag name */}
@@ -195,11 +197,11 @@ const TagEditModal: React.FC<TagEditModalProps> = ({ tags, workspaceId, onClose,
                         autoFocus
                       />
                     ) : (
-                      <div className={`text-sm font-medium ${tag.hidden === 1 ? 'text-gray-500 line-through' : 'text-gray-900'}`}>
+                      <div className={`text-sm font-medium ${tag.hidden === true ? 'text-gray-500 line-through' : 'text-gray-900'}`}>
                         {tag.name}
                       </div>
                     )}
-                    {tag.hidden === 1 && (
+                    {tag.hidden === true && (
                       <div className="text-xs text-gray-400 mt-1">Hidden</div>
                     )}
                   </div>
@@ -224,9 +226,9 @@ const TagEditModal: React.FC<TagEditModalProps> = ({ tags, workspaceId, onClose,
                           onClick={() => handleToggleHidden(tag)}
                           disabled={isToggling === tag.id}
                           className="p-1 text-gray-600 hover:bg-gray-100 rounded transition-colors disabled:opacity-50"
-                          title={tag.hidden === 1 ? "Show tag" : "Hide tag"}
+                          title={tag.hidden === true ? "Show tag" : "Hide tag"}
                         >
-                          {tag.hidden === 1 ? (
+                          {tag.hidden === true ? (
                             <Eye className="w-4 h-4" />
                           ) : (
                             <EyeOff className="w-4 h-4" />
@@ -252,7 +254,7 @@ const TagEditModal: React.FC<TagEditModalProps> = ({ tags, workspaceId, onClose,
         {/* Footer */}
         <div className="flex items-center justify-between p-4 border-t border-gray-200">
           <div className="text-sm text-gray-500">
-            {tags.filter(t => t.hidden !== 1).length} visible, {tags.filter(t => t.hidden === 1).length} hidden
+            {tags.filter(t => t.hidden !== true).length} visible, {tags.filter(t => t.hidden === true).length} hidden
           </div>
           <button
             onClick={onClose}

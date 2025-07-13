@@ -698,13 +698,16 @@ app.get('/api/backup/download/:filename', (req, res) => {
 
 // Get all workspaces
 app.get('/api/workspaces', (req, res) => {
-  db.all("SELECT * FROM workspaces ORDER BY name", (err, rows) => {
-    if (err) {
+  const { pool } = require('./database-pg');
+  
+  pool.query("SELECT * FROM workspaces ORDER BY name")
+    .then(result => {
+      res.json(result.rows);
+    })
+    .catch(err => {
+      console.error('Workspaces query error:', err);
       res.status(500).json({ error: err.message });
-      return;
-    }
-    res.json(rows);
-  });
+    });
 });
 
 // Create new workspace
@@ -719,7 +722,7 @@ app.post('/api/workspaces', (req, res) => {
   const now = moment().tz('America/New_York').format('YYYY-MM-DD HH:mm:ss');
   
   db.run("INSERT INTO workspaces (name, description, is_default, created_at, updated_at) VALUES (?, ?, ?, ?, ?) RETURNING *", 
-    [name, description || '', 0, now, now], function(err, row) {
+    [name, description || '', false, now, now], function(err, row) {
     if (err) {
       res.status(500).json({ error: err.message });
       return;
@@ -813,14 +816,14 @@ app.patch('/api/workspaces/:id/set-default', (req, res) => {
   const now = moment().tz('America/New_York').format('YYYY-MM-DD HH:mm:ss');
   
   // First, clear all default flags
-  db.run("UPDATE workspaces SET is_default = 0, updated_at = ?", [now], function(err) {
+  db.run("UPDATE workspaces SET is_default = false, updated_at = ?", [now], function(err) {
     if (err) {
       res.status(500).json({ error: err.message });
       return;
     }
     
     // Then set the specified workspace as default
-    db.run("UPDATE workspaces SET is_default = 1, updated_at = ? WHERE id = ?", [now, id], function(err) {
+    db.run("UPDATE workspaces SET is_default = true, updated_at = ? WHERE id = ?", [now, id], function(err) {
       if (err) {
         res.status(500).json({ error: err.message });
         return;

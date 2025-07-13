@@ -350,7 +350,7 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, tags, onClose, onSa
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">Select a tag</option>
-                {tags.filter(tag => tag.hidden !== 1).map((tag) => (
+                {tags.filter(tag => tag.hidden !== true).map((tag) => (
                   <option key={tag.id} value={tag.id}>
                     {tag.name}
                   </option>

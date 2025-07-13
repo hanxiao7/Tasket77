@@ -11,7 +11,7 @@ export interface Tag {
   id: number;
   name: string;
   workspace_id: number;
-  hidden: number;
+  hidden: boolean;
   created_at: string;
   updated_at: string;
 }

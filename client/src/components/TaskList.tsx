@@ -1208,7 +1208,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ v
                 >
                   No tag
                 </div>
-                {tags.filter(tag => tag.hidden !== 1).map((tag) => (
+                {tags.filter(tag => tag.hidden !== true).map((tag) => (
                   <div
                     key={tag.id}
                     className={clsx(
@@ -1591,7 +1591,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ v
                             >
                               No tag
                             </div>
-                            {tags.filter(tag => tag.hidden !== 1).map((tag) => (
+                            {tags.filter(tag => tag.hidden !== true).map((tag) => (
                               <div
                                 key={tag.id}
                                 className={clsx(

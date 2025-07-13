@@ -30,8 +30,8 @@ const WorkspaceSelector: React.FC<WorkspaceSelectorProps> = ({
       const workspacesData = await apiService.getWorkspaces();
       setWorkspaces(workspacesData);
       
-      // If no workspace is selected, select the default workspace (ID 1)
-      if (selectedWorkspaceId === 0) {
+      // If no workspace is selected or the selected workspace doesn't exist, select the default workspace (ID 1)
+      if (selectedWorkspaceId === 0 || !workspacesData.find(w => w.id === selectedWorkspaceId)) {
         const defaultWorkspace = workspacesData.find(w => w.id === 1);
         if (defaultWorkspace) {
           onWorkspaceChange(defaultWorkspace.id);
