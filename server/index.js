@@ -139,7 +139,7 @@ app.post('/api/tags', (req, res) => {
   }
   
   db.run("INSERT INTO tags (name, workspace_id, hidden, created_at, updated_at) VALUES (?, ?, false, ?, ?) RETURNING *", 
-    [name, workspace_id, moment().tz('America/New_York').format('YYYY-MM-DD HH:mm:ss'), moment().tz('America/New_York').format('YYYY-MM-DD HH:mm:ss')], function(err, row) {
+    [name, workspace_id, moment().utc().format('YYYY-MM-DD HH:mm:ss'), moment().utc().format('YYYY-MM-DD HH:mm:ss')], function(err, row) {
     if (err) {
       res.status(500).json({ error: err.message });
       return;
@@ -160,7 +160,7 @@ app.put('/api/tags/:id', (req, res) => {
     return;
   }
   
-  db.run("UPDATE tags SET name = ?, updated_at = ? WHERE id = ?", [name, moment().tz('America/New_York').format('YYYY-MM-DD HH:mm:ss'), id], function(err) {
+  db.run("UPDATE tags SET name = ?, updated_at = ? WHERE id = ?", [name, moment().utc().format('YYYY-MM-DD HH:mm:ss'), id], function(err) {
     if (err) {
       res.status(500).json({ error: err.message });
       return;
@@ -185,7 +185,7 @@ app.put('/api/tags/:id', (req, res) => {
 app.patch('/api/tags/:id/toggle-hidden', (req, res) => {
   const { id } = req.params;
   
-  db.run("UPDATE tags SET hidden = CASE WHEN hidden = false THEN true ELSE false END, updated_at = ? WHERE id = ?", [moment().tz('America/New_York').format('YYYY-MM-DD HH:mm:ss'), id], function(err) {
+  db.run("UPDATE tags SET hidden = CASE WHEN hidden = false THEN true ELSE false END, updated_at = ? WHERE id = ?", [moment().utc().format('YYYY-MM-DD HH:mm:ss'), id], function(err) {
     if (err) {
       res.status(500).json({ error: err.message });
       return;
@@ -330,7 +330,7 @@ app.post('/api/tasks', async (req, res) => {
     INSERT INTO tasks (title, description, tag_id, parent_task_id, workspace_id, priority, due_date, created_at, last_modified)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     RETURNING *
-  `, [title, description, tag_id, parent_task_id, workspace_id, finalPriority, parsedDueDate, moment().tz('America/New_York').format('YYYY-MM-DD HH:mm:ss'), moment().tz('America/New_York').format('YYYY-MM-DD HH:mm:ss')], async function(err, row) {
+  `, [title, description, tag_id, parent_task_id, workspace_id, finalPriority, parsedDueDate, moment().utc().format('YYYY-MM-DD HH:mm:ss'), moment().utc().format('YYYY-MM-DD HH:mm:ss')], async function(err, row) {
     if (err) {
       res.status(500).json({ error: err.message });
       return;
@@ -392,15 +392,15 @@ app.patch('/api/tasks/:id/status', async (req, res) => {
       // Only set start_date if it's not already set (keep the earliest date)
       if (!currentTask.start_date) {
         updateFields.push('start_date = ?');
-        updateParams.push(moment().tz('America/New_York').format('YYYY-MM-DD HH:mm:ss'));
+        updateParams.push(moment().tz('America/New_York').format('YYYY-MM-DD'));
       }
     } else if (status === 'done' && currentTask.status !== 'done') {
       updateFields.push('completion_date = ?');
-      updateParams.push(moment().tz('America/New_York').format('YYYY-MM-DD HH:mm:ss'));
+      updateParams.push(moment().tz('America/New_York').format('YYYY-MM-DD'));
     }
     
     updateFields.push('last_modified = ?');
-    updateParams.push(moment().tz('America/New_York').format('YYYY-MM-DD HH:mm:ss'));
+    updateParams.push(moment().utc().format('YYYY-MM-DD HH:mm:ss'));
     
     // Add id to updateParams so the WHERE clause works
     updateParams.push(id);
@@ -476,8 +476,8 @@ app.put('/api/tasks/:id', async (req, res) => {
     
     if (start_date !== undefined) {
       updateFields.push('start_date = ?');
-      // Parse the date in New York timezone to ensure correct local date
-      const parsedStartDate = start_date ? moment.tz(start_date, 'America/New_York').startOf('day').format('YYYY-MM-DD HH:mm:ss') : null;
+      // Parse the date in New York timezone - start_date is DATE type
+      const parsedStartDate = start_date ? moment.tz(start_date, 'America/New_York').format('YYYY-MM-DD') : null;
       updateParams.push(parsedStartDate);
     }
     
@@ -490,14 +490,14 @@ app.put('/api/tasks/:id', async (req, res) => {
     
     if (completion_date !== undefined) {
       updateFields.push('completion_date = ?');
-      // Parse the date in New York timezone and set to end of day for completion dates
-      const parsedCompletionDate = completion_date ? moment.tz(completion_date, 'America/New_York').endOf('day').format('YYYY-MM-DD HH:mm:ss') : null;
+      // Parse the date in New York timezone - completion_date is DATE type
+      const parsedCompletionDate = completion_date ? moment.tz(completion_date, 'America/New_York').format('YYYY-MM-DD') : null;
       updateParams.push(parsedCompletionDate);
     }
     
     // Always update last_modified
     updateFields.push('last_modified = ?');
-    updateParams.push(moment().tz('America/New_York').format('YYYY-MM-DD HH:mm:ss'));
+    updateParams.push(moment().utc().format('YYYY-MM-DD HH:mm:ss'));
     
     // Add id to updateParams for WHERE clause
     updateParams.push(id);
@@ -575,6 +575,28 @@ app.delete('/api/tasks/:id', async (req, res) => {
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
+});
+
+// Get single task
+app.get('/api/tasks/:id', (req, res) => {
+  const { id } = req.params;
+  
+  db.get(`
+    SELECT t.*, tg.name as tag_name
+    FROM tasks t
+    LEFT JOIN tags tg ON t.tag_id = tg.id
+    WHERE t.id = ?
+  `, [id], (err, row) => {
+    if (err) {
+      res.status(500).json({ error: err.message });
+      return;
+    }
+    if (!row) {
+      res.status(404).json({ error: 'Task not found' });
+      return;
+    }
+    res.json(row);
+  });
 });
 
 // Get task history

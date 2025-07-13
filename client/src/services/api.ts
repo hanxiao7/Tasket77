@@ -110,6 +110,10 @@ class ApiService {
     return this.request<Task[]>(endpoint);
   }
 
+  async getTask(id: number): Promise<Task> {
+    return this.request<Task>(`/tasks/${id}`);
+  }
+
   async createTask(taskData: CreateTaskData): Promise<Task> {
     return this.request<Task>('/tasks', {
       method: 'POST',

@@ -947,14 +947,12 @@ const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ v
       console.log(`📅 Updating task ${editingDateType}: "${editingDateValue}"`);
       await apiService.updateTask(taskId, { [editingDateType]: editingDateValue || null });
       
-      // Update local state instead of reloading
+      // Reload the task data from server to ensure correct format
+      const updatedTask = await apiService.getTask(taskId);
       setTasks(prevTasks => {
         const updatedTasks = prevTasks.map(t => {
           if (t.id === taskId) {
-            return {
-              ...t,
-              [editingDateType]: editingDateValue || null
-            } as Task;
+            return updatedTask;
           }
           return t;
         });
@@ -995,9 +993,12 @@ const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ v
       // Fallback: Handle both date-only strings (YYYY-MM-DD) and datetime strings (YYYY-MM-DD HH:mm:ss)
       const datePart = dateString.split(' ')[0]; // Get just the date part
       const [year, month, day] = datePart.split('-').map(Number);
-      const localDate = new Date(year, month - 1, day); // month is 0-indexed
-      return format(localDate, 'MMM d');
-    } catch {
+      
+      // Use UTC to avoid timezone issues
+      const utcDate = new Date(Date.UTC(year, month - 1, day));
+      return format(utcDate, 'MMM d');
+    } catch (error) {
+      console.error('formatDate error:', error);
       return '';
     }
   };

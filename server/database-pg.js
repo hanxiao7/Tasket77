@@ -140,7 +140,7 @@ async function initializeDatabase() {
         'Default Workspace',
         'Default workspace for existing tasks',
         true,
-        moment().tz('America/New_York').format('YYYY-MM-DD HH:mm:ss')
+        moment().utc().format('YYYY-MM-DD HH:mm:ss')
       ]);
       
       console.log('Default workspace created');
@@ -160,7 +160,7 @@ async function initializeDatabase() {
       `, [
         'General',
         1,
-        moment().tz('America/New_York').format('YYYY-MM-DD HH:mm:ss')
+        moment().utc().format('YYYY-MM-DD HH:mm:ss')
       ]);
       
       console.log('Default tag created');
@@ -179,7 +179,7 @@ async function initializeDatabase() {
 async function updateTaskModified(taskId) {
   const client = await pool.connect();
   try {
-    const now = moment().tz('America/New_York').format('YYYY-MM-DD HH:mm:ss');
+    const now = moment().utc().format('YYYY-MM-DD HH:mm:ss');
     const result = await client.query(
       "UPDATE tasks SET last_modified = $1 WHERE id = $2 RETURNING id",
       [now, taskId]
@@ -194,7 +194,7 @@ async function updateTaskModified(taskId) {
 async function addTaskHistory(taskId, status, notes = null) {
   const client = await pool.connect();
   try {
-    const now = moment().tz('America/New_York').format('YYYY-MM-DD HH:mm:ss');
+    const now = moment().utc().format('YYYY-MM-DD HH:mm:ss');
     const result = await client.query(
       "INSERT INTO task_history (task_id, status, notes, action_date) VALUES ($1, $2, $3, $4) RETURNING id",
       [taskId, status, notes, now]
