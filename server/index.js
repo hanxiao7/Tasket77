@@ -297,7 +297,47 @@ app.get('/api/tasks', (req, res) => {
       return;
     }
     
-
+    // Check and update priorities for tasks due tomorrow
+    const nextBusinessDay = getNextBusinessDay();
+    console.log('🔍 Checking priorities on load, next business day:', nextBusinessDay);
+    console.log('🔍 Total tasks loaded:', rows.length);
+    
+    const tasksToUpdate = rows.filter(task => {
+      if (!task.due_date || task.priority === 'urgent') return false;
+      
+      // Handle both string and Date object formats
+      let taskDate;
+      if (typeof task.due_date === 'string') {
+        taskDate = task.due_date.split('T')[0];
+      } else if (task.due_date instanceof Date) {
+        taskDate = task.due_date.toISOString().split('T')[0];
+      } else {
+        console.log('🔍 Unexpected due_date format:', typeof task.due_date, task.due_date);
+        return false;
+      }
+      
+      console.log('🔍 Comparing:', { taskDate, nextBusinessDay, isMatch: taskDate === nextBusinessDay });
+      
+      return taskDate === nextBusinessDay;
+    });
+    
+    console.log('🔍 Tasks with due dates:', rows.filter(t => t.due_date).map(t => ({ id: t.id, title: t.title, due_date: t.due_date, priority: t.priority })));
+    console.log('🔍 Tasks to update:', tasksToUpdate.length);
+    
+    if (tasksToUpdate.length > 0) {
+      console.log('🚨 Found tasks due tomorrow that need urgent priority:', tasksToUpdate.map(t => ({ id: t.id, title: t.title, due_date: t.due_date })));
+      
+      // Update priorities in background (don't wait for completion)
+      tasksToUpdate.forEach((task) => {
+        db.run("UPDATE tasks SET priority = ? WHERE id = ?", ['urgent', task.id], function(err) {
+          if (err) {
+            console.error(`❌ Failed to update task ${task.id} priority:`, err);
+          } else {
+            console.log(`✅ Updated task ${task.id} priority to urgent`);
+          }
+        });
+      });
+    }
     
     res.json(rows);
   });
@@ -317,12 +357,6 @@ app.post('/api/tasks', async (req, res) => {
     return;
   }
   
-  // Check if due date is tomorrow and set priority to urgent
-  let finalPriority = priority || 'normal';
-  if (due_date && due_date === getNextBusinessDay()) {
-    finalPriority = 'urgent';
-  }
-  
   // Parse the due date - due_date is DATE type, not TIMESTAMP
   const parsedDueDate = due_date ? due_date : null;
   
@@ -330,7 +364,7 @@ app.post('/api/tasks', async (req, res) => {
     INSERT INTO tasks (title, description, tag_id, parent_task_id, workspace_id, priority, due_date, created_at, last_modified)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     RETURNING *
-  `, [title, description, tag_id, parent_task_id, workspace_id, finalPriority, parsedDueDate, moment().utc().format('YYYY-MM-DD HH:mm:ss'), moment().utc().format('YYYY-MM-DD HH:mm:ss')], async function(err, row) {
+  `, [title, description, tag_id, parent_task_id, workspace_id, priority || 'normal', parsedDueDate, moment().utc().format('YYYY-MM-DD HH:mm:ss'), moment().utc().format('YYYY-MM-DD HH:mm:ss')], async function(err, row) {
     if (err) {
       res.status(500).json({ error: err.message });
       return;
@@ -486,6 +520,15 @@ app.put('/api/tasks/:id', async (req, res) => {
       // Parse the date - due_date is DATE type, not TIMESTAMP
       const parsedDueDate = due_date ? due_date : null;
       updateParams.push(parsedDueDate);
+      
+      // Check if due date is tomorrow and set priority to urgent
+      const nextBusinessDay = getNextBusinessDay();
+      console.log('🔍 Priority check (update):', { due_date, nextBusinessDay, isMatch: due_date === nextBusinessDay });
+      if (due_date && due_date === nextBusinessDay) {
+        updateFields.push('priority = ?');
+        updateParams.push('urgent');
+        console.log('🚨 Setting priority to urgent on update!');
+      }
     }
     
     if (completion_date !== undefined) {

@@ -984,19 +984,12 @@ const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ v
   const formatDate = (dateString: string | undefined) => {
     if (!dateString) return '';
     try {
-      // Handle ISO date strings (2025-07-12T04:00:00.000Z) and convert to local date
-      const date = new Date(dateString);
-      if (!isNaN(date.getTime())) {
-        return format(date, 'MMM d');
-      }
+      // DATE fields are now always returned as YYYY-MM-DD strings
+      const [year, month, day] = dateString.split('-').map(Number);
       
-      // Fallback: Handle both date-only strings (YYYY-MM-DD) and datetime strings
-      const datePart = dateString.split(' ')[0]; // Get just the date part
-      const [year, month, day] = datePart.split('-').map(Number);
-      
-      // Use UTC to avoid timezone issues
-      const utcDate = new Date(Date.UTC(year, month - 1, day));
-      return format(utcDate, 'MMM d');
+      // Create a local date (not UTC) to avoid timezone shifts
+      const localDate = new Date(year, month - 1, day);
+      return format(localDate, 'MMM d');
     } catch (error) {
       console.error('formatDate error:', error);
       return '';

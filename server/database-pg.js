@@ -7,6 +7,12 @@ const pool = new Pool({
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 
+// Configure type parsers to return DATE fields as strings
+const { types } = require('pg');
+types.setTypeParser(types.builtins.DATE, (val) => {
+  return val; // Return as string (YYYY-MM-DD)
+});
+
 // Test the pool connection
 pool.on('error', (err) => {
   console.error('Unexpected error on idle client', err);
