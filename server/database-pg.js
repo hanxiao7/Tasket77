@@ -97,7 +97,12 @@ const db = {
         
         // Call the callback with the mock 'this' context
         if (callback) {
-          callback.call(mockThis, null, mockThis);
+          // If there are returned rows (from RETURNING clause), pass the first row as second parameter
+          if (result.rows && result.rows.length > 0) {
+            callback.call(mockThis, null, result.rows[0]);
+          } else {
+            callback.call(mockThis, null);
+          }
         }
       })
       .catch(err => {

@@ -102,7 +102,7 @@ app.get('/api/tags', (req, res) => {
   const conditions = [];
   
   if (include_hidden !== 'true') {
-    conditions.push("hidden = 0");
+    conditions.push("hidden = false");
   }
   
   if (workspace_id) {
@@ -138,21 +138,15 @@ app.post('/api/tags', (req, res) => {
     return;
   }
   
-  db.run("INSERT INTO tags (name, workspace_id, hidden, created_at, updated_at) VALUES (?, ?, 0, ?, ?) RETURNING id", 
-    [name, workspace_id, moment().tz('America/New_York').format('YYYY-MM-DD HH:mm:ss'), moment().tz('America/New_York').format('YYYY-MM-DD HH:mm:ss')], function(err) {
+  db.run("INSERT INTO tags (name, workspace_id, hidden, created_at, updated_at) VALUES (?, ?, false, ?, ?) RETURNING *", 
+    [name, workspace_id, moment().tz('America/New_York').format('YYYY-MM-DD HH:mm:ss'), moment().tz('America/New_York').format('YYYY-MM-DD HH:mm:ss')], function(err, row) {
     if (err) {
       res.status(500).json({ error: err.message });
       return;
     }
     
-    // Get the complete tag data
-    db.get("SELECT * FROM tags WHERE id = ?", [this.lastID], (err, row) => {
-      if (err) {
-        res.status(500).json({ error: err.message });
-        return;
-      }
-      res.json(row);
-    });
+    // Return the complete tag data directly from the INSERT
+    res.json(row);
   });
 });
 
@@ -191,7 +185,7 @@ app.put('/api/tags/:id', (req, res) => {
 app.patch('/api/tags/:id/toggle-hidden', (req, res) => {
   const { id } = req.params;
   
-  db.run("UPDATE tags SET hidden = CASE WHEN hidden = 0 THEN 1 ELSE 0 END, updated_at = ? WHERE id = ?", [moment().tz('America/New_York').format('YYYY-MM-DD HH:mm:ss'), id], function(err) {
+  db.run("UPDATE tags SET hidden = CASE WHEN hidden = false THEN true ELSE false END, updated_at = ? WHERE id = ?", [moment().tz('America/New_York').format('YYYY-MM-DD HH:mm:ss'), id], function(err) {
     if (err) {
       res.status(500).json({ error: err.message });
       return;
@@ -335,14 +329,14 @@ app.post('/api/tasks', async (req, res) => {
   db.run(`
     INSERT INTO tasks (title, description, tag_id, parent_task_id, workspace_id, priority, due_date, created_at, last_modified)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    RETURNING id
-  `, [title, description, tag_id, parent_task_id, workspace_id, finalPriority, parsedDueDate, moment().tz('America/New_York').format('YYYY-MM-DD HH:mm:ss'), moment().tz('America/New_York').format('YYYY-MM-DD HH:mm:ss')], async function(err) {
+    RETURNING *
+  `, [title, description, tag_id, parent_task_id, workspace_id, finalPriority, parsedDueDate, moment().tz('America/New_York').format('YYYY-MM-DD HH:mm:ss'), moment().tz('America/New_York').format('YYYY-MM-DD HH:mm:ss')], async function(err, row) {
     if (err) {
       res.status(500).json({ error: err.message });
       return;
     }
     
-    const taskId = this.lastID;
+    const taskId = row.id;
     await addTaskHistory(taskId, 'todo', 'Task created');
     
     // Update parent task status if this is a sub-task
@@ -356,12 +350,12 @@ app.post('/api/tasks', async (req, res) => {
       FROM tasks t
       LEFT JOIN tags tg ON t.tag_id = tg.id
       WHERE t.id = ?
-    `, [taskId], (err, row) => {
+    `, [taskId], (err, fullRow) => {
       if (err) {
         res.status(500).json({ error: err.message });
         return;
       }
-      res.json(row);
+      res.json(fullRow);
     });
   });
 });
@@ -724,21 +718,15 @@ app.post('/api/workspaces', (req, res) => {
   
   const now = moment().tz('America/New_York').format('YYYY-MM-DD HH:mm:ss');
   
-  db.run("INSERT INTO workspaces (name, description, is_default, created_at, updated_at) VALUES (?, ?, ?, ?, ?) RETURNING id", 
-    [name, description || '', 0, now, now], function(err) {
+  db.run("INSERT INTO workspaces (name, description, is_default, created_at, updated_at) VALUES (?, ?, ?, ?, ?) RETURNING *", 
+    [name, description || '', 0, now, now], function(err, row) {
     if (err) {
       res.status(500).json({ error: err.message });
       return;
     }
     
-    // Get the complete workspace data
-    db.get("SELECT * FROM workspaces WHERE id = ?", [this.lastID], (err, row) => {
-      if (err) {
-        res.status(500).json({ error: err.message });
-        return;
-      }
-      res.json(row);
-    });
+    // Return the complete workspace data directly from the INSERT
+    res.json(row);
   });
 });
 
