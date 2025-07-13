@@ -45,8 +45,8 @@ initializeServer();
 
 // Helper function to get next business day
 function getNextBusinessDay() {
-  const today = moment().tz('America/New_York');
-  let nextDay = moment().tz('America/New_York').add(1, 'day');
+  const today = moment().utc();
+  let nextDay = moment().utc().add(1, 'day');
   
   // Skip weekends
   while (nextDay.day() === 0 || nextDay.day() === 6) {
@@ -257,7 +257,7 @@ app.get('/api/tasks', (req, res) => {
   if (view === 'planner' && show_completed !== 'true') {
     query += " AND t.status != 'done'";
   } else if (view === 'tracker' && days) {
-    const daysAgo = moment().tz('America/New_York').subtract(parseInt(days), 'days').format('YYYY-MM-DD');
+    const daysAgo = moment().utc().subtract(parseInt(days), 'days').format('YYYY-MM-DD');
     // Show tasks that were completed in the past X days OR are currently in progress or paused
     query += " AND (t.completion_date >= ? OR t.status IN ('in_progress', 'paused'))";
     params.push(daysAgo);
@@ -319,12 +319,12 @@ app.post('/api/tasks', async (req, res) => {
   
   // Check if due date is tomorrow and set priority to urgent
   let finalPriority = priority || 'normal';
-  if (due_date && moment.tz(due_date, 'America/New_York').format('YYYY-MM-DD') === getNextBusinessDay()) {
+  if (due_date && due_date === getNextBusinessDay()) {
     finalPriority = 'urgent';
   }
   
-  // Parse the due date in New York timezone - due_date is DATE type, not TIMESTAMP
-  const parsedDueDate = due_date ? moment.tz(due_date, 'America/New_York').format('YYYY-MM-DD') : null;
+  // Parse the due date - due_date is DATE type, not TIMESTAMP
+  const parsedDueDate = due_date ? due_date : null;
   
   db.run(`
     INSERT INTO tasks (title, description, tag_id, parent_task_id, workspace_id, priority, due_date, created_at, last_modified)
@@ -392,11 +392,11 @@ app.patch('/api/tasks/:id/status', async (req, res) => {
       // Only set start_date if it's not already set (keep the earliest date)
       if (!currentTask.start_date) {
         updateFields.push('start_date = ?');
-        updateParams.push(moment().tz('America/New_York').format('YYYY-MM-DD'));
+        updateParams.push(moment().format('YYYY-MM-DD'));
       }
     } else if (status === 'done' && currentTask.status !== 'done') {
       updateFields.push('completion_date = ?');
-      updateParams.push(moment().tz('America/New_York').format('YYYY-MM-DD'));
+      updateParams.push(moment().format('YYYY-MM-DD'));
     }
     
     updateFields.push('last_modified = ?');
@@ -476,22 +476,22 @@ app.put('/api/tasks/:id', async (req, res) => {
     
     if (start_date !== undefined) {
       updateFields.push('start_date = ?');
-      // Parse the date in New York timezone - start_date is DATE type
-      const parsedStartDate = start_date ? moment.tz(start_date, 'America/New_York').format('YYYY-MM-DD') : null;
+      // Parse the date - start_date is DATE type
+      const parsedStartDate = start_date ? start_date : null;
       updateParams.push(parsedStartDate);
     }
     
     if (due_date !== undefined) {
       updateFields.push('due_date = ?');
-      // Parse the date in New York timezone - due_date is DATE type, not TIMESTAMP
-      const parsedDueDate = due_date ? moment.tz(due_date, 'America/New_York').format('YYYY-MM-DD') : null;
+      // Parse the date - due_date is DATE type, not TIMESTAMP
+      const parsedDueDate = due_date ? due_date : null;
       updateParams.push(parsedDueDate);
     }
     
     if (completion_date !== undefined) {
       updateFields.push('completion_date = ?');
-      // Parse the date in New York timezone - completion_date is DATE type
-      const parsedCompletionDate = completion_date ? moment.tz(completion_date, 'America/New_York').format('YYYY-MM-DD') : null;
+      // Parse the date - completion_date is DATE type
+      const parsedCompletionDate = completion_date ? completion_date : null;
       updateParams.push(parsedCompletionDate);
     }
     
@@ -741,7 +741,7 @@ app.post('/api/workspaces', (req, res) => {
     return;
   }
   
-  const now = moment().tz('America/New_York').format('YYYY-MM-DD HH:mm:ss');
+  const now = moment().utc().format('YYYY-MM-DD HH:mm:ss');
   
   db.run("INSERT INTO workspaces (name, description, is_default, created_at, updated_at) VALUES (?, ?, ?, ?, ?) RETURNING *", 
     [name, description || '', false, now, now], function(err, row) {
@@ -765,7 +765,7 @@ app.put('/api/workspaces/:id', (req, res) => {
     return;
   }
   
-  const now = moment().tz('America/New_York').format('YYYY-MM-DD HH:mm:ss');
+  const now = moment().utc().format('YYYY-MM-DD HH:mm:ss');
   
   db.run("UPDATE workspaces SET name = ?, description = ?, updated_at = ? WHERE id = ?", 
     [name, description || '', now, id], function(err) {
@@ -835,7 +835,7 @@ app.delete('/api/workspaces/:id', async (req, res) => {
 app.patch('/api/workspaces/:id/set-default', (req, res) => {
   const { id } = req.params;
   
-  const now = moment().tz('America/New_York').format('YYYY-MM-DD HH:mm:ss');
+  const now = moment().utc().format('YYYY-MM-DD HH:mm:ss');
   
   // First, clear all default flags
   db.run("UPDATE workspaces SET is_default = false, updated_at = ?", [now], function(err) {

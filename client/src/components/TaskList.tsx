@@ -990,7 +990,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ v
         return format(date, 'MMM d');
       }
       
-      // Fallback: Handle both date-only strings (YYYY-MM-DD) and datetime strings (YYYY-MM-DD HH:mm:ss)
+      // Fallback: Handle both date-only strings (YYYY-MM-DD) and datetime strings
       const datePart = dateString.split(' ')[0]; // Get just the date part
       const [year, month, day] = datePart.split('-').map(Number);
       

@@ -24,7 +24,7 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, tags, onClose, onSa
         return date.toISOString().split('T')[0]; // Convert to YYYY-MM-DD
       }
       
-      // Fallback: Handle both date-only strings (YYYY-MM-DD) and datetime strings (YYYY-MM-DD HH:mm:ss)
+      // Fallback: Handle both date-only strings (YYYY-MM-DD) and datetime strings
       const datePart = dateString.split(' ')[0]; // Get just the date part
       return datePart; // Return YYYY-MM-DD format for input
     } catch (error) {
