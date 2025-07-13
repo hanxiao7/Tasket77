@@ -1,6 +1,6 @@
 # Task Management Tool
 
-A minimal, fast-to-use task management tool designed for handling many small tasks in fast-paced environments. Built with React, TypeScript, Node.js, and SQLite.
+A minimal, fast-to-use task management tool designed for handling many small tasks in fast-paced environments. Built with React, TypeScript, Node.js, and PostgreSQL.
 
 ## Features
 
@@ -47,7 +47,6 @@ A minimal, fast-to-use task management tool designed for handling many small tas
 ### Data Management
 - **Automatic date tracking**: start, pause, resume, completion dates
 - **Task history** for all status changes
-- **SQLite database** for reliable data storage
 - **Automatic backup system** with change detection
 - **Export functionality** for reporting and backups
 - **Real-time updates** with optimistic UI updates
@@ -335,7 +334,7 @@ ToDoList/
 
 ### Technologies Used
 - **Frontend**: React 18, TypeScript, Tailwind CSS, Lucide React icons, date-fns
-- **Backend**: Node.js, Express, SQLite3, Moment.js
+- **Backend**: Node.js, Express, PostgreSQL, Moment.js
 - **Development**: Concurrently for running both servers
 
 ### Key Dependencies
@@ -346,4 +345,3 @@ ToDoList/
 - **date-fns 2.30.0** for date manipulation
 - **clsx 2.0.0** for conditional styling
 - **Express 4.18.2** for backend API
-- **SQLite3 5.1.6** for data persistence

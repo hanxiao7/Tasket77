@@ -5,7 +5,7 @@ const moment = require('moment-timezone');
 const fs = require('fs');
 const path = require('path');
 const { db, initializeDatabase, updateTaskModified, addTaskHistory } = require('./database-pg');
-const BackupManager = require('./backup');
+const PostgreSQLBackupManager = require('./backup-pg');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -23,7 +23,7 @@ async function initializeServer() {
     console.log('Database initialized successfully');
     
     // Perform automatic backup with change detection
-    const backupManager = new BackupManager();
+    const backupManager = new PostgreSQLBackupManager();
     const backupResult = await backupManager.performAutomaticBackup();
     
     if (backupResult.success) {
@@ -655,44 +655,205 @@ app.get('/api/tasks/:id/history', (req, res) => {
   });
 });
 
-// Export database
-app.get('/api/export', (req, res) => {
-  db.all(`
-    SELECT 
-      t.id,
-      t.title,
-      t.description,
-      tg.name as tag,
-      t.status,
-      t.priority,
-      t.due_date,
-      t.start_date,
-      t.completion_date,
-      t.last_modified,
-      t.created_at,
-      (SELECT COUNT(*) FROM tasks WHERE parent_task_id = t.id) as sub_task_count
-    FROM tasks t
-    LEFT JOIN tags tg ON t.tag_id = tg.id
-    ORDER BY t.last_modified DESC
-  `, (err, rows) => {
-    if (err) {
-      res.status(500).json({ error: err.message });
-      return;
-    }
+// Export all tasks as JSON
+app.get('/api/export', async (req, res) => {
+  try {
+    const { Pool } = require('pg');
+    const pool = new Pool({
+      connectionString: process.env.DATABASE_URL || 'postgresql://postgres:password@localhost:5432/taskmanagement',
+      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+    });
+    
+    const client = await pool.connect();
+    
+    // Get all data
+    const workspaces = await client.query('SELECT * FROM workspaces ORDER BY id');
+    const tags = await client.query('SELECT * FROM tags ORDER BY id');
+    const tasks = await client.query('SELECT * FROM tasks ORDER BY id');
+    const taskHistory = await client.query('SELECT * FROM task_history ORDER BY id');
+    
+    const exportData = {
+      exportDate: new Date().toISOString(),
+      version: '2.0',
+      workspaces: workspaces.rows,
+      tags: tags.rows,
+      tasks: tasks.rows,
+      taskHistory: taskHistory.rows
+    };
+    
+    client.release();
+    await pool.end();
     
     res.setHeader('Content-Type', 'application/json');
-    res.setHeader('Content-Disposition', 'attachment; filename=tasks-export.json');
-    res.json(rows);
-  });
+    res.setHeader('Content-Disposition', 'attachment; filename="tasks-export.json"');
+    res.json(exportData);
+    
+  } catch (error) {
+    console.error('Export error:', error);
+    res.status(500).json({ error: 'Export failed' });
+  }
+});
+
+// Import data from JSON backup
+app.post('/api/import', async (req, res) => {
+  try {
+    const { Pool } = require('pg');
+    const pool = new Pool({
+      connectionString: process.env.DATABASE_URL || 'postgresql://postgres:password@localhost:5432/taskmanagement',
+      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+    });
+    
+    const client = await pool.connect();
+    
+    // Begin transaction
+    await client.query('BEGIN');
+    
+    try {
+      const importData = req.body;
+      
+      // Clear existing data
+      await client.query('DELETE FROM task_history');
+      await client.query('DELETE FROM tasks');
+      await client.query('DELETE FROM tags');
+      await client.query('DELETE FROM workspaces');
+      
+      // Import workspaces
+      if (importData.workspaces && importData.workspaces.length > 0) {
+        for (const workspace of importData.workspaces) {
+          await client.query(`
+            INSERT INTO workspaces (id, name, description, is_default, created_at, updated_at)
+            VALUES ($1, $2, $3, $4, $5, $6)
+            ON CONFLICT (id) DO UPDATE SET
+              name = EXCLUDED.name,
+              description = EXCLUDED.description,
+              is_default = EXCLUDED.is_default,
+              updated_at = EXCLUDED.updated_at
+          `, [
+            workspace.id,
+            workspace.name,
+            workspace.description,
+            workspace.is_default,
+            workspace.created_at,
+            workspace.updated_at
+          ]);
+        }
+      }
+      
+      // Import tags
+      if (importData.tags && importData.tags.length > 0) {
+        for (const tag of importData.tags) {
+          await client.query(`
+            INSERT INTO tags (id, name, workspace_id, hidden, created_at, updated_at)
+            VALUES ($1, $2, $3, $4, $5, $6)
+            ON CONFLICT (id) DO UPDATE SET
+              name = EXCLUDED.name,
+              workspace_id = EXCLUDED.workspace_id,
+              hidden = EXCLUDED.hidden,
+              updated_at = EXCLUDED.updated_at
+          `, [
+            tag.id,
+            tag.name,
+            tag.workspace_id,
+            tag.hidden,
+            tag.created_at,
+            tag.updated_at
+          ]);
+        }
+      }
+      
+      // Import tasks
+      if (importData.tasks && importData.tasks.length > 0) {
+        for (const task of importData.tasks) {
+          await client.query(`
+            INSERT INTO tasks (id, title, description, tag_id, parent_task_id, workspace_id, status, priority, due_date, start_date, completion_date, last_modified, created_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+            ON CONFLICT (id) DO UPDATE SET
+              title = EXCLUDED.title,
+              description = EXCLUDED.description,
+              tag_id = EXCLUDED.tag_id,
+              parent_task_id = EXCLUDED.parent_task_id,
+              workspace_id = EXCLUDED.workspace_id,
+              status = EXCLUDED.status,
+              priority = EXCLUDED.priority,
+              due_date = EXCLUDED.due_date,
+              start_date = EXCLUDED.start_date,
+              completion_date = EXCLUDED.completion_date,
+              last_modified = EXCLUDED.last_modified,
+              updated_at = CURRENT_TIMESTAMP
+          `, [
+            task.id,
+            task.title,
+            task.description,
+            task.tag_id,
+            task.parent_task_id,
+            task.workspace_id,
+            task.status,
+            task.priority,
+            task.due_date,
+            task.start_date,
+            task.completion_date,
+            task.last_modified,
+            task.created_at
+          ]);
+        }
+      }
+      
+      // Import task history
+      if (importData.taskHistory && importData.taskHistory.length > 0) {
+        for (const history of importData.taskHistory) {
+          await client.query(`
+            INSERT INTO task_history (id, task_id, status, action_date, notes)
+            VALUES ($1, $2, $3, $4, $5)
+            ON CONFLICT (id) DO UPDATE SET
+              task_id = EXCLUDED.task_id,
+              status = EXCLUDED.status,
+              action_date = EXCLUDED.action_date,
+              notes = EXCLUDED.notes
+          `, [
+            history.id,
+            history.task_id,
+            history.status,
+            history.action_date,
+            history.notes
+          ]);
+        }
+      }
+      
+      // Commit transaction
+      await client.query('COMMIT');
+      
+      client.release();
+      await pool.end();
+      
+      res.json({ 
+        success: true, 
+        message: 'Import completed successfully',
+        imported: {
+          workspaces: importData.workspaces?.length || 0,
+          tags: importData.tags?.length || 0,
+          tasks: importData.tasks?.length || 0,
+          taskHistory: importData.taskHistory?.length || 0
+        }
+      });
+      
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    }
+    
+  } catch (error) {
+    console.error('Import error:', error);
+    res.status(500).json({ error: 'Import failed: ' + error.message });
+  }
 });
 
 // Backup management endpoints
 
 // Get backup statistics
-app.get('/api/backup/stats', (req, res) => {
+app.get('/api/backup/stats', async (req, res) => {
   try {
-    const backupManager = new BackupManager();
-    const stats = backupManager.getBackupStats();
+    const backupManager = new PostgreSQLBackupManager();
+    const stats = await backupManager.getBackupStats();
     res.json(stats);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -702,7 +863,7 @@ app.get('/api/backup/stats', (req, res) => {
 // Create manual backup
 app.post('/api/backup/create', async (req, res) => {
   try {
-    const backupManager = new BackupManager();
+    const backupManager = new PostgreSQLBackupManager();
     const result = await backupManager.performAutomaticBackup();
     res.json(result);
   } catch (error) {
@@ -711,49 +872,23 @@ app.post('/api/backup/create', async (req, res) => {
 });
 
 // List all backups
-app.get('/api/backup/list', (req, res) => {
+app.get('/api/backup/list', async (req, res) => {
   try {
-    const fs = require('fs');
-    const path = require('path');
-    const backupDir = path.join(__dirname, 'backups');
-    
-    if (!fs.existsSync(backupDir)) {
-      res.json([]);
-      return;
-    }
-    
-    const files = fs.readdirSync(backupDir)
-      .filter(file => file.startsWith('tasks-backup-') && file.endsWith('.db'))
-      .map(file => {
-        const filePath = path.join(backupDir, file);
-        const stats = fs.statSync(filePath);
-        return {
-          name: file,
-          size: stats.size,
-          created: stats.birthtime,
-          modified: stats.mtime
-        };
-      })
-      .sort((a, b) => new Date(b.modified) - new Date(a.modified));
-    
-    res.json(files);
+    const backupManager = new PostgreSQLBackupManager();
+    const backups = await backupManager.listBackups();
+    res.json(backups);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// Download a specific backup
-app.get('/api/backup/download/:filename', (req, res) => {
+// Restore from backup
+app.post('/api/backup/restore/:prefix', async (req, res) => {
   try {
-    const { filename } = req.params;
-    const backupPath = path.join(__dirname, 'backups', filename);
-    
-    if (!fs.existsSync(backupPath)) {
-      res.status(404).json({ error: 'Backup file not found' });
-      return;
-    }
-    
-    res.download(backupPath);
+    const { prefix } = req.params;
+    const backupManager = new PostgreSQLBackupManager();
+    const result = await backupManager.restoreFromBackup(prefix);
+    res.json(result);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
