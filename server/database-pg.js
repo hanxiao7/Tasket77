@@ -19,105 +19,6 @@ pool.on('error', (err) => {
   process.exit(-1);
 });
 
-// Helper function to convert SQLite-style queries to PostgreSQL
-function convertQuery(sqliteQuery, params) {
-  // Ensure params is always an array
-  const safeParams = Array.isArray(params) ? params : [];
-  
-  if (safeParams.length === 0) {
-    return { query: sqliteQuery, params: [] };
-  }
-  
-  let postgresQuery = sqliteQuery;
-  const postgresParams = [...safeParams];
-  
-  // Replace ? placeholders with $1, $2, etc.
-  // Use a more robust replacement that handles multiple occurrences
-  let paramIndex = 1;
-  postgresQuery = postgresQuery.replace(/\?/g, () => `$${paramIndex++}`);
-  
-  return { query: postgresQuery, params: postgresParams };
-}
-
-// Create compatibility layer for SQLite-style API
-const db = {
-  // For SELECT queries (equivalent to db.all)
-  all: (query, params, callback) => {
-    if (!pool || !pool.query) {
-      console.error('Pool not initialized properly');
-      if (callback) callback(new Error('Database connection not available'));
-      return;
-    }
-    
-    const { query: postgresQuery, params: postgresParams } = convertQuery(query, params);
-    
-    pool.query(postgresQuery, postgresParams)
-      .then(result => {
-        if (callback) callback(null, result.rows);
-      })
-      .catch(err => {
-        console.error('Database query error:', err);
-        if (callback) callback(err);
-      });
-  },
-
-  // For single row SELECT queries (equivalent to db.get)
-  get: (query, params, callback) => {
-    if (!pool || !pool.query) {
-      console.error('Pool not initialized properly');
-      if (callback) callback(new Error('Database connection not available'));
-      return;
-    }
-    
-    const { query: postgresQuery, params: postgresParams } = convertQuery(query, params);
-    
-    pool.query(postgresQuery, postgresParams)
-      .then(result => {
-        if (callback) callback(null, result.rows[0] || null);
-      })
-      .catch(err => {
-        console.error('Database query error:', err);
-        if (callback) callback(err);
-      });
-  },
-
-  // For INSERT/UPDATE/DELETE queries (equivalent to db.run)
-  run: (query, params, callback) => {
-    if (!pool || !pool.query) {
-      console.error('Pool not initialized properly');
-      if (callback) callback(new Error('Database connection not available'));
-      return;
-    }
-    
-    const { query: postgresQuery, params: postgresParams } = convertQuery(query, params);
-    
-    pool.query(postgresQuery, postgresParams)
-      .then(result => {
-        // Create a mock 'this' object similar to SQLite
-        const mockThis = {
-          lastID: result.rows[0]?.id || null,
-          changes: result.rowCount
-        };
-        
-        // Call the callback with the mock 'this' context
-        if (callback) {
-          // If there are returned rows (from RETURNING clause), pass the first row as second parameter
-          if (result.rows && result.rows.length > 0) {
-            callback.call(mockThis, null, result.rows[0]);
-          } else {
-            callback.call(mockThis, null);
-          }
-        }
-      })
-      .catch(err => {
-        console.error('Database query error:', err);
-        if (callback) {
-          callback(err);
-        }
-      });
-  }
-};
-
 // Initialize database tables
 async function initializeDatabase() {
   try {
@@ -211,7 +112,6 @@ async function addTaskHistory(taskId, status, notes = null) {
 
 // Export pool for direct queries
 module.exports = {
-  db,
   pool,
   initializeDatabase,
   updateTaskModified,

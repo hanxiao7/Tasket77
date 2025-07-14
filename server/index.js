@@ -5,7 +5,7 @@ const cookieParser = require('cookie-parser');
 const moment = require('moment-timezone');
 const fs = require('fs');
 const path = require('path');
-const { db, initializeDatabase, updateTaskModified, addTaskHistory } = require('./database-pg');
+const { pool, initializeDatabase, updateTaskModified, addTaskHistory } = require('./database-pg');
 const PostgreSQLBackupManager = require('./backup-pg');
 const { authenticateToken } = require('./middleware/auth');
 const authRoutes = require('./routes/auth');
@@ -72,252 +72,189 @@ function getNextBusinessDay() {
 // API Routes
 
 // Get all tags
-app.get('/api/tags', authenticateToken, (req, res) => {
+app.get('/api/tags', authenticateToken, async (req, res) => {
   const { include_hidden, workspace_id } = req.query;
-  let query = "SELECT * FROM tags";
-  let params = [];
-  
+  let query = 'SELECT * FROM tags';
   const conditions = [];
-  
+  const params = [];
   // Always filter by user_id for data isolation
-  conditions.push("user_id = ?");
+  conditions.push('user_id = $1');
   params.push(req.user.userId);
-  
   if (include_hidden !== 'true') {
-    conditions.push("hidden = false");
+    conditions.push('hidden = false');
   }
-  
   if (workspace_id) {
-    conditions.push("workspace_id = ?");
+    conditions.push('workspace_id = $2');
     params.push(workspace_id);
   }
-  
-  query += " WHERE " + conditions.join(" AND ");
-  query += " ORDER BY name";
-  
-  db.all(query, params, (err, rows) => {
-    if (err) {
-      res.status(500).json({ error: err.message });
-      return;
-    }
-    res.json(rows);
-  });
+  if (conditions.length > 0) {
+    query += ' WHERE ' + conditions.join(' AND ');
+  }
+  query += ' ORDER BY name';
+  try {
+    const result = await pool.query(query, params);
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // Create new tag
-app.post('/api/tags', authenticateToken, (req, res) => {
+app.post('/api/tags', authenticateToken, async (req, res) => {
   const { name, workspace_id } = req.body;
   if (!name) {
     res.status(400).json({ error: 'Tag name is required' });
     return;
   }
-  
   if (!workspace_id) {
     res.status(400).json({ error: 'Workspace ID is required' });
     return;
   }
-  
-  db.run("INSERT INTO tags (name, workspace_id, user_id, hidden, created_at, updated_at) VALUES (?, ?, ?, false, ?, ?) RETURNING *", 
-    [name, workspace_id, req.user.userId, moment().utc().format('YYYY-MM-DD HH:mm:ss'), moment().utc().format('YYYY-MM-DD HH:mm:ss')], function(err, row) {
-    if (err) {
-      res.status(500).json({ error: err.message });
-      return;
-    }
-    
-    // Return the complete tag data directly from the INSERT
-    res.json(row);
-  });
+  try {
+    const now = moment().utc().format('YYYY-MM-DD HH:mm:ss');
+    const result = await pool.query(
+      'INSERT INTO tags (name, workspace_id, user_id, hidden, created_at, updated_at) VALUES ($1, $2, $3, false, $4, $4) RETURNING *',
+      [name, workspace_id, req.user.userId, now]
+    );
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // Update tag
-app.put('/api/tags/:id', authenticateToken, (req, res) => {
+app.put('/api/tags/:id', authenticateToken, async (req, res) => {
   const { id } = req.params;
   const { name } = req.body;
-  
   if (!name) {
     res.status(400).json({ error: 'Tag name is required' });
     return;
   }
-  
-  db.run("UPDATE tags SET name = ?, updated_at = ? WHERE id = ? AND user_id = ?", [name, moment().utc().format('YYYY-MM-DD HH:mm:ss'), id, req.user.userId], function(err) {
-    if (err) {
-      res.status(500).json({ error: err.message });
-      return;
-    }
-    if (this.changes === 0) {
+  try {
+    const now = moment().utc().format('YYYY-MM-DD HH:mm:ss');
+    const updateResult = await pool.query(
+      'UPDATE tags SET name = $1, updated_at = $2 WHERE id = $3 AND user_id = $4 RETURNING *',
+      [name, now, id, req.user.userId]
+    );
+    if (updateResult.rowCount === 0) {
       res.status(404).json({ error: 'Tag not found' });
       return;
     }
-    
-    // Get the complete updated tag data
-    db.get("SELECT * FROM tags WHERE id = ?", [id], (err, row) => {
-      if (err) {
-        res.status(500).json({ error: err.message });
-        return;
-      }
-      res.json(row);
-    });
-  });
+    res.json(updateResult.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // Toggle tag hidden status
-app.patch('/api/tags/:id/toggle-hidden', authenticateToken, (req, res) => {
+app.patch('/api/tags/:id/toggle-hidden', authenticateToken, async (req, res) => {
   const { id } = req.params;
-  
-  db.run("UPDATE tags SET hidden = CASE WHEN hidden = false THEN true ELSE false END, updated_at = ? WHERE id = ? AND user_id = ?", [moment().utc().format('YYYY-MM-DD HH:mm:ss'), id, req.user.userId], function(err) {
-    if (err) {
-      res.status(500).json({ error: err.message });
-      return;
-    }
-    if (this.changes === 0) {
+  try {
+    const now = moment().utc().format('YYYY-MM-DD HH:mm:ss');
+    const updateResult = await pool.query(
+      'UPDATE tags SET hidden = NOT hidden, updated_at = $1 WHERE id = $2 AND user_id = $3 RETURNING *',
+      [now, id, req.user.userId]
+    );
+    if (updateResult.rowCount === 0) {
       res.status(404).json({ error: 'Tag not found' });
       return;
     }
-    
-    // Get the updated tag
-    db.get("SELECT * FROM tags WHERE id = ?", [id], (err, row) => {
-      if (err) {
-        res.status(500).json({ error: err.message });
-        return;
-      }
-      res.json(row);
-    });
-  });
+    res.json(updateResult.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // Delete tag
-app.delete('/api/tags/:id', (req, res) => {
+app.delete('/api/tags/:id', authenticateToken, async (req, res) => {
   const { id } = req.params;
-  
-  // First, remove the tag from all tasks
-  db.run("UPDATE tasks SET tag_id = NULL WHERE tag_id = ?", [id], function(err) {
-    if (err) {
-      res.status(500).json({ error: err.message });
+  try {
+    await pool.query('UPDATE tasks SET tag_id = NULL WHERE tag_id = $1', [id]);
+    const deleteResult = await pool.query('DELETE FROM tags WHERE id = $1 RETURNING *', [id]);
+    if (deleteResult.rowCount === 0) {
+      res.status(404).json({ error: 'Tag not found' });
       return;
     }
-    
-    // Then delete the tag
-    db.run("DELETE FROM tags WHERE id = ?", [id], function(err) {
-      if (err) {
-        res.status(500).json({ error: err.message });
-        return;
-      }
-      if (this.changes === 0) {
-        res.status(404).json({ error: 'Tag not found' });
-        return;
-      }
-      res.json({ success: true });
-    });
-  });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // Get tasks with optional filters
-app.get('/api/tasks', authenticateToken, (req, res) => {
+app.get('/api/tasks', authenticateToken, async (req, res) => {
   const { view, days, tag_id, status, priority, show_completed, workspace_id } = req.query;
-  
   let query = `
     SELECT t.*, tg.name as tag_name
     FROM tasks t
     LEFT JOIN tags tg ON t.tag_id = tg.id
-    WHERE t.user_id = ?
+    WHERE t.user_id = $1
   `;
-  
   const params = [req.user.userId];
-  
-  // Filter by workspace
+  let paramIndex = 2;
   if (workspace_id) {
-    query += " AND t.workspace_id = ?";
+    query += ` AND t.workspace_id = $${paramIndex}`;
     params.push(workspace_id);
+    paramIndex++;
   }
-  
-  // Filter by view type
   if (view === 'planner' && show_completed !== 'true') {
-    query += " AND t.status != 'done'";
+    query += ' AND t.status != \'done\'';
   } else if (view === 'tracker' && days) {
+    query += ` AND (t.completion_date >= $${paramIndex} OR t.status IN ('in_progress', 'paused'))`;
     const daysAgo = moment().utc().subtract(parseInt(days), 'days').format('YYYY-MM-DD');
-    // Show tasks that were completed in the past X days OR are currently in progress or paused
-    query += " AND (t.completion_date >= ? OR t.status IN ('in_progress', 'paused'))";
     params.push(daysAgo);
+    paramIndex++;
   }
-  
-  // Additional filters
   if (tag_id) {
-    query += " AND t.tag_id = ?";
+    query += ` AND t.tag_id = $${paramIndex}`;
     params.push(tag_id);
+    paramIndex++;
   }
-  
   if (status) {
-    query += " AND t.status = ?";
+    query += ` AND t.status = $${paramIndex}`;
     params.push(status);
+    paramIndex++;
   }
-  
   if (priority) {
-    query += " AND t.priority = ?";
+    query += ` AND t.priority = $${paramIndex}`;
     params.push(priority);
+    paramIndex++;
   }
-  
-  // Sorting
   if (view === 'planner') {
-    query += " ORDER BY CASE t.status WHEN 'in_progress' THEN 1 WHEN 'paused' THEN 1 WHEN 'todo' THEN 3 WHEN 'done' THEN 4 END, ";
-    query += " CASE t.priority WHEN 'urgent' THEN 1 WHEN 'high' THEN 2 WHEN 'normal' THEN 3 WHEN 'low' THEN 4 END, ";
-    query += " t.title ASC";
+    query += ' ORDER BY CASE t.status WHEN \'in_progress\' THEN 1 WHEN \'paused\' THEN 1 WHEN \'todo\' THEN 3 WHEN \'done\' THEN 4 END,';
+    query += ' CASE t.priority WHEN \'urgent\' THEN 1 WHEN \'high\' THEN 2 WHEN \'normal\' THEN 3 WHEN \'low\' THEN 4 END,';
+    query += ' t.title ASC';
   } else if (view === 'tracker') {
-    query += " ORDER BY tg.name, CASE t.status WHEN 'done' THEN 1 WHEN 'in_progress' THEN 2 WHEN 'paused' THEN 3 WHEN 'todo' THEN 4 END, ";
-    query += " t.title ASC";
+    query += ' ORDER BY tg.name, CASE t.status WHEN \'done\' THEN 1 WHEN \'in_progress\' THEN 2 WHEN \'paused\' THEN 3 WHEN \'todo\' THEN 4 END,';
+    query += ' t.title ASC';
   } else {
-    query += " ORDER BY t.title ASC";
+    query += ' ORDER BY t.title ASC';
   }
-  
-  db.all(query, params, (err, rows) => {
-    if (err) {
-      res.status(500).json({ error: err.message });
-      return;
-    }
-    
+  try {
+    const result = await pool.query(query, params);
     // Check and update priorities for tasks due tomorrow
     const nextBusinessDay = getNextBusinessDay();
-    // console.log('🔍 Checking priorities on load, next business day:', nextBusinessDay);
-    // console.log('🔍 Total tasks loaded:', rows.length);
-    
-    const tasksToUpdate = rows.filter(task => {
+    const tasksToUpdate = result.rows.filter(task => {
       if (!task.due_date || task.priority === 'urgent') return false;
-      
-      // Handle both string and Date object formats
       let taskDate;
       if (typeof task.due_date === 'string') {
         taskDate = task.due_date.split('T')[0];
       } else if (task.due_date instanceof Date) {
         taskDate = task.due_date.toISOString().split('T')[0];
       } else {
-        // console.log('🔍 Unexpected due_date format:', typeof task.due_date, task.due_date);
         return false;
       }
-      
-      // console.log('🔍 Comparing:', { taskDate, nextBusinessDay, isMatch: taskDate === nextBusinessDay });
-      
       return taskDate === nextBusinessDay;
     });
-    
-    // console.log('🔍 Tasks with due dates:', rows.filter(t => t.due_date).map(t => ({ id: t.id, title: t.title, due_date: t.due_date, priority: t.priority })));
-    // console.log('🔍 Tasks to update:', tasksToUpdate.length);
-    
     if (tasksToUpdate.length > 0) {
-      // console.log('🚨 Found tasks due tomorrow that need urgent priority:', tasksToUpdate.map(t => ({ id: t.id, title: t.title, due_date: t.due_date })));
-      
-      // Update priorities in background (don't wait for completion)
-      tasksToUpdate.forEach((task) => {
-        db.run("UPDATE tasks SET priority = ? WHERE id = ?", ['urgent', task.id], function(err) {
-          if (err) {
-            console.error(`❌ Failed to update task ${task.id} priority:`, err);
-          } else {
-            // console.log(`✅ Updated task ${task.id} priority to urgent`);
-          }
-        });
-      });
+      for (const task of tasksToUpdate) {
+        pool.query('UPDATE tasks SET priority = $1 WHERE id = $2', ['urgent', task.id]);
+      }
     }
-    
-    res.json(rows);
-  });
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // Create new task
@@ -337,91 +274,91 @@ app.post('/api/tasks', authenticateToken, async (req, res) => {
   // Parse the due date - due_date is DATE type, not TIMESTAMP
   const parsedDueDate = due_date ? due_date : null;
   
-  db.run(`
+  try {
+    const now = moment().utc().format('YYYY-MM-DD HH:mm:ss');
+    const result = await pool.query(
+      `
     INSERT INTO tasks (user_id, workspace_id, title, description, tag_id, priority, due_date, created_at, last_modified)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $8)
     RETURNING *
-  `, [req.user.userId, workspace_id, title, description, tag_id, priority || 'normal', parsedDueDate, moment().utc().format('YYYY-MM-DD HH:mm:ss'), moment().utc().format('YYYY-MM-DD HH:mm:ss')], async function(err, row) {
-    if (err) {
-      res.status(500).json({ error: err.message });
-      return;
-    }
+  `, [req.user.userId, workspace_id, title, description, tag_id, priority || 'normal', parsedDueDate, now]
+    );
     
-    const taskId = row.id;
+    const taskId = result.rows[0].id;
     await addTaskHistory(taskId, 'todo', 'Task created');
     
     // Get the complete task information including tag details
-    db.get(`
+    const fullRowResult = await pool.query(
+      `
       SELECT t.*, tg.name as tag_name
       FROM tasks t
       LEFT JOIN tags tg ON t.tag_id = tg.id
-      WHERE t.id = ?
-    `, [taskId], (err, fullRow) => {
-      if (err) {
-        res.status(500).json({ error: err.message });
-        return;
-      }
-      res.json(fullRow);
-    });
-  });
+      WHERE t.id = $1
+    `, [taskId]
+    );
+    res.json(fullRowResult.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // Update task status
 app.patch('/api/tasks/:id/status', authenticateToken, async (req, res) => {
   const { id } = req.params;
   const { status, notes } = req.body;
-  
+
   const validStatuses = ['todo', 'in_progress', 'paused', 'done'];
   if (!validStatuses.includes(status)) {
     res.status(400).json({ error: 'Invalid status' });
     return;
   }
-  
+
   try {
-    const currentTask = await new Promise((resolve, reject) => {
-      db.get("SELECT * FROM tasks WHERE id = ?", [id], (err, row) => {
-        if (err) reject(err);
-        else resolve(row);
-      });
-    });
-    
+    // Get current task
+    const currentTaskResult = await pool.query('SELECT * FROM tasks WHERE id = $1', [id]);
+    const currentTask = currentTaskResult.rows[0];
     if (!currentTask) {
       res.status(404).json({ error: 'Task not found' });
       return;
     }
-    
-    let updateFields = ['status = ?'];
-    let updateParams = [status];
-    
+
+    // Build dynamic update query
+    let updateFields = [];
+    let updateParams = [];
+    let paramIndex = 1;
+
+    // Always update status
+    updateFields.push(`status = $${paramIndex}`);
+    updateParams.push(status);
+    paramIndex++;
+
     // Update relevant dates based on status change
     if (status === 'in_progress' && currentTask.status !== 'in_progress') {
-      // Only set start_date if it's not already set (keep the earliest date)
       if (!currentTask.start_date) {
-        updateFields.push('start_date = ?');
+        updateFields.push(`start_date = $${paramIndex}`);
         updateParams.push(moment().format('YYYY-MM-DD'));
+        paramIndex++;
       }
     } else if (status === 'done' && currentTask.status !== 'done') {
-      updateFields.push('completion_date = ?');
+      updateFields.push(`completion_date = $${paramIndex}`);
       updateParams.push(moment().format('YYYY-MM-DD'));
+      paramIndex++;
     }
-    
-    updateFields.push('last_modified = ?');
+
+    // Always update last_modified
+    updateFields.push(`last_modified = $${paramIndex}`);
     updateParams.push(moment().utc().format('YYYY-MM-DD HH:mm:ss'));
-    
-    // Add id to updateParams so the WHERE clause works
+    paramIndex++;
+
+    // Add id for WHERE clause
     updateParams.push(id);
-    
-    await new Promise((resolve, reject) => {
-      db.run(`UPDATE tasks SET ${updateFields.join(', ')} WHERE id = ?`, updateParams, (err) => {
-        if (err) reject(err);
-        else resolve();
-      });
-    });
-    
+
+    const updateQuery = `UPDATE tasks SET ${updateFields.join(', ')} WHERE id = $${paramIndex}`;
+    await pool.query(updateQuery, updateParams);
+
     await addTaskHistory(id, status, notes);
-    
+
     res.json({ success: true, status });
-    
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -431,104 +368,87 @@ app.patch('/api/tasks/:id/status', authenticateToken, async (req, res) => {
 app.put('/api/tasks/:id', authenticateToken, async (req, res) => {
   const { id } = req.params;
   const { title, description, tag_id, priority, status, start_date, due_date, completion_date } = req.body;
-  
+
   try {
-    const currentTask = await new Promise((resolve, reject) => {
-      db.get("SELECT * FROM tasks WHERE id = ?", [id], (err, row) => {
-        if (err) reject(err);
-        else resolve(row);
-      });
-    });
-    
+    const currentTaskResult = await pool.query('SELECT * FROM tasks WHERE id = $1', [id]);
+    const currentTask = currentTaskResult.rows[0];
     if (!currentTask) {
       res.status(404).json({ error: 'Task not found' });
       return;
     }
-    
+
     // Build dynamic update query based on provided fields
     const updateFields = [];
     const updateParams = [];
-    
-    // Only update fields that are actually provided in the request
+    let paramIndex = 1;
+
     if (title !== undefined) {
-      updateFields.push('title = ?');
+      updateFields.push(`title = $${paramIndex}`);
       updateParams.push(title);
+      paramIndex++;
     }
-    
     if (description !== undefined) {
-      updateFields.push('description = ?');
+      updateFields.push(`description = $${paramIndex}`);
       updateParams.push(description);
+      paramIndex++;
     }
-    
     if (tag_id !== undefined) {
-      updateFields.push('tag_id = ?');
+      updateFields.push(`tag_id = $${paramIndex}`);
       updateParams.push(tag_id);
+      paramIndex++;
     }
-    
     if (priority !== undefined) {
-      updateFields.push('priority = ?');
+      updateFields.push(`priority = $${paramIndex}`);
       updateParams.push(priority);
+      paramIndex++;
     }
-    
     if (status !== undefined) {
-      updateFields.push('status = ?');
+      updateFields.push(`status = $${paramIndex}`);
       updateParams.push(status);
+      paramIndex++;
     }
-    
     if (start_date !== undefined) {
-      updateFields.push('start_date = ?');
-      // Parse the date - start_date is DATE type
+      updateFields.push(`start_date = $${paramIndex}`);
       const parsedStartDate = start_date ? start_date : null;
       updateParams.push(parsedStartDate);
+      paramIndex++;
     }
-    
     if (due_date !== undefined) {
-      updateFields.push('due_date = ?');
-      // Parse the date - due_date is DATE type, not TIMESTAMP
+      updateFields.push(`due_date = $${paramIndex}`);
       const parsedDueDate = due_date ? due_date : null;
       updateParams.push(parsedDueDate);
-      
+      paramIndex++;
       // Check if due date is tomorrow and set priority to urgent
       const nextBusinessDay = getNextBusinessDay();
-      // console.log('🔍 Priority check (update):', { due_date, nextBusinessDay, isMatch: due_date === nextBusinessDay });
       if (due_date && due_date === nextBusinessDay) {
-        updateFields.push('priority = ?');
+        updateFields.push(`priority = $${paramIndex}`);
         updateParams.push('urgent');
-        // console.log('🚨 Setting priority to urgent on update!');
+        paramIndex++;
       }
     }
-    
     if (completion_date !== undefined) {
-      updateFields.push('completion_date = ?');
-      // Parse the date - completion_date is DATE type
+      updateFields.push(`completion_date = $${paramIndex}`);
       const parsedCompletionDate = completion_date ? completion_date : null;
       updateParams.push(parsedCompletionDate);
+      paramIndex++;
     }
-    
     // Always update last_modified
-    updateFields.push('last_modified = ?');
+    updateFields.push(`last_modified = $${paramIndex}`);
     updateParams.push(moment().utc().format('YYYY-MM-DD HH:mm:ss'));
-    
-    // Add id to updateParams for WHERE clause
+    paramIndex++;
+
+    // Add id for WHERE clause
     updateParams.push(id);
-    
-    // Only perform update if there are fields to update
-    if (updateFields.length > 1) { // > 1 because we always add last_modified
-      await new Promise((resolve, reject) => {
-        db.run(`UPDATE tasks SET ${updateFields.join(', ')} WHERE id = ?`, updateParams, (err) => {
-          if (err) reject(err);
-          else resolve();
-        });
-      });
-      
+
+    if (updateFields.length > 0) {
+      const updateQuery = `UPDATE tasks SET ${updateFields.join(', ')} WHERE id = $${paramIndex}`;
+      await pool.query(updateQuery, updateParams);
       // Add task history if status was updated
       if (status !== undefined && status !== currentTask.status) {
         await addTaskHistory(id, status, 'Status updated via edit');
       }
     }
-    
     res.json({ success: true });
-    
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -540,9 +460,9 @@ app.delete('/api/tasks/:id', authenticateToken, async (req, res) => {
   
   try {
     const currentTask = await new Promise((resolve, reject) => {
-      db.get("SELECT * FROM tasks WHERE id = ?", [id], (err, row) => {
+      pool.query("SELECT * FROM tasks WHERE id = $1", [id], (err, row) => {
         if (err) reject(err);
-        else resolve(row);
+        else resolve(row.rows[0]);
       });
     });
     
@@ -553,7 +473,7 @@ app.delete('/api/tasks/:id', authenticateToken, async (req, res) => {
     
     // Delete task history
     await new Promise((resolve, reject) => {
-      db.run("DELETE FROM task_history WHERE task_id = ?", [id], (err) => {
+      pool.query("DELETE FROM task_history WHERE task_id = $1", [id], (err) => {
         if (err) reject(err);
         else resolve();
       });
@@ -561,7 +481,7 @@ app.delete('/api/tasks/:id', authenticateToken, async (req, res) => {
     
     // Delete the task
     await new Promise((resolve, reject) => {
-      db.run("DELETE FROM tasks WHERE id = ?", [id], (err) => {
+      pool.query("DELETE FROM tasks WHERE id = $1", [id], (err) => {
         if (err) reject(err);
         else resolve();
       });
@@ -578,21 +498,21 @@ app.delete('/api/tasks/:id', authenticateToken, async (req, res) => {
 app.get('/api/tasks/:id', (req, res) => {
   const { id } = req.params;
   
-  db.get(`
+  pool.query(`
     SELECT t.*, tg.name as tag_name
     FROM tasks t
     LEFT JOIN tags tg ON t.tag_id = tg.id
-    WHERE t.id = ?
+    WHERE t.id = $1
   `, [id], (err, row) => {
     if (err) {
       res.status(500).json({ error: err.message });
       return;
     }
-    if (!row) {
+    if (!row.rows[0]) {
       res.status(404).json({ error: 'Task not found' });
       return;
     }
-    res.json(row);
+    res.json(row.rows[0]);
   });
 });
 
@@ -600,12 +520,12 @@ app.get('/api/tasks/:id', (req, res) => {
 app.get('/api/tasks/:id/history', (req, res) => {
   const { id } = req.params;
   
-  db.all("SELECT * FROM task_history WHERE task_id = ? ORDER BY action_date DESC", [id], (err, rows) => {
+  pool.query("SELECT * FROM task_history WHERE task_id = $1 ORDER BY action_date DESC", [id], (err, rows) => {
     if (err) {
       res.status(500).json({ error: err.message });
       return;
     }
-    res.json(rows);
+    res.json(rows.rows);
   });
 });
 
@@ -874,15 +794,15 @@ app.post('/api/workspaces', authenticateToken, (req, res) => {
   
   const now = moment().utc().format('YYYY-MM-DD HH:mm:ss');
   
-  db.run("INSERT INTO workspaces (name, description, is_default, created_at, updated_at) VALUES (?, ?, ?, ?, ?) RETURNING *", 
-    [name, description || '', false, now, now], function(err, row) {
+  pool.query("INSERT INTO workspaces (name, description, is_default, created_at, updated_at) VALUES ($1, $2, false, $3, $3) RETURNING *", 
+    [name, description || '', now], function(err, row) {
     if (err) {
       res.status(500).json({ error: err.message });
       return;
     }
     
     // Return the complete workspace data directly from the INSERT
-    res.json(row);
+    res.json(row.rows[0]);
   });
 });
 
@@ -898,24 +818,24 @@ app.put('/api/workspaces/:id', authenticateToken, (req, res) => {
   
   const now = moment().utc().format('YYYY-MM-DD HH:mm:ss');
   
-  db.run("UPDATE workspaces SET name = ?, description = ?, updated_at = ? WHERE id = ?", 
+  pool.query("UPDATE workspaces SET name = $1, description = $2, updated_at = $3 WHERE id = $4", 
     [name, description || '', now, id], function(err) {
     if (err) {
       res.status(500).json({ error: err.message });
       return;
     }
-    if (this.changes === 0) {
+    if (this.rowCount === 0) {
       res.status(404).json({ error: 'Workspace not found' });
       return;
     }
     
     // Get the complete updated workspace data
-    db.get("SELECT * FROM workspaces WHERE id = ?", [id], (err, row) => {
+    pool.query("SELECT * FROM workspaces WHERE id = $1", [id], (err, row) => {
       if (err) {
         res.status(500).json({ error: err.message });
         return;
       }
-      res.json(row);
+      res.json(row.rows[0]);
     });
   });
 });
@@ -933,7 +853,7 @@ app.delete('/api/workspaces/:id', authenticateToken, async (req, res) => {
     
     // Delete all tasks in this workspace
     await new Promise((resolve, reject) => {
-      db.run("DELETE FROM tasks WHERE workspace_id = ?", [id], (err) => {
+      pool.query("DELETE FROM tasks WHERE workspace_id = $1", [id], (err) => {
         if (err) reject(err);
         else resolve();
       });
@@ -941,7 +861,7 @@ app.delete('/api/workspaces/:id', authenticateToken, async (req, res) => {
     
     // Delete all tags in this workspace
     await new Promise((resolve, reject) => {
-      db.run("DELETE FROM tags WHERE workspace_id = ?", [id], (err) => {
+      pool.query("DELETE FROM tags WHERE workspace_id = $1", [id], (err) => {
         if (err) reject(err);
         else resolve();
       });
@@ -949,7 +869,7 @@ app.delete('/api/workspaces/:id', authenticateToken, async (req, res) => {
     
     // Delete the workspace
     await new Promise((resolve, reject) => {
-      db.run("DELETE FROM workspaces WHERE id = ?", [id], (err) => {
+      pool.query("DELETE FROM workspaces WHERE id = $1", [id], (err) => {
         if (err) reject(err);
         else resolve();
       });
@@ -969,30 +889,30 @@ app.patch('/api/workspaces/:id/set-default', authenticateToken, (req, res) => {
   const now = moment().utc().format('YYYY-MM-DD HH:mm:ss');
   
   // First, clear all default flags
-  db.run("UPDATE workspaces SET is_default = false, updated_at = ?", [now], function(err) {
+  pool.query("UPDATE workspaces SET is_default = false, updated_at = $1", [now], function(err) {
     if (err) {
       res.status(500).json({ error: err.message });
       return;
     }
     
     // Then set the specified workspace as default
-    db.run("UPDATE workspaces SET is_default = true, updated_at = ? WHERE id = ?", [now, id], function(err) {
+    pool.query("UPDATE workspaces SET is_default = true, updated_at = $1 WHERE id = $2", [now, id], function(err) {
       if (err) {
         res.status(500).json({ error: err.message });
         return;
       }
-      if (this.changes === 0) {
+      if (this.rowCount === 0) {
         res.status(404).json({ error: 'Workspace not found' });
         return;
       }
       
       // Get the complete updated workspace data
-      db.get("SELECT * FROM workspaces WHERE id = ?", [id], (err, row) => {
+      pool.query("SELECT * FROM workspaces WHERE id = $1", [id], (err, row) => {
         if (err) {
           res.status(500).json({ error: err.message });
           return;
         }
-        res.json(row);
+        res.json(row.rows[0]);
       });
     });
   });
