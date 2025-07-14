@@ -91,15 +91,7 @@ class PostgreSQLBackupManager {
     const client = await this.pool.connect();
     try {
       const now = new Date();
-      const timestamp = now.toLocaleString('en-US', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: false
-      }).replace(/[/:]/g, '-').replace(/,/g, '');
+      const timestamp = now.toISOString().replace(/[-:]/g, '_').replace(/\..+/, '').replace('T', '_');
       
       const backupPrefix = `backup_${timestamp}`;
       
@@ -107,7 +99,7 @@ class PostgreSQLBackupManager {
       const tables = [
         { name: 'workspaces', columns: 'id, name, description, is_default, created_at, updated_at' },
         { name: 'tags', columns: 'id, name, workspace_id, hidden, created_at, updated_at' },
-        { name: 'tasks', columns: 'id, title, description, tag_id, parent_task_id, workspace_id, status, priority, due_date, start_date, completion_date, last_modified, created_at' },
+        { name: 'tasks', columns: 'id, user_id, workspace_id, title, description, tag_id, priority, status, due_date, start_date, completion_date, last_modified, created_at' },
         { name: 'task_history', columns: 'id, task_id, status, action_date, notes' }
       ];
       

@@ -1440,11 +1440,6 @@ const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ v
                         )}
                       </div>
                     )}
-                    {task.sub_task_count > 0 && (
-                      <div className="text-xs text-gray-500">
-                        {task.completed_sub_tasks}/{task.sub_task_count} sub-tasks
-                      </div>
-                    )}
                     
                     {/* Chat Icon for blank descriptions */}
                     {chatIcons.has(task.id) && (

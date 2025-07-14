@@ -74,40 +74,7 @@ function getNextBusinessDay() {
   return nextDay.format('YYYY-MM-DD');
 }
 
-// Helper function to update parent task status based on sub-tasks
-async function updateParentTaskStatus(parentTaskId) {
-  if (!parentTaskId) return;
-  
-  const subTasks = await new Promise((resolve, reject) => {
-    db.all("SELECT status FROM tasks WHERE parent_task_id = ?", [parentTaskId], (err, rows) => {
-      if (err) reject(err);
-      else resolve(rows);
-    });
-  });
-  
-  if (subTasks.length === 0) return;
-  
-  const statuses = subTasks.map(task => task.status);
-  let newParentStatus = 'todo';
-  
-  if (statuses.some(s => s === 'in_progress')) {
-    newParentStatus = 'in_progress';
-  } else if (statuses.every(s => s === 'paused')) {
-    newParentStatus = 'paused';
-  } else if (statuses.every(s => s === 'done')) {
-    newParentStatus = 'done';
-  }
-  
-  await new Promise((resolve, reject) => {
-    db.run("UPDATE tasks SET status = ? WHERE id = ?", [newParentStatus, parentTaskId], (err) => {
-      if (err) reject(err);
-      else resolve();
-    });
-  });
-  
-  await updateTaskModified(parentTaskId);
-  await addTaskHistory(parentTaskId, newParentStatus, 'Auto-updated based on sub-tasks');
-}
+// Removed updateParentTaskStatus and all parent_task_id logic
 
 // API Routes
 
@@ -256,15 +223,13 @@ app.get('/api/tasks', authenticateToken, (req, res) => {
   const { view, days, tag_id, status, priority, show_completed, workspace_id } = req.query;
   
   let query = `
-    SELECT t.*, tg.name as tag_name, 
-           (SELECT COUNT(*) FROM tasks WHERE parent_task_id = t.id AND user_id = ?) as sub_task_count,
-           (SELECT COUNT(*) FROM tasks WHERE parent_task_id = t.id AND status = 'done' AND user_id = ?) as completed_sub_tasks
+    SELECT t.*, tg.name as tag_name
     FROM tasks t
     LEFT JOIN tags tg ON t.tag_id = tg.id
     WHERE t.user_id = ?
   `;
   
-  const params = [req.user.userId, req.user.userId, req.user.userId];
+  const params = [req.user.userId];
   
   // Filter by workspace
   if (workspace_id) {
@@ -364,7 +329,7 @@ app.get('/api/tasks', authenticateToken, (req, res) => {
 
 // Create new task
 app.post('/api/tasks', authenticateToken, async (req, res) => {
-  const { title, description, tag_id, parent_task_id, priority, due_date, workspace_id } = req.body;
+  const { title, description, tag_id, priority, due_date, workspace_id } = req.body;
   
   if (!title) {
     res.status(400).json({ error: 'Task title is required' });
@@ -380,10 +345,10 @@ app.post('/api/tasks', authenticateToken, async (req, res) => {
   const parsedDueDate = due_date ? due_date : null;
   
   db.run(`
-    INSERT INTO tasks (title, description, tag_id, parent_task_id, workspace_id, user_id, priority, due_date, created_at, last_modified)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO tasks (title, description, tag_id, workspace_id, user_id, priority, due_date, created_at, last_modified)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     RETURNING *
-  `, [title, description, tag_id, parent_task_id, workspace_id, req.user.userId, priority || 'normal', parsedDueDate, moment().utc().format('YYYY-MM-DD HH:mm:ss'), moment().utc().format('YYYY-MM-DD HH:mm:ss')], async function(err, row) {
+  `, [title, description, tag_id, workspace_id, req.user.userId, priority || 'normal', parsedDueDate, moment().utc().format('YYYY-MM-DD HH:mm:ss'), moment().utc().format('YYYY-MM-DD HH:mm:ss')], async function(err, row) {
     if (err) {
       res.status(500).json({ error: err.message });
       return;
@@ -391,11 +356,6 @@ app.post('/api/tasks', authenticateToken, async (req, res) => {
     
     const taskId = row.id;
     await addTaskHistory(taskId, 'todo', 'Task created');
-    
-    // Update parent task status if this is a sub-task
-    if (parent_task_id) {
-      await updateParentTaskStatus(parent_task_id);
-    }
     
     // Get the complete task information including tag details
     db.get(`
@@ -466,11 +426,6 @@ app.patch('/api/tasks/:id/status', authenticateToken, async (req, res) => {
     });
     
     await addTaskHistory(id, status, notes);
-    
-    // Update parent task status if this is a sub-task
-    if (currentTask.parent_task_id) {
-      await updateParentTaskStatus(currentTask.parent_task_id);
-    }
     
     res.json({ success: true, status });
     
@@ -603,14 +558,6 @@ app.delete('/api/tasks/:id', authenticateToken, async (req, res) => {
       return;
     }
     
-    // Delete sub-tasks first
-    await new Promise((resolve, reject) => {
-      db.run("DELETE FROM tasks WHERE parent_task_id = ?", [id], (err) => {
-        if (err) reject(err);
-        else resolve();
-      });
-    });
-    
     // Delete task history
     await new Promise((resolve, reject) => {
       db.run("DELETE FROM task_history WHERE task_id = ?", [id], (err) => {
@@ -626,11 +573,6 @@ app.delete('/api/tasks/:id', authenticateToken, async (req, res) => {
         else resolve();
       });
     });
-    
-    // Update parent task status if this was a sub-task
-    if (currentTask.parent_task_id) {
-      await updateParentTaskStatus(currentTask.parent_task_id);
-    }
     
     res.json({ success: true });
     
@@ -784,13 +726,12 @@ app.post('/api/import', authenticateToken, async (req, res) => {
       if (importData.tasks && importData.tasks.length > 0) {
         for (const task of importData.tasks) {
           await client.query(`
-            INSERT INTO tasks (id, title, description, tag_id, parent_task_id, workspace_id, status, priority, due_date, start_date, completion_date, last_modified, created_at)
+            INSERT INTO tasks (id, title, description, tag_id, workspace_id, status, priority, due_date, start_date, completion_date, last_modified, created_at)
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
             ON CONFLICT (id) DO UPDATE SET
               title = EXCLUDED.title,
               description = EXCLUDED.description,
               tag_id = EXCLUDED.tag_id,
-              parent_task_id = EXCLUDED.parent_task_id,
               workspace_id = EXCLUDED.workspace_id,
               status = EXCLUDED.status,
               priority = EXCLUDED.priority,
@@ -804,7 +745,6 @@ app.post('/api/import', authenticateToken, async (req, res) => {
             task.title,
             task.description,
             task.tag_id,
-            task.parent_task_id,
             task.workspace_id,
             task.status,
             task.priority,

@@ -22,7 +22,6 @@ export interface Task {
   description?: string;
   tag_id?: number;
   tag_name?: string;
-  parent_task_id?: number;
   workspace_id: number;
   status: 'todo' | 'in_progress' | 'paused' | 'done';
   priority: 'urgent' | 'high' | 'normal' | 'low';
@@ -31,8 +30,6 @@ export interface Task {
   completion_date?: string;
   last_modified: string;
   created_at: string;
-  sub_task_count: number;
-  completed_sub_tasks: number;
 }
 
 export interface TaskHistory {
