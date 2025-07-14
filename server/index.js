@@ -64,13 +64,6 @@ function getNextBusinessDay() {
     nextDay = nextDay.add(1, 'day'); // Fix: reassign to avoid mutation issues
   }
   
-  console.log('🔍 getNextBusinessDay debug:', {
-    today: today.format('YYYY-MM-DD'),
-    todayDay: today.day(),
-    nextDay: nextDay.format('YYYY-MM-DD'),
-    nextDayDay: nextDay.day()
-  });
-  
   return nextDay.format('YYYY-MM-DD');
 }
 
@@ -283,8 +276,8 @@ app.get('/api/tasks', authenticateToken, (req, res) => {
     
     // Check and update priorities for tasks due tomorrow
     const nextBusinessDay = getNextBusinessDay();
-    console.log('🔍 Checking priorities on load, next business day:', nextBusinessDay);
-    console.log('🔍 Total tasks loaded:', rows.length);
+    // console.log('🔍 Checking priorities on load, next business day:', nextBusinessDay);
+    // console.log('🔍 Total tasks loaded:', rows.length);
     
     const tasksToUpdate = rows.filter(task => {
       if (!task.due_date || task.priority === 'urgent') return false;
@@ -296,20 +289,20 @@ app.get('/api/tasks', authenticateToken, (req, res) => {
       } else if (task.due_date instanceof Date) {
         taskDate = task.due_date.toISOString().split('T')[0];
       } else {
-        console.log('🔍 Unexpected due_date format:', typeof task.due_date, task.due_date);
+        // console.log('🔍 Unexpected due_date format:', typeof task.due_date, task.due_date);
         return false;
       }
       
-      console.log('🔍 Comparing:', { taskDate, nextBusinessDay, isMatch: taskDate === nextBusinessDay });
+      // console.log('🔍 Comparing:', { taskDate, nextBusinessDay, isMatch: taskDate === nextBusinessDay });
       
       return taskDate === nextBusinessDay;
     });
     
-    console.log('🔍 Tasks with due dates:', rows.filter(t => t.due_date).map(t => ({ id: t.id, title: t.title, due_date: t.due_date, priority: t.priority })));
-    console.log('🔍 Tasks to update:', tasksToUpdate.length);
+    // console.log('🔍 Tasks with due dates:', rows.filter(t => t.due_date).map(t => ({ id: t.id, title: t.title, due_date: t.due_date, priority: t.priority })));
+    // console.log('🔍 Tasks to update:', tasksToUpdate.length);
     
     if (tasksToUpdate.length > 0) {
-      console.log('🚨 Found tasks due tomorrow that need urgent priority:', tasksToUpdate.map(t => ({ id: t.id, title: t.title, due_date: t.due_date })));
+      // console.log('🚨 Found tasks due tomorrow that need urgent priority:', tasksToUpdate.map(t => ({ id: t.id, title: t.title, due_date: t.due_date })));
       
       // Update priorities in background (don't wait for completion)
       tasksToUpdate.forEach((task) => {
@@ -317,7 +310,7 @@ app.get('/api/tasks', authenticateToken, (req, res) => {
           if (err) {
             console.error(`❌ Failed to update task ${task.id} priority:`, err);
           } else {
-            console.log(`✅ Updated task ${task.id} priority to urgent`);
+            // console.log(`✅ Updated task ${task.id} priority to urgent`);
           }
         });
       });
@@ -497,11 +490,11 @@ app.put('/api/tasks/:id', authenticateToken, async (req, res) => {
       
       // Check if due date is tomorrow and set priority to urgent
       const nextBusinessDay = getNextBusinessDay();
-      console.log('🔍 Priority check (update):', { due_date, nextBusinessDay, isMatch: due_date === nextBusinessDay });
+      // console.log('🔍 Priority check (update):', { due_date, nextBusinessDay, isMatch: due_date === nextBusinessDay });
       if (due_date && due_date === nextBusinessDay) {
         updateFields.push('priority = ?');
         updateParams.push('urgent');
-        console.log('🚨 Setting priority to urgent on update!');
+        // console.log('🚨 Setting priority to urgent on update!');
       }
     }
     
