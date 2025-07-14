@@ -29,10 +29,10 @@ interface TaskListProps {
   selectedWorkspaceId: number;
   onFiltersChange: (filters: TaskFilters) => void;
   onSort: () => void;
-  isSorting: boolean;
+  onTasksChange?: (tasks: Task[]) => void;
 }
 
-const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ viewMode, filters, selectedWorkspaceId, onFiltersChange, onSort, isSorting }, ref) => {
+const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[] }, TaskListProps>(({ viewMode, filters, selectedWorkspaceId, onFiltersChange, onSort, onTasksChange }, ref) => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
   const [loading, setLoading] = useState(true);
@@ -393,6 +393,13 @@ const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ v
   useEffect(() => {
     console.log('editingTagTaskId changed to:', editingTagTaskId);
   }, [editingTagTaskId]);
+
+  // Notify parent when tasks change
+  useEffect(() => {
+    if (onTasksChange) {
+      onTasksChange(tasks);
+    }
+  }, [tasks, onTasksChange]);
 
   const handleStatusClick = async (task: Task) => {
     try {
@@ -1160,7 +1167,8 @@ const TaskList = React.forwardRef<{ sortTasks: () => void }, TaskListProps>(({ v
       const sortedTasks = sortTasks(tasks);
       setTasks(sortedTasks);
       console.log('✅ Tasks sorted successfully');
-    }
+    },
+    getTasks: () => tasks
   }), [tasks, sortTasks]);
 
   if (loading) {

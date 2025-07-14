@@ -200,9 +200,10 @@ const WorkspaceSelector: React.FC<WorkspaceSelectorProps> = ({
                       >
                         <div className="font-medium text-gray-900 flex items-center">
                           {workspace.name}
-                          {workspace.is_default && (
+                          {/* Remove the star icon after the workspace name in the dropdown list */}
+                          {/* {workspace.is_default && (
                             <Star className="w-3 h-3 text-yellow-500 fill-current ml-1" />
-                          )}
+                          )} */}
                         </div>
                         {workspace.description && (
                           <div className="text-sm text-gray-500 mt-1">{workspace.description}</div>
@@ -242,7 +243,7 @@ const WorkspaceSelector: React.FC<WorkspaceSelectorProps> = ({
 
             {/* Create New Workspace */}
             {isCreating ? (
-              <div className="p-3 border border-green-300 rounded-lg bg-green-50">
+              <div className="p-3 border border-blue-300 rounded-lg bg-blue-50">
                 <input
                   type="text"
                   value={newWorkspaceName}
@@ -261,7 +262,7 @@ const WorkspaceSelector: React.FC<WorkspaceSelectorProps> = ({
                 <div className="flex space-x-2">
                   <button
                     onClick={handleCreateWorkspace}
-                    className="px-2 py-1 bg-green-500 text-white text-xs rounded hover:bg-green-600"
+                    className="px-2 py-1 bg-blue-500 text-white text-xs rounded hover:bg-blue-600"
                   >
                     Create
                   </button>

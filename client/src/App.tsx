@@ -5,9 +5,10 @@ import ProtectedRoute from './components/ProtectedRoute';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import TaskList from './components/TaskList';
+import TaskSummary from './components/TaskSummary';
 import WorkspaceSelector from './components/WorkspaceSelector';
 import { Download, ArrowUpDown } from 'lucide-react';
-import { TaskFilters, ViewMode } from './types';
+import { TaskFilters, ViewMode, Task } from './types';
 
 function MainApp() {
   const [viewMode, setViewMode] = useState<ViewMode>('planner');
@@ -18,8 +19,8 @@ function MainApp() {
     days: 7,
     workspace_id: 1
   });
-  const [isSorting, setIsSorting] = useState(false);
-  const taskListRef = useRef<{ sortTasks: () => void }>(null);
+  const [currentTasks, setCurrentTasks] = useState<Task[]>([]);
+  const taskListRef = useRef<{ sortTasks: () => void; getTasks: () => Task[] }>(null);
   const { user, logout } = useAuth();
 
   const handleFiltersChange = (newFilters: TaskFilters) => setFilters(newFilters);
@@ -28,9 +29,13 @@ function MainApp() {
     setFilters(prev => ({ ...prev, workspace_id: workspaceId }));
   };
   const handleSort = () => {
-    setIsSorting(true);
     taskListRef.current?.sortTasks();
-    setTimeout(() => setIsSorting(false), 500);
+  };
+
+  const updateTaskSummary = () => {
+    if (taskListRef.current) {
+      setCurrentTasks(taskListRef.current.getTasks());
+    }
   };
   const handleExport = async () => {
     try {
@@ -55,7 +60,7 @@ function MainApp() {
         {/* Header */}
         <div className="mb-6">
           <div className="flex items-center justify-between mb-2">
-            <h1 className="text-3xl font-bold text-gray-900">Task Management Tool</h1>
+            <h1 className="text-3xl font-bold text-gray-900">Tasket77</h1>
             <div className="flex items-center space-x-4">
               <WorkspaceSelector 
                 selectedWorkspaceId={selectedWorkspaceId}
@@ -72,7 +77,7 @@ function MainApp() {
               )}
             </div>
           </div>
-          <p className="text-gray-600">Minimal, fast-to-use task management for fast-paced environments</p>
+          <p className="text-gray-600">Quick to log. Easy to maintain. See what got done.</p>
         </div>
         {/* View Tabs */}
         <div className="flex items-center justify-between mb-6">
@@ -136,23 +141,22 @@ function MainApp() {
             )}
             <button
               onClick={handleSort}
-              disabled={isSorting}
-              className="flex items-center space-x-2 px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-white rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              title="Sort tasks"
+              className="flex items-center justify-center w-10 h-10 text-gray-600 hover:text-gray-900 hover:bg-white rounded-md transition-colors"
+              title="Sort Tasks"
             >
               <ArrowUpDown className="w-4 h-4" />
-              <span>{isSorting ? 'Sorting...' : 'Sort Tasks'}</span>
             </button>
             <button
               onClick={handleExport}
-              className="flex items-center space-x-2 px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-white rounded-md transition-colors"
+              className="flex items-center justify-center w-10 h-10 text-gray-600 hover:text-gray-900 hover:bg-white rounded-md transition-colors"
               title="Export tasks"
             >
               <Download className="w-4 h-4" />
-              <span>Export</span>
             </button>
           </div>
         </div>
+        {/* Task Summary */}
+        <TaskSummary tasks={currentTasks} />
         {/* Task List */}
         <div className="bg-white rounded-lg shadow-sm border">
           <TaskList
@@ -162,7 +166,7 @@ function MainApp() {
             selectedWorkspaceId={selectedWorkspaceId}
             onFiltersChange={handleFiltersChange}
             onSort={handleSort}
-            isSorting={isSorting}
+            onTasksChange={setCurrentTasks}
           />
         </div>
         {/* Instructions */}

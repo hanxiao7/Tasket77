@@ -1,4 +1,6 @@
-# Task Management Tool
+# Tasket77
+
+Quick to log. Easy to maintain. See what got done.
 
 A minimal, fast-to-use task management tool designed for handling many small tasks in fast-paced environments. Built with React, TypeScript, Node.js, and PostgreSQL.
 
@@ -177,48 +179,32 @@ REACT_APP_API_URL=https://your-render-app.onrender.com/api
 - **Switch Workspaces**: Use the workspace selector in the top-right corner
 - **Create Workspace**: Click "Create New Workspace" in the workspace dropdown
 - **Set Default**: Click the star icon next to any workspace to make it the default
-- **Edit Workspace**: Click the edit icon next to a workspace name
-- **Delete Workspace**: Click the trash icon (default workspace cannot be deleted)
-- **Workspace Isolation**: Each workspace has its own tasks and tags
+- **Edit Workspace**: Click the edit icon to modify workspace name and description
+- **Delete Workspace**: Click the trash icon to remove a workspace (cannot delete default)
 
 ### Task Management
-- **Create**: Type in the input field and press Enter
-- **Edit**: Double-click any task to open the edit modal
-- **Inline Edit**: Click on title, date, priority, or tag fields to edit directly
-- **Status Change**: Click status button to cycle through states
-- **Complete**: Double-click status button to mark as done
-- **View Details**: Hover over tasks to see descriptions
-- **Reorder**: Drag and drop tasks to reorder them
+- **Create Task**: Type at the bottom of the task list and press Enter
+- **Edit Task**: Double-click any task field to edit inline
+- **Status Cycling**: Click the status button to cycle through states
+- **Complete Task**: Double-click the status button to mark as done
+- **Priority**: Click the priority flag to cycle through levels
+- **Tags**: Use the tag selector to categorize tasks
+- **Due Dates**: Set due dates for time-sensitive tasks
 
-### Enhanced Tooltips
-- **Description Tooltips**: Hover over tasks to see full descriptions
-- **Title Tooltips**: Automatically appear for truncated titles, showing only the hidden text
-- **Smart Positioning**: Tooltips adapt to available space and avoid overlapping
-- **Edit in Tooltip**: Click on description tooltips to edit directly
+### Views and Filtering
+- **Planner View**: Focus on active tasks and planning
+- **Tracker View**: Review recent work and progress
+- **Show Completed**: Toggle to see/hide completed tasks
+- **Time Range**: Adjust the tracker view time period
+- **Sort Tasks**: Use the sort button to reorder by priority/status
 
-### Tag Management
-- **Create Tags**: Use the "+" button in the tag column
-- **Assign Tags**: Click on tag field to select from existing tags
-- **Filter by Tags**: Use tag filters in the view options
-- **Tag Organization**: Tasks are grouped by tags for better organization
+## API Reference
 
-### Views
-- **Planner**: Focus on active work, tasks sorted by status and priority
-- **Tracker**: Review recent work, shows tasks modified in last X days
-
-### Keyboard Shortcuts
-- **Ctrl+Enter**: Save changes in edit mode
-- **Esc**: Cancel editing
-- **Enter**: Create new task or save inline edits
-
-### Backup System
-- **Automatic backups** are created on every app startup if changes are detected
-- **Change detection** uses SHA-256 hashing to compare database content
-- **Backup retention** keeps the last 10 backups automatically
-- **Manual backups** can be created via API endpoints
-- **Backup statistics** show total backups, size, and last backup date
-
-## API Endpoints
+### Authentication
+- `POST /api/auth/register` - Register new user
+- `POST /api/auth/login` - Login user
+- `GET /api/auth/me` - Get current user info
+- `POST /api/auth/logout` - Logout user
 
 ### Tasks
 - `GET /api/tasks` - Get tasks with optional filters
@@ -321,27 +307,60 @@ ToDoList/
 │   ├── src/
 │   │   ├── components/  # React components
 │   │   │   ├── TaskList.tsx      # Main task list component
+│   │   │   ├── WorkspaceSelector.tsx  # Workspace management
 │   │   │   ├── TaskEditModal.tsx # Task editing modal
-│   │   │   ├── TaskTooltip.tsx   # Description tooltip
-│   │   │   ├── TitleTooltip.tsx  # Title truncation tooltip
-│   │   │   └── WorkspaceSelector.tsx # Workspace management
-│   │   ├── services/    # API service layer
+│   │   │   ├── TagEditModal.tsx  # Tag editing modal
+│   │   │   └── ...               # Other components
+│   │   ├── services/    # API services
 │   │   ├── types/       # TypeScript type definitions
-│   │   └── App.tsx      # Main application component
+│   │   ├── contexts/    # React contexts
+│   │   └── pages/       # Page components
 │   └── package.json
 └── package.json     # Root package.json for scripts
 ```
 
-### Technologies Used
-- **Frontend**: React 18, TypeScript, Tailwind CSS, Lucide React icons, date-fns
-- **Backend**: Node.js, Express, PostgreSQL, Moment.js
-- **Development**: Concurrently for running both servers
+### Key Technologies
+- **Frontend**: React 18, TypeScript, Tailwind CSS
+- **Backend**: Node.js, Express, PostgreSQL
+- **Authentication**: JWT with secure cookies
+- **Database**: PostgreSQL with proper indexing
+- **Deployment**: Render (backend), Vercel (frontend)
 
-### Key Dependencies
-- **React 18.2.0** with latest features and hooks
-- **TypeScript 4.9.5** for type safety
-- **Tailwind CSS 3.3.6** for styling
-- **Lucide React 0.294.0** for icons
-- **date-fns 2.30.0** for date manipulation
-- **clsx 2.0.0** for conditional styling
-- **Express 4.18.2** for backend API
+### Development Workflow
+1. **Feature Development**: Create feature branches from main
+2. **Testing**: Test locally with both frontend and backend
+3. **Code Review**: Submit pull requests for review
+4. **Deployment**: Automatic deployment on merge to main
+5. **Monitoring**: Monitor logs and performance in production
+
+## Contributing
+
+### Getting Started
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature-name`
+3. Make your changes and test thoroughly
+4. Commit your changes: `git commit -m 'Add feature'`
+5. Push to the branch: `git push origin feature-name`
+6. Submit a pull request
+
+### Code Style
+- Use TypeScript for all new code
+- Follow ESLint and Prettier configurations
+- Write meaningful commit messages
+- Add tests for new features
+- Update documentation as needed
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## Support
+
+For support and questions:
+- Create an issue in the GitHub repository
+- Check the documentation for common solutions
+- Review the API reference for technical details
+
+---
+
+**Tasket77** - Quick to log. Easy to maintain. See what got done.
