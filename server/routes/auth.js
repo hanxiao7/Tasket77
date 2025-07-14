@@ -76,18 +76,7 @@ router.post('/register', async (req, res) => {
         ]
       );
 
-      const workspaceId = workspaceResult.rows[0].id;
-
-      // Create default tag for the user
-      await client.query(
-        'INSERT INTO tags (name, workspace_id, user_id, created_at, updated_at) VALUES ($1, $2, $3, $4, $4)',
-        [
-          'General',
-          workspaceId, // Use the actual workspace ID
-          user.id,
-          moment().utc().format('YYYY-MM-DD HH:mm:ss')
-        ]
-      );
+      // No default tag creation - users will create their own tags as needed
 
       // Generate JWT token
       const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '7d' });

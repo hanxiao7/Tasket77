@@ -56,13 +56,20 @@ initializeServer();
 
 // Helper function to get next business day
 function getNextBusinessDay() {
-  const today = moment().utc();
-  let nextDay = moment().utc().add(1, 'day');
+  const today = moment(); // Use local time instead of UTC
+  let nextDay = moment().add(1, 'day'); // Use local time instead of UTC
   
   // Skip weekends
   while (nextDay.day() === 0 || nextDay.day() === 6) {
-    nextDay.add(1, 'day');
+    nextDay = nextDay.add(1, 'day'); // Fix: reassign to avoid mutation issues
   }
+  
+  console.log('🔍 getNextBusinessDay debug:', {
+    today: today.format('YYYY-MM-DD'),
+    todayDay: today.day(),
+    nextDay: nextDay.format('YYYY-MM-DD'),
+    nextDayDay: nextDay.day()
+  });
   
   return nextDay.format('YYYY-MM-DD');
 }
