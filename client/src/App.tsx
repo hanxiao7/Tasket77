@@ -59,104 +59,110 @@ function MainApp() {
       <div className="max-w-6xl mx-auto p-6">
         {/* Header */}
         <div className="mb-6">
-          <div className="flex items-center justify-between mb-2">
-            <h1 className="text-3xl font-bold text-gray-900">Tasket77</h1>
-            <div className="flex items-center space-x-4">
-              <WorkspaceSelector 
-                selectedWorkspaceId={selectedWorkspaceId}
-                onWorkspaceChange={handleWorkspaceChange}
-              />
-              {user && (
-                <button
-                  onClick={logout}
-                  className="px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-white rounded-md border border-gray-300 transition-colors"
-                  title="Logout"
-                >
-                  Logout
-                </button>
-              )}
+          <div className="flex items-start justify-between mb-2">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">Tasket77</h1>
+              <p className="text-gray-600">Quick to log. Easy to maintain. See what got done.</p>
+            </div>
+            <div className="flex flex-col items-end space-y-2">
+              <div className="flex items-center space-x-4">
+                <WorkspaceSelector 
+                  selectedWorkspaceId={selectedWorkspaceId}
+                  onWorkspaceChange={handleWorkspaceChange}
+                />
+                {user && (
+                  <button
+                    onClick={logout}
+                    className="px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-white rounded-md border border-gray-300 transition-colors"
+                    title="Logout"
+                  >
+                    Logout
+                  </button>
+                )}
+              </div>
+              {/* Task Summary */}
+              <TaskSummary tasks={currentTasks} />
             </div>
           </div>
-          <p className="text-gray-600">Quick to log. Easy to maintain. See what got done.</p>
         </div>
         {/* View Tabs */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex space-x-1 bg-white rounded-lg p-1 shadow-sm">
-            <button
-              onClick={() => {
-                setViewMode('planner');
-                setFilters({ ...filters, view: 'planner', show_completed: false });
-              }}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                viewMode === 'planner'
-                  ? 'bg-blue-100 text-blue-700'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              Planner
-            </button>
-            <button
-              onClick={() => {
-                setViewMode('tracker');
-                setFilters({ ...filters, view: 'tracker', show_completed: true });
-              }}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                viewMode === 'tracker'
-                  ? 'bg-blue-100 text-blue-700'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              Tracker
-            </button>
-          </div>
-          <div className="flex items-center space-x-3">
-            {/* Show completed toggle for planner */}
-            {viewMode === 'planner' && (
-              <label className="flex items-center space-x-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={filters.show_completed}
-                  onChange={(e) => setFilters({ ...filters, show_completed: e.target.checked })}
-                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                />
-                <span>Show completed</span>
-              </label>
-            )}
-            {/* Days filter for tracker */}
-            {viewMode === 'tracker' && (
-              <div className="flex items-center space-x-2">
-                <span className="text-sm text-gray-600">Last</span>
-                <select
-                  value={filters.days || 7}
-                  onChange={(e) => setFilters({ ...filters, days: Number(e.target.value) })}
-                  className="px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value={1}>1 day</option>
-                  <option value={3}>3 days</option>
-                  <option value={7}>7 days</option>
-                  <option value={14}>14 days</option>
-                  <option value={30}>30 days</option>
-                </select>
-              </div>
-            )}
-            <button
-              onClick={handleSort}
-              className="flex items-center justify-center w-10 h-10 text-gray-600 hover:text-gray-900 hover:bg-white rounded-md transition-colors"
-              title="Sort Tasks"
-            >
-              <ArrowUpDown className="w-4 h-4" />
-            </button>
-            <button
-              onClick={handleExport}
-              className="flex items-center justify-center w-10 h-10 text-gray-600 hover:text-gray-900 hover:bg-white rounded-md transition-colors"
-              title="Export tasks"
-            >
-              <Download className="w-4 h-4" />
-            </button>
+        <div className="mb-6">
+          <div className="flex items-center justify-between">
+            <div className="flex space-x-1 bg-white rounded-lg p-1 shadow-sm">
+              <button
+                onClick={() => {
+                  setViewMode('planner');
+                  setFilters({ ...filters, view: 'planner', show_completed: false });
+                }}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                  viewMode === 'planner'
+                    ? 'bg-blue-100 text-blue-700'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                Planner
+              </button>
+              <button
+                onClick={() => {
+                  setViewMode('tracker');
+                  setFilters({ ...filters, view: 'tracker', show_completed: true });
+                }}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                  viewMode === 'tracker'
+                    ? 'bg-blue-100 text-blue-700'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                Tracker
+              </button>
+            </div>
+            <div className="flex items-center space-x-3">
+              {/* Show completed toggle for planner */}
+              {viewMode === 'planner' && (
+                <label className="flex items-center space-x-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={filters.show_completed}
+                    onChange={(e) => setFilters({ ...filters, show_completed: e.target.checked })}
+                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <span>Show completed</span>
+                </label>
+              )}
+              {/* Days filter for tracker */}
+              {viewMode === 'tracker' && (
+                <div className="flex items-center space-x-2">
+                  <span className="text-sm text-gray-600">Last</span>
+                  <select
+                    value={filters.days || 7}
+                    onChange={(e) => setFilters({ ...filters, days: Number(e.target.value) })}
+                    className="px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value={1}>1 day</option>
+                    <option value={3}>3 days</option>
+                    <option value={7}>7 days</option>
+                    <option value={14}>14 days</option>
+                    <option value={30}>30 days</option>
+                  </select>
+                </div>
+              )}
+              <button
+                onClick={handleSort}
+                className="flex items-center justify-center w-10 h-10 text-gray-600 hover:text-gray-900 hover:bg-white rounded-md transition-colors"
+                title="Sort Tasks"
+              >
+                <ArrowUpDown className="w-4 h-4" />
+              </button>
+              <button
+                onClick={handleExport}
+                className="flex items-center justify-center w-10 h-10 text-gray-600 hover:text-gray-900 hover:bg-white rounded-md transition-colors"
+                title="Export tasks"
+              >
+                <Download className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         </div>
-        {/* Task Summary */}
-        <TaskSummary tasks={currentTasks} />
         {/* Task List */}
         <div className="bg-white rounded-lg shadow-sm border">
           <TaskList

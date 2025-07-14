@@ -15,7 +15,7 @@ const TaskSummary: React.FC<TaskSummaryProps> = ({ tasks }) => {
 
   if (totalTasks === 0) {
     return (
-      <div className="mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
+      <div className="mb-1 pl-4 pt-2">
         <span className="text-sm text-gray-600">No tasks found</span>
       </div>
     );
@@ -37,9 +37,9 @@ const TaskSummary: React.FC<TaskSummaryProps> = ({ tasks }) => {
   };
 
   return (
-    <div className="mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
-      <div className="flex items-center space-x-4 text-sm">
-        <span className="text-gray-700 font-medium">
+    <div className="mb-1 pl-4 pt-2">
+      <div className="flex items-center space-x-3 text-sm text-gray-600">
+        <span className="font-medium">
           {totalTasks} task{totalTasks !== 1 ? 's' : ''}:
         </span>
         {statusOrder.map((status, index) => {
