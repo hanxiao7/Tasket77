@@ -775,8 +775,8 @@ app.post('/api/workspaces', authenticateToken, async (req, res) => {
   const now = moment().utc().format('YYYY-MM-DD HH:mm:ss');
   try {
     const result = await pool.query(
-      'INSERT INTO workspaces (name, description, is_default, created_at, updated_at) VALUES ($1, $2, false, $3, $3) RETURNING *',
-      [name, description || '', now]
+      'INSERT INTO workspaces (name, description, is_default, user_id, created_at, updated_at) VALUES ($1, $2, false, $3, $4, $4) RETURNING *',
+      [name, description || '', req.user.userId, now]
     );
     res.json(result.rows[0]);
   } catch (err) {
@@ -812,7 +812,13 @@ app.put('/api/workspaces/:id', authenticateToken, async (req, res) => {
 app.delete('/api/workspaces/:id', authenticateToken, async (req, res) => {
   const { id } = req.params;
   try {
-    if (id == 1) {
+    // Check if this workspace is the default for the current user
+    const checkResult = await pool.query('SELECT is_default FROM workspaces WHERE id = $1 AND user_id = $2', [id, req.user.userId]);
+    if (checkResult.rowCount === 0) {
+      res.status(404).json({ error: 'Workspace not found' });
+      return;
+    }
+    if (checkResult.rows[0].is_default) {
       res.status(400).json({ error: 'Cannot delete the default workspace' });
       return;
     }

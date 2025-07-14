@@ -29,16 +29,13 @@ const WorkspaceSelector: React.FC<WorkspaceSelectorProps> = ({
     try {
       const workspacesData = await apiService.getWorkspaces();
       setWorkspaces(workspacesData);
-      
-      // If no workspace is selected or the selected workspace doesn't exist, select the default workspace (ID 1)
-      if (selectedWorkspaceId === 0 || !workspacesData.find(w => w.id === selectedWorkspaceId)) {
-        const defaultWorkspace = workspacesData.find(w => w.id === 1);
-        if (defaultWorkspace) {
-          onWorkspaceChange(defaultWorkspace.id);
-        } else if (workspacesData.length > 0) {
-          // Fallback to first workspace if default doesn't exist
-          onWorkspaceChange(workspacesData[0].id);
-        }
+      // Always select the default workspace if it exists and is not currently selected
+      const defaultWorkspace = workspacesData.find(w => w.is_default);
+      if (defaultWorkspace && selectedWorkspaceId !== defaultWorkspace.id) {
+        onWorkspaceChange(defaultWorkspace.id);
+      } else if (!defaultWorkspace && workspacesData.length > 0 && !workspacesData.find(w => w.id === selectedWorkspaceId)) {
+        // Fallback to first workspace if default doesn't exist and current selection is invalid
+        onWorkspaceChange(workspacesData[0].id);
       }
     } catch (error) {
       console.error('Error loading workspaces:', error);
@@ -84,19 +81,17 @@ const WorkspaceSelector: React.FC<WorkspaceSelectorProps> = ({
   };
 
   const handleDeleteWorkspace = async (id: number) => {
-    if (id === 1) {
+    const workspace = workspaces.find(w => w.id === id);
+    if (workspace?.is_default) {
       alert('Cannot delete the default workspace');
       return;
     }
-    
     if (!window.confirm('Are you sure you want to delete this workspace? This will also delete all tasks and tags in this workspace.')) {
       return;
     }
-    
     try {
       await apiService.deleteWorkspace(id);
       setWorkspaces(workspaces.filter(w => w.id !== id));
-      
       // If the deleted workspace was selected, switch to the first available workspace
       if (selectedWorkspaceId === id && workspaces.length > 1) {
         const remainingWorkspaces = workspaces.filter(w => w.id !== id);
@@ -221,7 +216,8 @@ const WorkspaceSelector: React.FC<WorkspaceSelectorProps> = ({
                         >
                           <Edit className="w-3 h-3" />
                         </button>
-                        {workspace.id !== 1 && (
+                        {/* Show delete button for all except the default workspace */}
+                        {!workspace.is_default && (
                           <button
                             onClick={() => handleDeleteWorkspace(workspace.id)}
                             className="p-1 text-gray-400 hover:text-red-600"
