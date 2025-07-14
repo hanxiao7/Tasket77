@@ -951,8 +951,22 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
     if (!editingDateType) return;
     
     try {
-      console.log(`📅 Updating task ${editingDateType}: "${editingDateValue}"`);
-      await apiService.updateTask(taskId, { [editingDateType]: editingDateValue || null });
+      // Validate the date value before saving
+      let dateValue: string | null = editingDateValue;
+      if (dateValue && dateValue.trim() !== '') {
+        // Ensure the date is in YYYY-MM-DD format
+        const date = new Date(dateValue);
+        if (isNaN(date.getTime())) {
+          console.error('Invalid date value:', dateValue);
+          return;
+        }
+        dateValue = date.toISOString().split('T')[0]; // Convert to YYYY-MM-DD
+      } else {
+        dateValue = null;
+      }
+      
+      console.log(`📅 Updating task ${editingDateType}: "${dateValue}"`);
+      await apiService.updateTask(taskId, { [editingDateType]: dateValue });
       
       // Reload the task data from server to ensure correct format
       const updatedTask = await apiService.getTask(taskId);
@@ -989,16 +1003,47 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
   };
 
   const formatDate = (dateString: string | undefined) => {
-    if (!dateString) return '';
+    if (!dateString || dateString === '') return '';
+    
     try {
-      // DATE fields are now always returned as YYYY-MM-DD strings
-      const [year, month, day] = dateString.split('-').map(Number);
+      // Handle different date formats
+      let year: number, month: number, day: number;
+      
+      if (dateString.includes('-')) {
+        // YYYY-MM-DD format
+        const parts = dateString.split('-').map(Number);
+        if (parts.length !== 3 || parts.some(isNaN)) {
+          return '';
+        }
+        [year, month, day] = parts;
+      } else if (dateString.includes('/')) {
+        // MM/DD/YYYY format (fallback)
+        const parts = dateString.split('/').map(Number);
+        if (parts.length !== 3 || parts.some(isNaN)) {
+          return '';
+        }
+        [month, day, year] = parts;
+      } else {
+        // Invalid format
+        return '';
+      }
+      
+      // Validate date components
+      if (year < 1900 || year > 2100 || month < 1 || month > 12 || day < 1 || day > 31) {
+        return '';
+      }
       
       // Create a local date (not UTC) to avoid timezone shifts
       const localDate = new Date(year, month - 1, day);
+      
+      // Validate the created date
+      if (isNaN(localDate.getTime())) {
+        return '';
+      }
+      
       return format(localDate, 'MMM d');
     } catch (error) {
-      console.error('formatDate error:', error);
+      console.error('formatDate error:', error, 'for dateString:', dateString);
       return '';
     }
   };
