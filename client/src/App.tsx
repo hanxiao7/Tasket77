@@ -1,10 +1,15 @@
-import React, { useState, useRef } from 'react';
-import { TaskFilters, ViewMode } from './types';
+import React, { useRef, useState } from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import ProtectedRoute from './components/ProtectedRoute';
+import Login from './pages/Login';
+import Register from './pages/Register';
 import TaskList from './components/TaskList';
 import WorkspaceSelector from './components/WorkspaceSelector';
 import { Download, ArrowUpDown } from 'lucide-react';
+import { TaskFilters, ViewMode } from './types';
 
-function App() {
+function MainApp() {
   const [viewMode, setViewMode] = useState<ViewMode>('planner');
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<number>(1);
   const [filters, setFilters] = useState<TaskFilters>({
@@ -15,26 +20,21 @@ function App() {
   });
   const [isSorting, setIsSorting] = useState(false);
   const taskListRef = useRef<{ sortTasks: () => void }>(null);
+  const { user, logout } = useAuth();
 
-  const handleFiltersChange = (newFilters: TaskFilters) => {
-    setFilters(newFilters);
-  };
-
+  const handleFiltersChange = (newFilters: TaskFilters) => setFilters(newFilters);
   const handleWorkspaceChange = (workspaceId: number) => {
     setSelectedWorkspaceId(workspaceId);
-    // Update filters to include the new workspace
     setFilters(prev => ({ ...prev, workspace_id: workspaceId }));
   };
-
   const handleSort = () => {
     setIsSorting(true);
     taskListRef.current?.sortTasks();
     setTimeout(() => setIsSorting(false), 500);
   };
-
   const handleExport = async () => {
     try {
-      const response = await fetch('http://localhost:3001/api/export');
+      const response = await fetch('http://localhost:3001/api/export', { credentials: 'include' });
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -56,14 +56,24 @@ function App() {
         <div className="mb-6">
           <div className="flex items-center justify-between mb-2">
             <h1 className="text-3xl font-bold text-gray-900">Task Management Tool</h1>
-            <WorkspaceSelector 
-              selectedWorkspaceId={selectedWorkspaceId}
-              onWorkspaceChange={handleWorkspaceChange}
-            />
+            <div className="flex items-center space-x-4">
+              <WorkspaceSelector 
+                selectedWorkspaceId={selectedWorkspaceId}
+                onWorkspaceChange={handleWorkspaceChange}
+              />
+              {user && (
+                <button
+                  onClick={logout}
+                  className="px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-white rounded-md border border-gray-300 transition-colors"
+                  title="Logout"
+                >
+                  Logout
+                </button>
+              )}
+            </div>
           </div>
           <p className="text-gray-600">Minimal, fast-to-use task management for fast-paced environments</p>
         </div>
-
         {/* View Tabs */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex space-x-1 bg-white rounded-lg p-1 shadow-sm">
@@ -94,7 +104,6 @@ function App() {
               Tracker
             </button>
           </div>
-
           <div className="flex items-center space-x-3">
             {/* Show completed toggle for planner */}
             {viewMode === 'planner' && (
@@ -108,7 +117,6 @@ function App() {
                 <span>Show completed</span>
               </label>
             )}
-
             {/* Days filter for tracker */}
             {viewMode === 'tracker' && (
               <div className="flex items-center space-x-2">
@@ -126,7 +134,6 @@ function App() {
                 </select>
               </div>
             )}
-
             <button
               onClick={handleSort}
               disabled={isSorting}
@@ -136,7 +143,6 @@ function App() {
               <ArrowUpDown className="w-4 h-4" />
               <span>{isSorting ? 'Sorting...' : 'Sort Tasks'}</span>
             </button>
-
             <button
               onClick={handleExport}
               className="flex items-center space-x-2 px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-white rounded-md transition-colors"
@@ -147,7 +153,6 @@ function App() {
             </button>
           </div>
         </div>
-
         {/* Task List */}
         <div className="bg-white rounded-lg shadow-sm border">
           <TaskList
@@ -160,7 +165,6 @@ function App() {
             isSorting={isSorting}
           />
         </div>
-
         {/* Instructions */}
         <div className="mt-6 p-4 bg-blue-50 rounded-lg">
           <h3 className="font-medium text-blue-900 mb-2">Quick Tips:</h3>
@@ -178,5 +182,26 @@ function App() {
     </div>
   );
 }
+
+const App: React.FC = () => {
+  return (
+    <AuthProvider>
+      <Router>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route
+            path="/*"
+            element={
+              <ProtectedRoute>
+                <MainApp />
+              </ProtectedRoute>
+            }
+          />
+        </Routes>
+      </Router>
+    </AuthProvider>
+  );
+};
 
 export default App; 

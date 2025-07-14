@@ -1,17 +1,28 @@
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
+const cookieParser = require('cookie-parser');
 const moment = require('moment-timezone');
 const fs = require('fs');
 const path = require('path');
 const { db, initializeDatabase, updateTaskModified, addTaskHistory } = require('./database-pg');
 const PostgreSQLBackupManager = require('./backup-pg');
+const { authenticateToken } = require('./middleware/auth');
+const authRoutes = require('./routes/auth');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// CORS configuration
+app.use(cors({
+  origin: process.env.NODE_ENV === 'production' 
+    ? process.env.FRONTEND_URL || 'http://localhost:3000'
+    : 'http://localhost:3000',
+  credentials: true
+}));
+
 // Middleware
-app.use(cors());
+app.use(cookieParser());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
@@ -94,12 +105,16 @@ async function updateParentTaskStatus(parentTaskId) {
 // API Routes
 
 // Get all tags
-app.get('/api/tags', (req, res) => {
+app.get('/api/tags', authenticateToken, (req, res) => {
   const { include_hidden, workspace_id } = req.query;
   let query = "SELECT * FROM tags";
   let params = [];
   
   const conditions = [];
+  
+  // Always filter by user_id for data isolation
+  conditions.push("user_id = ?");
+  params.push(req.user.userId);
   
   if (include_hidden !== 'true') {
     conditions.push("hidden = false");
@@ -110,10 +125,7 @@ app.get('/api/tags', (req, res) => {
     params.push(workspace_id);
   }
   
-  if (conditions.length > 0) {
-    query += " WHERE " + conditions.join(" AND ");
-  }
-  
+  query += " WHERE " + conditions.join(" AND ");
   query += " ORDER BY name";
   
   db.all(query, params, (err, rows) => {
@@ -126,7 +138,7 @@ app.get('/api/tags', (req, res) => {
 });
 
 // Create new tag
-app.post('/api/tags', (req, res) => {
+app.post('/api/tags', authenticateToken, (req, res) => {
   const { name, workspace_id } = req.body;
   if (!name) {
     res.status(400).json({ error: 'Tag name is required' });
@@ -138,8 +150,8 @@ app.post('/api/tags', (req, res) => {
     return;
   }
   
-  db.run("INSERT INTO tags (name, workspace_id, hidden, created_at, updated_at) VALUES (?, ?, false, ?, ?) RETURNING *", 
-    [name, workspace_id, moment().utc().format('YYYY-MM-DD HH:mm:ss'), moment().utc().format('YYYY-MM-DD HH:mm:ss')], function(err, row) {
+  db.run("INSERT INTO tags (name, workspace_id, user_id, hidden, created_at, updated_at) VALUES (?, ?, ?, false, ?, ?) RETURNING *", 
+    [name, workspace_id, req.user.userId, moment().utc().format('YYYY-MM-DD HH:mm:ss'), moment().utc().format('YYYY-MM-DD HH:mm:ss')], function(err, row) {
     if (err) {
       res.status(500).json({ error: err.message });
       return;
@@ -151,7 +163,7 @@ app.post('/api/tags', (req, res) => {
 });
 
 // Update tag
-app.put('/api/tags/:id', (req, res) => {
+app.put('/api/tags/:id', authenticateToken, (req, res) => {
   const { id } = req.params;
   const { name } = req.body;
   
@@ -160,7 +172,7 @@ app.put('/api/tags/:id', (req, res) => {
     return;
   }
   
-  db.run("UPDATE tags SET name = ?, updated_at = ? WHERE id = ?", [name, moment().utc().format('YYYY-MM-DD HH:mm:ss'), id], function(err) {
+  db.run("UPDATE tags SET name = ?, updated_at = ? WHERE id = ? AND user_id = ?", [name, moment().utc().format('YYYY-MM-DD HH:mm:ss'), id, req.user.userId], function(err) {
     if (err) {
       res.status(500).json({ error: err.message });
       return;
@@ -182,10 +194,10 @@ app.put('/api/tags/:id', (req, res) => {
 });
 
 // Toggle tag hidden status
-app.patch('/api/tags/:id/toggle-hidden', (req, res) => {
+app.patch('/api/tags/:id/toggle-hidden', authenticateToken, (req, res) => {
   const { id } = req.params;
   
-  db.run("UPDATE tags SET hidden = CASE WHEN hidden = false THEN true ELSE false END, updated_at = ? WHERE id = ?", [moment().utc().format('YYYY-MM-DD HH:mm:ss'), id], function(err) {
+  db.run("UPDATE tags SET hidden = CASE WHEN hidden = false THEN true ELSE false END, updated_at = ? WHERE id = ? AND user_id = ?", [moment().utc().format('YYYY-MM-DD HH:mm:ss'), id, req.user.userId], function(err) {
     if (err) {
       res.status(500).json({ error: err.message });
       return;
@@ -233,19 +245,19 @@ app.delete('/api/tags/:id', (req, res) => {
 });
 
 // Get tasks with optional filters
-app.get('/api/tasks', (req, res) => {
+app.get('/api/tasks', authenticateToken, (req, res) => {
   const { view, days, tag_id, status, priority, show_completed, workspace_id } = req.query;
   
   let query = `
     SELECT t.*, tg.name as tag_name, 
-           (SELECT COUNT(*) FROM tasks WHERE parent_task_id = t.id) as sub_task_count,
-           (SELECT COUNT(*) FROM tasks WHERE parent_task_id = t.id AND status = 'done') as completed_sub_tasks
+           (SELECT COUNT(*) FROM tasks WHERE parent_task_id = t.id AND user_id = ?) as sub_task_count,
+           (SELECT COUNT(*) FROM tasks WHERE parent_task_id = t.id AND status = 'done' AND user_id = ?) as completed_sub_tasks
     FROM tasks t
     LEFT JOIN tags tg ON t.tag_id = tg.id
-    WHERE 1=1
+    WHERE t.user_id = ?
   `;
   
-  const params = [];
+  const params = [req.user.userId, req.user.userId, req.user.userId];
   
   // Filter by workspace
   if (workspace_id) {
@@ -344,7 +356,7 @@ app.get('/api/tasks', (req, res) => {
 });
 
 // Create new task
-app.post('/api/tasks', async (req, res) => {
+app.post('/api/tasks', authenticateToken, async (req, res) => {
   const { title, description, tag_id, parent_task_id, priority, due_date, workspace_id } = req.body;
   
   if (!title) {
@@ -361,10 +373,10 @@ app.post('/api/tasks', async (req, res) => {
   const parsedDueDate = due_date ? due_date : null;
   
   db.run(`
-    INSERT INTO tasks (title, description, tag_id, parent_task_id, workspace_id, priority, due_date, created_at, last_modified)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO tasks (title, description, tag_id, parent_task_id, workspace_id, user_id, priority, due_date, created_at, last_modified)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     RETURNING *
-  `, [title, description, tag_id, parent_task_id, workspace_id, priority || 'normal', parsedDueDate, moment().utc().format('YYYY-MM-DD HH:mm:ss'), moment().utc().format('YYYY-MM-DD HH:mm:ss')], async function(err, row) {
+  `, [title, description, tag_id, parent_task_id, workspace_id, req.user.userId, priority || 'normal', parsedDueDate, moment().utc().format('YYYY-MM-DD HH:mm:ss'), moment().utc().format('YYYY-MM-DD HH:mm:ss')], async function(err, row) {
     if (err) {
       res.status(500).json({ error: err.message });
       return;
@@ -395,7 +407,7 @@ app.post('/api/tasks', async (req, res) => {
 });
 
 // Update task status
-app.patch('/api/tasks/:id/status', async (req, res) => {
+app.patch('/api/tasks/:id/status', authenticateToken, async (req, res) => {
   const { id } = req.params;
   const { status, notes } = req.body;
   
@@ -461,7 +473,7 @@ app.patch('/api/tasks/:id/status', async (req, res) => {
 });
 
 // Update task
-app.put('/api/tasks/:id', async (req, res) => {
+app.put('/api/tasks/:id', authenticateToken, async (req, res) => {
   const { id } = req.params;
   const { title, description, tag_id, priority, status, start_date, due_date, completion_date } = req.body;
   
@@ -568,7 +580,7 @@ app.put('/api/tasks/:id', async (req, res) => {
 });
 
 // Delete task
-app.delete('/api/tasks/:id', async (req, res) => {
+app.delete('/api/tasks/:id', authenticateToken, async (req, res) => {
   const { id } = req.params;
   
   try {
@@ -656,7 +668,7 @@ app.get('/api/tasks/:id/history', (req, res) => {
 });
 
 // Export all tasks as JSON
-app.get('/api/export', async (req, res) => {
+app.get('/api/export', authenticateToken, async (req, res) => {
   try {
     const { Pool } = require('pg');
     const pool = new Pool({
@@ -695,7 +707,7 @@ app.get('/api/export', async (req, res) => {
 });
 
 // Import data from JSON backup
-app.post('/api/import', async (req, res) => {
+app.post('/api/import', authenticateToken, async (req, res) => {
   try {
     const { Pool } = require('pg');
     const pool = new Pool({
@@ -850,7 +862,7 @@ app.post('/api/import', async (req, res) => {
 // Backup management endpoints
 
 // Get backup statistics
-app.get('/api/backup/stats', async (req, res) => {
+app.get('/api/backup/stats', authenticateToken, async (req, res) => {
   try {
     const backupManager = new PostgreSQLBackupManager();
     const stats = await backupManager.getBackupStats();
@@ -861,7 +873,7 @@ app.get('/api/backup/stats', async (req, res) => {
 });
 
 // Create manual backup
-app.post('/api/backup/create', async (req, res) => {
+app.post('/api/backup/create', authenticateToken, async (req, res) => {
   try {
     const backupManager = new PostgreSQLBackupManager();
     const result = await backupManager.performAutomaticBackup();
@@ -872,7 +884,7 @@ app.post('/api/backup/create', async (req, res) => {
 });
 
 // List all backups
-app.get('/api/backup/list', async (req, res) => {
+app.get('/api/backup/list', authenticateToken, async (req, res) => {
   try {
     const backupManager = new PostgreSQLBackupManager();
     const backups = await backupManager.listBackups();
@@ -883,7 +895,7 @@ app.get('/api/backup/list', async (req, res) => {
 });
 
 // Restore from backup
-app.post('/api/backup/restore/:prefix', async (req, res) => {
+app.post('/api/backup/restore/:prefix', authenticateToken, async (req, res) => {
   try {
     const { prefix } = req.params;
     const backupManager = new PostgreSQLBackupManager();
@@ -897,7 +909,7 @@ app.post('/api/backup/restore/:prefix', async (req, res) => {
 // Workspace management endpoints
 
 // Get all workspaces
-app.get('/api/workspaces', (req, res) => {
+app.get('/api/workspaces', authenticateToken, (req, res) => {
   const { pool } = require('./database-pg');
   
   pool.query("SELECT * FROM workspaces ORDER BY name")
@@ -911,7 +923,7 @@ app.get('/api/workspaces', (req, res) => {
 });
 
 // Create new workspace
-app.post('/api/workspaces', (req, res) => {
+app.post('/api/workspaces', authenticateToken, (req, res) => {
   const { name, description } = req.body;
   
   if (!name) {
@@ -934,7 +946,7 @@ app.post('/api/workspaces', (req, res) => {
 });
 
 // Update workspace
-app.put('/api/workspaces/:id', (req, res) => {
+app.put('/api/workspaces/:id', authenticateToken, (req, res) => {
   const { id } = req.params;
   const { name, description } = req.body;
   
@@ -968,7 +980,7 @@ app.put('/api/workspaces/:id', (req, res) => {
 });
 
 // Delete workspace
-app.delete('/api/workspaces/:id', async (req, res) => {
+app.delete('/api/workspaces/:id', authenticateToken, async (req, res) => {
   const { id } = req.params;
   
   try {
@@ -1010,7 +1022,7 @@ app.delete('/api/workspaces/:id', async (req, res) => {
 });
 
 // Set workspace as default
-app.patch('/api/workspaces/:id/set-default', (req, res) => {
+app.patch('/api/workspaces/:id/set-default', authenticateToken, (req, res) => {
   const { id } = req.params;
   
   const now = moment().utc().format('YYYY-MM-DD HH:mm:ss');
@@ -1044,6 +1056,9 @@ app.patch('/api/workspaces/:id/set-default', (req, res) => {
     });
   });
 });
+
+// Authentication routes (no auth required)
+app.use('/api/auth', authRoutes);
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
