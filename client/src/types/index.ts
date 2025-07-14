@@ -44,7 +44,7 @@ export interface CreateTaskData {
   title: string;
   description?: string;
   tag_id?: number;
-  parent_task_id?: number;
+
   workspace_id: number;
   priority?: 'urgent' | 'high' | 'normal' | 'low';
   due_date?: string;

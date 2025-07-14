@@ -345,10 +345,10 @@ app.post('/api/tasks', authenticateToken, async (req, res) => {
   const parsedDueDate = due_date ? due_date : null;
   
   db.run(`
-    INSERT INTO tasks (title, description, tag_id, workspace_id, user_id, priority, due_date, created_at, last_modified)
+    INSERT INTO tasks (user_id, workspace_id, title, description, tag_id, priority, due_date, created_at, last_modified)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     RETURNING *
-  `, [title, description, tag_id, workspace_id, req.user.userId, priority || 'normal', parsedDueDate, moment().utc().format('YYYY-MM-DD HH:mm:ss'), moment().utc().format('YYYY-MM-DD HH:mm:ss')], async function(err, row) {
+  `, [req.user.userId, workspace_id, title, description, tag_id, priority || 'normal', parsedDueDate, moment().utc().format('YYYY-MM-DD HH:mm:ss'), moment().utc().format('YYYY-MM-DD HH:mm:ss')], async function(err, row) {
     if (err) {
       res.status(500).json({ error: err.message });
       return;
@@ -726,28 +726,29 @@ app.post('/api/import', authenticateToken, async (req, res) => {
       if (importData.tasks && importData.tasks.length > 0) {
         for (const task of importData.tasks) {
           await client.query(`
-            INSERT INTO tasks (id, title, description, tag_id, workspace_id, status, priority, due_date, start_date, completion_date, last_modified, created_at)
+            INSERT INTO tasks (id, user_id, workspace_id, title, description, tag_id, priority, status, due_date, start_date, completion_date, last_modified, created_at)
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
             ON CONFLICT (id) DO UPDATE SET
+              user_id = EXCLUDED.user_id,
+              workspace_id = EXCLUDED.workspace_id,
               title = EXCLUDED.title,
               description = EXCLUDED.description,
               tag_id = EXCLUDED.tag_id,
-              workspace_id = EXCLUDED.workspace_id,
-              status = EXCLUDED.status,
               priority = EXCLUDED.priority,
+              status = EXCLUDED.status,
               due_date = EXCLUDED.due_date,
               start_date = EXCLUDED.start_date,
               completion_date = EXCLUDED.completion_date,
-              last_modified = EXCLUDED.last_modified,
-              updated_at = CURRENT_TIMESTAMP
+              last_modified = EXCLUDED.last_modified
           `, [
             task.id,
+            task.user_id,
+            task.workspace_id,
             task.title,
             task.description,
             task.tag_id,
-            task.workspace_id,
-            task.status,
             task.priority,
+            task.status,
             task.due_date,
             task.start_date,
             task.completion_date,

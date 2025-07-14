@@ -31,20 +31,19 @@ CREATE TABLE IF NOT EXISTS tags (
 -- Create tasks table
 CREATE TABLE IF NOT EXISTS tasks (
   id SERIAL PRIMARY KEY,
+  user_id INTEGER NOT NULL,
+  workspace_id INTEGER NOT NULL DEFAULT 1,
   title VARCHAR(255) NOT NULL,
   description TEXT,
   tag_id INTEGER,
-  parent_task_id INTEGER,
-  workspace_id INTEGER NOT NULL DEFAULT 1,
-  status VARCHAR(20) DEFAULT 'todo' CHECK (status IN ('todo', 'in_progress', 'paused', 'done')),
   priority VARCHAR(20) DEFAULT 'normal' CHECK (priority IN ('urgent', 'high', 'normal', 'low')),
+  status VARCHAR(20) DEFAULT 'todo' CHECK (status IN ('todo', 'in_progress', 'paused', 'done')),
   due_date DATE,
   start_date DATE,
   completion_date DATE,
   last_modified TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE SET NULL,
-  FOREIGN KEY (parent_task_id) REFERENCES tasks(id) ON DELETE CASCADE,
   FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
 );
 
@@ -64,6 +63,7 @@ VALUES ('General', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
 ON CONFLICT (name, workspace_id) DO NOTHING;
 
 -- Create indexes for better performance
+CREATE INDEX IF NOT EXISTS idx_tasks_user_id ON tasks(user_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_workspace_id ON tasks(workspace_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
 CREATE INDEX IF NOT EXISTS idx_tasks_priority ON tasks(priority);
