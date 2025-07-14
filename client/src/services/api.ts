@@ -7,12 +7,19 @@ class ApiService {
     const url = `${API_BASE}${endpoint}`;
     
     const response = await fetch(url, {
+      credentials: 'include', // Include cookies for authentication
       headers: {
         'Content-Type': 'application/json',
         ...options?.headers,
       },
       ...options,
     });
+
+    if (response.status === 401) {
+      // Redirect to login on authentication failure
+      window.location.href = '/login';
+      throw new Error('Unauthorized - please login');
+    }
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({ error: 'Network error' }));
