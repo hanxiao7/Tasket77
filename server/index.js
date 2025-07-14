@@ -459,33 +459,18 @@ app.delete('/api/tasks/:id', authenticateToken, async (req, res) => {
   const { id } = req.params;
   
   try {
-    const currentTask = await new Promise((resolve, reject) => {
-      pool.query("SELECT * FROM tasks WHERE id = $1", [id], (err, row) => {
-        if (err) reject(err);
-        else resolve(row.rows[0]);
-      });
-    });
+    const currentTask = await pool.query("SELECT * FROM tasks WHERE id = $1", [id]);
     
-    if (!currentTask) {
+    if (currentTask.rowCount === 0) {
       res.status(404).json({ error: 'Task not found' });
       return;
     }
     
     // Delete task history
-    await new Promise((resolve, reject) => {
-      pool.query("DELETE FROM task_history WHERE task_id = $1", [id], (err) => {
-        if (err) reject(err);
-        else resolve();
-      });
-    });
+    await pool.query("DELETE FROM task_history WHERE task_id = $1", [id]);
     
     // Delete the task
-    await new Promise((resolve, reject) => {
-      pool.query("DELETE FROM tasks WHERE id = $1", [id], (err) => {
-        if (err) reject(err);
-        else resolve();
-      });
-    });
+    await pool.query("DELETE FROM tasks WHERE id = $1", [id]);
     
     res.json({ success: true });
     
@@ -770,152 +755,95 @@ app.post('/api/backup/restore/:prefix', authenticateToken, async (req, res) => {
 // Workspace management endpoints
 
 // Get all workspaces
-app.get('/api/workspaces', authenticateToken, (req, res) => {
-  const { pool } = require('./database-pg');
-  
-  pool.query("SELECT * FROM workspaces ORDER BY name")
-    .then(result => {
-      res.json(result.rows);
-    })
-    .catch(err => {
-      console.error('Workspaces query error:', err);
-      res.status(500).json({ error: err.message });
-    });
+app.get('/api/workspaces', authenticateToken, async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM workspaces ORDER BY name');
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Workspaces query error:', err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // Create new workspace
-app.post('/api/workspaces', authenticateToken, (req, res) => {
+app.post('/api/workspaces', authenticateToken, async (req, res) => {
   const { name, description } = req.body;
-  
   if (!name) {
     res.status(400).json({ error: 'Workspace name is required' });
     return;
   }
-  
   const now = moment().utc().format('YYYY-MM-DD HH:mm:ss');
-  
-  pool.query("INSERT INTO workspaces (name, description, is_default, created_at, updated_at) VALUES ($1, $2, false, $3, $3) RETURNING *", 
-    [name, description || '', now], function(err, row) {
-    if (err) {
-      res.status(500).json({ error: err.message });
-      return;
-    }
-    
-    // Return the complete workspace data directly from the INSERT
-    res.json(row.rows[0]);
-  });
+  try {
+    const result = await pool.query(
+      'INSERT INTO workspaces (name, description, is_default, created_at, updated_at) VALUES ($1, $2, false, $3, $3) RETURNING *',
+      [name, description || '', now]
+    );
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // Update workspace
-app.put('/api/workspaces/:id', authenticateToken, (req, res) => {
+app.put('/api/workspaces/:id', authenticateToken, async (req, res) => {
   const { id } = req.params;
   const { name, description } = req.body;
-  
   if (!name) {
     res.status(400).json({ error: 'Workspace name is required' });
     return;
   }
-  
   const now = moment().utc().format('YYYY-MM-DD HH:mm:ss');
-  
-  pool.query("UPDATE workspaces SET name = $1, description = $2, updated_at = $3 WHERE id = $4", 
-    [name, description || '', now, id], function(err) {
-    if (err) {
-      res.status(500).json({ error: err.message });
-      return;
-    }
-    if (this.rowCount === 0) {
+  try {
+    const updateResult = await pool.query(
+      'UPDATE workspaces SET name = $1, description = $2, updated_at = $3 WHERE id = $4 RETURNING *',
+      [name, description || '', now, id]
+    );
+    if (updateResult.rowCount === 0) {
       res.status(404).json({ error: 'Workspace not found' });
       return;
     }
-    
-    // Get the complete updated workspace data
-    pool.query("SELECT * FROM workspaces WHERE id = $1", [id], (err, row) => {
-      if (err) {
-        res.status(500).json({ error: err.message });
-        return;
-      }
-      res.json(row.rows[0]);
-    });
-  });
+    res.json(updateResult.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // Delete workspace
 app.delete('/api/workspaces/:id', authenticateToken, async (req, res) => {
   const { id } = req.params;
-  
   try {
-    // Check if this is the default workspace (id = 1)
     if (id == 1) {
       res.status(400).json({ error: 'Cannot delete the default workspace' });
       return;
     }
-    
-    // Delete all tasks in this workspace
-    await new Promise((resolve, reject) => {
-      pool.query("DELETE FROM tasks WHERE workspace_id = $1", [id], (err) => {
-        if (err) reject(err);
-        else resolve();
-      });
-    });
-    
-    // Delete all tags in this workspace
-    await new Promise((resolve, reject) => {
-      pool.query("DELETE FROM tags WHERE workspace_id = $1", [id], (err) => {
-        if (err) reject(err);
-        else resolve();
-      });
-    });
-    
-    // Delete the workspace
-    await new Promise((resolve, reject) => {
-      pool.query("DELETE FROM workspaces WHERE id = $1", [id], (err) => {
-        if (err) reject(err);
-        else resolve();
-      });
-    });
-    
+    await pool.query('DELETE FROM tasks WHERE workspace_id = $1', [id]);
+    await pool.query('DELETE FROM tags WHERE workspace_id = $1', [id]);
+    const deleteResult = await pool.query('DELETE FROM workspaces WHERE id = $1 RETURNING *', [id]);
+    if (deleteResult.rowCount === 0) {
+      res.status(404).json({ error: 'Workspace not found' });
+      return;
+    }
     res.json({ success: true });
-    
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
 // Set workspace as default
-app.patch('/api/workspaces/:id/set-default', authenticateToken, (req, res) => {
+app.patch('/api/workspaces/:id/set-default', authenticateToken, async (req, res) => {
   const { id } = req.params;
-  
   const now = moment().utc().format('YYYY-MM-DD HH:mm:ss');
-  
-  // First, clear all default flags
-  pool.query("UPDATE workspaces SET is_default = false, updated_at = $1", [now], function(err) {
-    if (err) {
-      res.status(500).json({ error: err.message });
+  try {
+    await pool.query('UPDATE workspaces SET is_default = false, updated_at = $1', [now]);
+    const updateResult = await pool.query('UPDATE workspaces SET is_default = true, updated_at = $1 WHERE id = $2 RETURNING *', [now, id]);
+    if (updateResult.rowCount === 0) {
+      res.status(404).json({ error: 'Workspace not found' });
       return;
     }
-    
-    // Then set the specified workspace as default
-    pool.query("UPDATE workspaces SET is_default = true, updated_at = $1 WHERE id = $2", [now, id], function(err) {
-      if (err) {
-        res.status(500).json({ error: err.message });
-        return;
-      }
-      if (this.rowCount === 0) {
-        res.status(404).json({ error: 'Workspace not found' });
-        return;
-      }
-      
-      // Get the complete updated workspace data
-      pool.query("SELECT * FROM workspaces WHERE id = $1", [id], (err, row) => {
-        if (err) {
-          res.status(500).json({ error: err.message });
-          return;
-        }
-        res.json(row.rows[0]);
-      });
-    });
-  });
+    res.json(updateResult.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // Authentication routes (no auth required)
