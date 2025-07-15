@@ -57,6 +57,7 @@ server/tasks.db
 
 # Backup files
 server/backups/
+server/backup-metadata.json
 
 # IDE and editor files
 .vscode/
