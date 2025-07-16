@@ -111,3 +111,64 @@ Just type these commands in the terminal where you see the `taskmanagement=#` pr
 
 Let me know what you see when you run these commands!
 
+## Database Maintenance Commands
+
+### Connect to PostgreSQL Database
+```bash
+docker exec -it task-management-db psql -U postgres -d taskmanagement
+```
+
+### Clean Up All Data (Reset Database)
+**⚠️ Warning: This will permanently delete all data!**
+```sql
+TRUNCATE users, user_sessions, workspaces, tags, tasks, task_history RESTART IDENTITY CASCADE;
+```
+**What this does:**
+- Removes all data from all tables
+- Resets auto-increment counters back to 1
+- Maintains table structure for fresh start
+
+### Useful Maintenance Queries
+
+**Check database size:**
+```sql
+SELECT pg_size_pretty(pg_database_size('taskmanagement'));
+```
+
+**View table sizes:**
+```sql
+SELECT 
+    schemaname,
+    tablename,
+    pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename)) as size
+FROM pg_tables 
+WHERE schemaname = 'public'
+ORDER BY pg_total_relation_size(schemaname||'.'||tablename) DESC;
+```
+
+**Count records in all tables:**
+```sql
+SELECT 
+    'users' as table_name, COUNT(*) as count FROM users
+UNION ALL
+SELECT 'user_sessions', COUNT(*) FROM user_sessions
+UNION ALL
+SELECT 'workspaces', COUNT(*) FROM workspaces
+UNION ALL
+SELECT 'tags', COUNT(*) FROM tags
+UNION ALL
+SELECT 'tasks', COUNT(*) FROM tasks
+UNION ALL
+SELECT 'task_history', COUNT(*) FROM task_history;
+```
+
+**Backup database (from host terminal):**
+```bash
+docker exec task-management-db pg_dump -U postgres taskmanagement > backup_$(date +%Y%m%d_%H%M%S).sql
+```
+
+**Restore database (from host terminal):**
+```bash
+docker exec -i task-management-db psql -U postgres taskmanagement < backup_filename.sql
+```
+
