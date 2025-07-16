@@ -71,6 +71,14 @@ function getNextBusinessDay() {
 
 // API Routes
 
+// Simple health check endpoint
+app.get('/api/health', (req, res) => {
+  res.json({ 
+    status: 'healthy',
+    timestamp: new Date().toISOString()
+  });
+});
+
 // Get all tags
 app.get('/api/tags', authenticateToken, async (req, res) => {
   const { include_hidden, workspace_id } = req.query;
