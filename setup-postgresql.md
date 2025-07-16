@@ -50,15 +50,25 @@ Your app is now configured to use PostgreSQL! Here's how to get it running:
 Your app is now ready for production deployment with data persistence! 
 
 
-## View SQL tables
 
-** Connect to PostgreSQL via Terminal
+## Database Maintenance Commands
 
+### Connect to PostgreSQL Database
+```bash
 docker exec -it task-management-db psql -U postgres -d taskmanagement
+```
 
-Perfect! You're now connected to the PostgreSQL database. You should see the prompt `taskmanagement=#` which means you're connected and ready to run commands.
+### Clean Up All Data (Reset Database)
+**⚠️ Warning: This will permanently delete all data!**
+```sql
+TRUNCATE users, user_sessions, workspaces, tags, tasks, task_history RESTART IDENTITY CASCADE;
+```
+**What this does:**
+- Removes all data from all tables
+- Resets auto-increment counters back to 1
+- Maintains table structure for fresh start
 
-## Useful psql Commands to Run:
+### Useful Maintenance Queries
 
 1. **List all tables:**
    ```sql
@@ -97,70 +107,6 @@ Perfect! You're now connected to the PostgreSQL database. You should see the pro
    ```sql
    \q
    ```
-
-## Quick Commands to Try:
-Start with these to see your data:
-
-```sql
-\dt
-SELECT * FROM workspaces;
-SELECT * FROM tasks;
-```
-
-Just type these commands in the terminal where you see the `taskmanagement=#` prompt and press Enter. The `\dt` command will show you all your tables, and the SELECT statements will show you the actual data.
-
-Let me know what you see when you run these commands!
-
-## Database Maintenance Commands
-
-### Connect to PostgreSQL Database
-```bash
-docker exec -it task-management-db psql -U postgres -d taskmanagement
-```
-
-### Clean Up All Data (Reset Database)
-**⚠️ Warning: This will permanently delete all data!**
-```sql
-TRUNCATE users, user_sessions, workspaces, tags, tasks, task_history RESTART IDENTITY CASCADE;
-```
-**What this does:**
-- Removes all data from all tables
-- Resets auto-increment counters back to 1
-- Maintains table structure for fresh start
-
-### Useful Maintenance Queries
-
-**Check database size:**
-```sql
-SELECT pg_size_pretty(pg_database_size('taskmanagement'));
-```
-
-**View table sizes:**
-```sql
-SELECT 
-    schemaname,
-    tablename,
-    pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename)) as size
-FROM pg_tables 
-WHERE schemaname = 'public'
-ORDER BY pg_total_relation_size(schemaname||'.'||tablename) DESC;
-```
-
-**Count records in all tables:**
-```sql
-SELECT 
-    'users' as table_name, COUNT(*) as count FROM users
-UNION ALL
-SELECT 'user_sessions', COUNT(*) FROM user_sessions
-UNION ALL
-SELECT 'workspaces', COUNT(*) FROM workspaces
-UNION ALL
-SELECT 'tags', COUNT(*) FROM tags
-UNION ALL
-SELECT 'tasks', COUNT(*) FROM tasks
-UNION ALL
-SELECT 'task_history', COUNT(*) FROM task_history;
-```
 
 **Backup database (from host terminal):**
 ```bash
