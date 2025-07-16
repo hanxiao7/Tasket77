@@ -184,10 +184,9 @@ class PostgreSQLBackupManager {
   async cleanupOldBackups() {
     const client = await this.pool.connect();
     try {
-      // Get all backup tables with creation dates
+      // Get all backup tables
       const result = await client.query(`
-        SELECT table_name, 
-               created_at
+        SELECT table_name
         FROM information_schema.tables 
         WHERE table_schema = 'public' 
         AND table_name LIKE 'backup_%'
@@ -196,15 +195,25 @@ class PostgreSQLBackupManager {
       
       const backupTables = result.rows;
       
+      // Helper to extract date from table name
+      function extractDateFromTableName(tableName) {
+        // backup_YYYY_MM_DD_HH_MM_SS_xxx
+        const match = tableName.match(/^backup_(\d{4})_(\d{2})_(\d{2})_(\d{2})_(\d{2})_(\d{2})/);
+        if (!match) return null;
+        const [ , year, month, day, hour, minute, second ] = match;
+        return new Date(`${year}-${month}-${day}T${hour}:${minute}:${second}Z`);
+      }
+      
       // Group backups by prefix and extract dates
       const backupSets = new Map();
       backupTables.forEach(row => {
         const prefix = row.table_name.split('_').slice(0, -1).join('_');
+        const created = extractDateFromTableName(row.table_name);
         if (!backupSets.has(prefix)) {
           backupSets.set(prefix, {
             prefix: prefix,
             tables: [],
-            created: row.created_at
+            created: created
           });
         }
         backupSets.get(prefix).tables.push(row.table_name);
