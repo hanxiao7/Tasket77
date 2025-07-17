@@ -2,50 +2,40 @@
   "name": "task-management-client",
   "version": "1.0.0",
   "private": true,
+  "engines": {
+    "node": ">=18 <19"
+  },
   "dependencies": {
-    "@types/node": "^16.18.68",
-    "@types/react": "^18.2.42",
-    "@types/react-dom": "^18.2.17",
-    "@types/react-router-dom": "^5.3.3",
     "clsx": "^2.0.0",
     "date-fns": "^2.30.0",
     "lucide-react": "0.263.1",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "react-router": "^6.30.1",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
     "react-router-dom": "^6.30.1",
     "react-scripts": "5.0.1",
-    "typescript": "^4.9.5",
     "web-vitals": "^2.1.4"
   },
   "devDependencies": {
+    "@types/node": "^16.18.68",
+    "@types/react": "^18.2.42",
+    "@types/react-dom": "^18.2.17",
     "autoprefixer": "^10.4.16",
     "postcss": "^8.4.32",
-    "tailwindcss": "^3.3.6"
+    "tailwindcss": "^3.3.6",
+    "typescript": "^4.9.5"
   },
   "scripts": {
     "start": "react-scripts start",
     "build": "npm run show-versions && react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
-    "show-versions": "echo '=== INSTALLED PACKAGE VERSIONS ===' && npm list react lucide-react react-dom react-router-dom --depth=0 && echo '=== END VERSIONS ==='"
+    "show-versions": "echo === INSTALLED PACKAGE VERSIONS === && npm list react lucide-react react-dom react-router-dom --depth=0 && echo === END VERSIONS ==="
   },
   "eslintConfig": {
-    "extends": [
-      "react-app",
-      "react-app/jest"
-    ]
+    "extends": ["react-app", "react-app/jest"]
   },
   "browserslist": {
-    "production": [
-      ">0.2%",
-      "not dead",
-      "not op_mini all"
-    ],
-    "development": [
-      "last 1 chrome version",
-      "last 1 firefox version",
-      "last 1 safari version"
-    ]
+    "production": [">0.2%", "not dead", "not op_mini all"],
+    "development": ["last 1 chrome version", "last 1 firefox version", "last 1 safari version"]
   }
 }
