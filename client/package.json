@@ -9,7 +9,7 @@
     "@types/react-router-dom": "^5.3.3",
     "clsx": "^2.0.0",
     "date-fns": "^2.30.0",
-    "lucide-react": "^0.292.0",
+    "lucide-react": "^0.263.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^7.6.3",
@@ -24,9 +24,10 @@
   },
   "scripts": {
     "start": "react-scripts start",
-    "build": "react-scripts build",
+    "build": "npm run show-versions && react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "show-versions": "echo '=== INSTALLED PACKAGE VERSIONS ===' && npm list react lucide-react react-dom react-router-dom --depth=0&& echo=== END VERSIONS ==='"
   },
   "eslintConfig": {
     "extends": [
