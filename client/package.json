@@ -27,7 +27,7 @@
     "build": "npm run show-versions && react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
-    "show-versions": "echo '=== INSTALLED PACKAGE VERSIONS ===' && npm list react lucide-react react-dom react-router-dom --depth=0&& echo=== END VERSIONS ==='"
+    "show-versions": "echo '=== INSTALLED PACKAGE VERSIONS ===' && npm list react lucide-react react-dom react-router-dom --depth=0 && echo '=== END VERSIONS ==='"
   },
   "eslintConfig": {
     "extends": [
