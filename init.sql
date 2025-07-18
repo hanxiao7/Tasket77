@@ -11,10 +11,6 @@ CREATE TABLE IF NOT EXISTS workspaces (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Insert default workspace
-INSERT INTO workspaces (id, name, description, is_default, created_at, updated_at) 
-VALUES (1, 'Default Workspace', 'Default workspace for existing tasks', TRUE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-ON CONFLICT (id) DO NOTHING;
 
 -- Create tags table
 CREATE TABLE IF NOT EXISTS tags (
@@ -57,10 +53,6 @@ CREATE TABLE IF NOT EXISTS task_history (
   FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE
 );
 
--- Insert default tag
-INSERT INTO tags (name, workspace_id, created_at, updated_at) 
-VALUES ('General', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-ON CONFLICT (name, workspace_id) DO NOTHING;
 
 -- Create indexes for better performance
 CREATE INDEX IF NOT EXISTS idx_tasks_user_id ON tasks(user_id);

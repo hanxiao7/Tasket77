@@ -30,46 +30,10 @@ async function initializeDatabase() {
     console.log('Database connection successful');
     
     // Check if default workspace exists
-    const workspaceResult = await client.query(
-      "SELECT COUNT(*) as count FROM workspaces WHERE id = 1"
-    );
-    
-    if (parseInt(workspaceResult.rows[0].count) === 0) {
-      // Insert default workspace
-      await client.query(`
-        INSERT INTO workspaces (id, name, description, is_default, created_at, updated_at) 
-        VALUES (1, $1, $2, $3, $4, $4)
-        ON CONFLICT (id) DO NOTHING
-        RETURNING id
-      `, [
-        'Default Workspace',
-        'Default workspace for existing tasks',
-        true,
-        moment().utc().format('YYYY-MM-DD HH:mm:ss')
-      ]);
-      
-      console.log('Default workspace created');
-    }
+    // (Removed: No longer create a default workspace)
     
     // Check if default tag exists
-    const tagResult = await client.query(
-      "SELECT COUNT(*) as count FROM tags WHERE name = 'General' AND workspace_id = 1"
-    );
-    
-    if (parseInt(tagResult.rows[0].count) === 0) {
-      // Insert default tag
-      await client.query(`
-        INSERT INTO tags (name, workspace_id, created_at, updated_at) 
-        VALUES ($1, $2, $3, $3)
-        ON CONFLICT (name, workspace_id) DO NOTHING
-      `, [
-        'General',
-        1,
-        moment().utc().format('YYYY-MM-DD HH:mm:ss')
-      ]);
-      
-      console.log('Default tag created');
-    }
+    // (Removed: No longer create a default tag)
     
     client.release();
     console.log('PostgreSQL database initialized successfully');
