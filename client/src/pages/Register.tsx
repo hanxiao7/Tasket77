@@ -34,17 +34,17 @@ const Register: React.FC = () => {
   return (
     <div className="min-h-screen flex flex-col md:flex-row">
       {/* Left: Preview Images */}
-      <div className="relative w-full md:w-1/2 h-64 md:h-auto flex items-center justify-center overflow-hidden">
+      <div className="relative w-full md:w-3/5 h-64 md:h-auto flex items-center justify-center overflow-hidden bg-white">
         <img
           src={previewImages[bgIndex]}
           alt="App preview"
-          className="absolute inset-0 w-full h-full object-cover transition-opacity duration-1000"
+          className="relative max-w-full max-h-[80vh] object-contain mx-auto my-auto transition-opacity duration-1000"
           style={{ zIndex: 1 }}
         />
-        <div className="absolute inset-0 bg-white/40 backdrop-blur-sm" style={{ zIndex: 2 }} />
+        <div className="absolute inset-0 bg-white/20 backdrop-blur-[2px]" style={{ zIndex: 2 }} />
       </div>
       {/* Right: Welcome Message + Register Form */}
-      <div className="flex flex-col justify-center items-center w-full md:w-1/2 min-h-[60vh] bg-gradient-to-br from-blue-50 to-indigo-100 p-8">
+      <div className="flex flex-col justify-center items-center w-full md:w-2/5 min-h-[60vh] bg-gradient-to-br from-blue-50 to-indigo-100 p-8">
         {/* Welcome Message */}
         <div className="mb-8 text-center max-w-xl">
           <h2 className="text-2xl md:text-3xl font-bold text-blue-700 drop-shadow mb-3 max-w-2xl mx-auto">
