@@ -766,7 +766,7 @@ app.post('/api/backup/restore/:prefix', authenticateToken, async (req, res) => {
 // Get all workspaces
 app.get('/api/workspaces', authenticateToken, async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM workspaces ORDER BY name');
+    const result = await pool.query('SELECT * FROM workspaces WHERE user_id = $1 ORDER BY name', [req.user.userId]);
     res.json(result.rows);
   } catch (err) {
     console.error('Workspaces query error:', err);
