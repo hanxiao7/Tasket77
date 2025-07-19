@@ -30,21 +30,33 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [error, setError] = useState<string | null>(null);
 
   const checkSession = async () => {
+    console.log('🔍 Starting session check...');
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001/api'}/auth/me`, {
+      const apiUrl = `${process.env.REACT_APP_API_URL || 'http://localhost:3001/api'}/auth/me`;
+      console.log('🌐 Making request to:', apiUrl);
+      
+      const startTime = Date.now();
+      const res = await fetch(apiUrl, {
         credentials: 'include',
       });
+      const endTime = Date.now();
+      console.log(`⏱️ Request took ${endTime - startTime}ms, status: ${res.status}`);
+      
       if (res.ok) {
         const data = await res.json();
+        console.log('✅ Session check successful:', data.user);
         setUser(data.user);
       } else {
+        console.log('❌ Session check failed with status:', res.status);
         setUser(null);
       }
     } catch (e) {
+      console.error('💥 Session check error:', e);
       setUser(null);
     } finally {
+      console.log('🏁 Session check completed');
       setLoading(false);
     }
   };
@@ -54,41 +66,67 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (!window.location.pathname.includes('/login') && !window.location.pathname.includes('/register')) {
       checkSession();
     } else {
+      console.log('🚫 Skipping session check on login/register page');
       setLoading(false);
     }
     // eslint-disable-next-line
   }, []);
 
   const login = async (email: string, password: string) => {
+    console.log('🔐 Starting login process for:', email);
+    console.log('📱 Tab info:', {
+      url: window.location.href,
+      userAgent: navigator.userAgent,
+      timestamp: new Date().toISOString()
+    });
+    const startTime = Date.now();
     setLoading(true);
     setError(null);
+    
+    // Add timeout to detect hanging requests
+    const timeoutId = setTimeout(() => {
+      console.warn('⚠️ Login request taking longer than 10 seconds - possible hang detected');
+    }, 10000);
+    
     try {
-      console.log('Logging in user:', { email });
-      const res = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001/api'}/auth/login`, {
+      const apiUrl = `${process.env.REACT_APP_API_URL || 'http://localhost:3001/api'}/auth/login`;
+      console.log('🌐 Making login request to:', apiUrl);
+      
+      const requestStartTime = Date.now();
+      const res = await fetch(apiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({ email, password }),
       });
-      console.log('Login response status:', res.status);
+      const requestEndTime = Date.now();
+      console.log(`⏱️ Login request took ${requestEndTime - requestStartTime}ms, status: ${res.status}`);
+      
+      clearTimeout(timeoutId);
+      
       if (!res.ok) {
         const err = await res.json();
-        console.log('Login error:', err);
+        console.log('❌ Login failed:', err);
         setError(err.error || 'Login failed');
         setUser(null);
         setLoading(false);
         return;
       }
       const data = await res.json();
-      console.log('Login success:', data);
+      const totalTime = Date.now() - startTime;
+      console.log(`✅ Login successful in ${totalTime}ms:`, data.user);
       setUser(data.user);
       // Redirect to main app after successful login
+      console.log('🔄 Redirecting to main app...');
       window.location.href = '/';
     } catch (e) {
-      console.log('Login network error:', e);
+      clearTimeout(timeoutId);
+      const totalTime = Date.now() - startTime;
+      console.error(`💥 Login network error after ${totalTime}ms:`, e);
       setError('Network error');
       setUser(null);
     } finally {
+      console.log('🏁 Login process completed');
       setLoading(false);
     }
   };
