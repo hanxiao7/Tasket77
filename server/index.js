@@ -427,9 +427,9 @@ app.put('/api/tasks/:id', authenticateToken, async (req, res) => {
       const parsedDueDate = due_date ? due_date : null;
       updateParams.push(parsedDueDate);
       paramIndex++;
-      // Check if due date is tomorrow and set priority to urgent
+      // Check if due date is on or before next business day and set priority to urgent
       const nextBusinessDay = getNextBusinessDay();
-      if (due_date && due_date === nextBusinessDay) {
+      if (due_date && due_date <= nextBusinessDay) {
         updateFields.push(`priority = $${paramIndex}`);
         updateParams.push('urgent');
         paramIndex++;
