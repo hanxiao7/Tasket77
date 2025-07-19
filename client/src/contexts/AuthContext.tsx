@@ -50,7 +50,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   useEffect(() => {
-    checkSession();
+    // Only check session if we're not on login/register pages
+    if (!window.location.pathname.includes('/login') && !window.location.pathname.includes('/register')) {
+      checkSession();
+    } else {
+      setLoading(false);
+    }
     // eslint-disable-next-line
   }, []);
 
