@@ -240,8 +240,8 @@ app.get('/api/tasks', authenticateToken, async (req, res) => {
   }
   try {
     const result = await pool.query(query, params);
-    // Check and update priorities for tasks due tomorrow or earlier
-    const nextBusinessDay = getNextBusinessDay(); // Should use UTC
+    // Check and update priorities for tasks due tomorrow or earlier (only if there are tasks to update)
+    const nextBusinessDay = getNextBusinessDay();
     const tasksToUpdate = result.rows.filter(task => {
       if (!task.due_date || task.priority === 'urgent') return false;
       let taskDate;
@@ -252,13 +252,17 @@ app.get('/api/tasks', authenticateToken, async (req, res) => {
       } else {
         return false;
       }
-      // Compare as YYYY-MM-DD strings (UTC)
       return taskDate <= nextBusinessDay;
     });
+    
+    // Only update if there are tasks that need updating
     if (tasksToUpdate.length > 0) {
-      for (const task of tasksToUpdate) {
-        await pool.query('UPDATE tasks SET priority = $1 WHERE id = $2', ['urgent', task.id]);
-      }
+      // Use a single batch update instead of individual queries
+      const taskIds = tasksToUpdate.map(task => task.id);
+      await pool.query(
+        'UPDATE tasks SET priority = $1 WHERE id = ANY($2) AND user_id = $3',
+        ['urgent', taskIds, req.user.userId]
+      );
     }
     res.json(result.rows);
   } catch (err) {
