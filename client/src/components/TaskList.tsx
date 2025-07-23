@@ -607,7 +607,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
   };
 
   const getPriorityIcon = (priority: Task['priority']) => {
-    const baseClasses = "w-3 h-3";
+    const baseClasses = "w-3.5 h-3.5";
     switch (priority) {
       case 'urgent':
         return <Flag className={clsx(baseClasses, "text-red-500 fill-red-500")} />;
@@ -1346,8 +1346,8 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
             >
               {/* Column headers */}
               <div className="flex items-center space-x-3 p-2 bg-gray-50 text-xs font-medium text-gray-600 border-b">
-                <div className="w-8"></div> {/* Status */}
-                <div className="w-6"></div> {/* Priority */}
+                <div className="w-4"></div> {/* Status */}
+                <div className="w-4"></div> {/* Priority */}
                 <div className="flex-1">Task</div>
                 {viewMode === 'planner' && <div className="w-20 text-center">Tag</div>}
                 <div className="hidden md:block w-16 text-center">Start</div>
@@ -1364,7 +1364,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
                   onDragStart={(e) => handleDragStart(e, task)}
                 >
                   {/* Status button */}
-                  <div className="w-8 flex justify-center">
+                  <div className="w-4 flex justify-center">
                   <button
                       type="button"
                       onClick={(e) => {
@@ -1388,7 +1388,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
                         handleStatusDoubleClick(task);
                       }}
                     className={clsx(
-                      "p-1 rounded hover:bg-gray-200 transition-colors",
+                      "p-0.5 rounded hover:bg-gray-200 transition-colors",
                       getStatusColor(task.status)
                     )}
                     title={`Click to change status, double-click to complete`}
@@ -1398,7 +1398,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
                   </div>
 
                   {/* Priority flag */}
-                  <div className="w-6 flex justify-center">
+                  <div className="w-4 flex justify-center">
                     {editingPriorityTaskId === task.id ? (
                       <select
                         value={editingPriorityValue}
@@ -1421,7 +1421,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
                           e.stopPropagation();
                           handlePriorityClick(task);
                         }}
-                        className="p-1 rounded hover:bg-gray-200 transition-colors cursor-pointer"
+                        className="p-0.5 rounded hover:bg-gray-200 transition-colors cursor-pointer"
                         title={`Click to cycle priority (${task.priority})`}
                       >
                     {getPriorityIcon(task.priority)}
