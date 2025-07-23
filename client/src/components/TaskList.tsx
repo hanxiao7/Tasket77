@@ -1058,12 +1058,9 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
       await apiService.updateTask(taskId, { description: finalDescription });
       
       // Update local state instead of reloading
-      setTasks(prevTasks => {
-        const updatedTasks = prevTasks.map(t => 
-          t.id === taskId ? { ...t, description: finalDescription } as Task : t
-        );
-        return updatedTasks;
-      });
+      setTasks(prevTasks => 
+        prevTasks.map(t => t.id === taskId ? { ...t, description: finalDescription } as Task : t)
+      );
       
       // If description is now blank, show chat icon instead of tooltip
       if (!finalDescription) {
@@ -1300,93 +1297,51 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
 
 
       {/* Tasks by status/tag */}
-      {sortedStatusNames.map((groupName) => (
-        <div key={groupName} className="border rounded">
-          {/* Group header */}
-          <div 
-            className="flex items-center justify-between p-2 bg-gray-100 cursor-pointer hover:bg-gray-200"
-            onClick={() => {
-              if (viewMode === 'planner') {
-                toggleStatusExpansion(getStatusId(groupName));
-              } else {
-                toggleTagExpansion(getTagId(groupName));
-              }
-            }}
-          >
-            <div className="flex items-center space-x-2">
-              {(viewMode === 'planner' ? isStatusExpanded(groupName) : isTagExpanded(groupName)) ? (
-                <ChevronDown className="w-4 h-4" />
-              ) : (
-                <ChevronRight className="w-4 h-4" />
-              )}
-              <span className="font-medium text-sm">{groupName === 'Unassigned' ? '' : groupName}</span>
-              <span className="text-xs text-gray-500">({groupedTasks[groupName].length})</span>
-            </div>
+      {/* Mobile: Single section with all tasks */}
+      <div className="md:hidden">
+        <div className="border rounded">
+          {/* Column headers */}
+          <div className="flex items-center space-x-3 p-3 bg-gray-50 text-xs font-medium text-gray-600 border-b">
+            <div className="w-4"></div> {/* Status */}
+            <div className="w-4"></div> {/* Priority */}
+            <div className="flex-1">Task</div>
+            {viewMode === 'planner' && <div className="w-20 text-center">Tag</div>}
           </div>
-
-          {/* Tasks in group */}
-          {(viewMode === 'planner' ? isStatusExpanded(groupName) : isTagExpanded(groupName)) && (
-            <div 
-              className="divide-y"
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onDrop={(e) => {
-                if (viewMode === 'planner') {
-                  const statusId = getStatusId(groupName);
-                  if (statusId) {
-                    handleDrop(e, statusId);
-                  }
-                } else {
-                  const tagId = getTagId(groupName);
-                  if (tagId) {
-                    handleDrop(e, tagId);
-                  }
-                }
-              }}
-            >
-              {/* Column headers */}
-              <div className="flex items-center space-x-3 p-2 bg-gray-50 text-xs font-medium text-gray-600 border-b">
-                <div className="w-4"></div> {/* Status */}
-                <div className="w-4"></div> {/* Priority */}
-                <div className="flex-1">Task</div>
-                {viewMode === 'planner' && <div className="w-20 text-center">Tag</div>}
-                <div className="hidden md:block w-16 text-center">Start</div>
-                {viewMode === 'tracker' && <div className="hidden md:block w-16 text-center">Complete</div>}
-                <div className="hidden md:block w-16 text-center">Due</div>
-              </div>
-              
-              {groupedTasks[groupName].map((task) => (
-                <div
-                  key={task.id}
-                  className="flex items-center space-x-3 p-3 hover:bg-gray-50 relative"
-                  onContextMenu={(e) => handleContextMenu(e, task.id)}
-                  draggable={editingTitleTaskId !== task.id}
-                  onDragStart={(e) => handleDragStart(e, task)}
-                >
-                  {/* Status button */}
-                  <div className="w-4 flex justify-center">
+          
+          {/* All tasks in single list */}
+          <div className="divide-y">
+            {tasks.map((task) => (
+              <div
+                key={task.id}
+                className="flex items-center space-x-3 p-3 hover:bg-gray-50 relative"
+                onContextMenu={(e) => handleContextMenu(e, task.id)}
+                draggable={editingTitleTaskId !== task.id}
+                onDragStart={(e) => handleDragStart(e, task)}
+              >
+                {/* Status button */}
+                <div className="w-4 flex justify-center">
                   <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        // Start a timer for single click
-                        if (statusClickTimers.current[task.id]) {
-                          clearTimeout(statusClickTimers.current[task.id]);
-                        }
-                        statusClickTimers.current[task.id] = setTimeout(() => {
-                          handleStatusClick(task);
-                          delete statusClickTimers.current[task.id];
-                        }, 250); // 250ms delay to distinguish from double click
-                      }}
-                      onDoubleClick={(e) => {
-                        e.stopPropagation();
-                        // If timer exists, cancel single click
-                        if (statusClickTimers.current[task.id]) {
-                          clearTimeout(statusClickTimers.current[task.id]);
-                          delete statusClickTimers.current[task.id];
-                        }
-                        handleStatusDoubleClick(task);
-                      }}
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      // Start a timer for single click
+                      if (statusClickTimers.current[task.id]) {
+                        clearTimeout(statusClickTimers.current[task.id]);
+                      }
+                      statusClickTimers.current[task.id] = setTimeout(() => {
+                        handleStatusClick(task);
+                        delete statusClickTimers.current[task.id];
+                      }, 250); // 250ms delay to distinguish from double click
+                    }}
+                    onDoubleClick={(e) => {
+                      e.stopPropagation();
+                      // If timer exists, cancel single click
+                      if (statusClickTimers.current[task.id]) {
+                        clearTimeout(statusClickTimers.current[task.id]);
+                        delete statusClickTimers.current[task.id];
+                      }
+                      handleStatusDoubleClick(task);
+                    }}
                     className={clsx(
                       "p-0.5 rounded hover:bg-gray-200 transition-colors",
                       getStatusColor(task.status)
@@ -1395,284 +1350,316 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
                   >
                     {getStatusIcon(task.status)}
                   </button>
-                  </div>
+                </div>
 
-                  {/* Priority flag */}
-                  <div className="w-4 flex justify-center">
-                    {editingPriorityTaskId === task.id ? (
-                      <select
-                        value={editingPriorityValue}
-                        onChange={(e) => setEditingPriorityValue(e.target.value as Task['priority'])}
-                        onKeyPress={(e) => handlePriorityKeyPress(e, task.id)}
-                        onBlur={() => handlePrioritySave(task.id)}
-                        className="text-xs border border-gray-300 rounded px-1 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500 w-full"
-                        title="Press Enter to save, Escape to cancel"
-                        data-task-id={task.id}
-                        autoFocus
-                      >
-                        <option value="low">Low</option>
-                        <option value="normal">Normal</option>
-                        <option value="high">High</option>
-                        <option value="urgent">Urgent</option>
-                      </select>
-                    ) : (
-                      <button
+                {/* Priority flag */}
+                <div className="w-4 flex justify-center">
+                  {editingPriorityTaskId === task.id ? (
+                    <select
+                      value={editingPriorityValue}
+                      onChange={(e) => setEditingPriorityValue(e.target.value as Task['priority'])}
+                      onKeyPress={(e) => handlePriorityKeyPress(e, task.id)}
+                      onBlur={() => handlePrioritySave(task.id)}
+                      className="text-xs border border-gray-300 rounded px-1 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500 w-full"
+                      title="Press Enter to save, Escape to cancel"
+                      data-task-id={task.id}
+                      autoFocus
+                    >
+                      <option value="low">Low</option>
+                      <option value="normal">Normal</option>
+                      <option value="high">High</option>
+                      <option value="urgent">Urgent</option>
+                    </select>
+                  ) : (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handlePriorityClick(task);
+                      }}
+                      className="p-0.5 rounded hover:bg-gray-200 transition-colors cursor-pointer"
+                      title={`Click to cycle priority (${task.priority})`}
+                    >
+                      {getPriorityIcon(task.priority)}
+                    </button>
+                  )}
+                </div>
+
+                {/* Task title */}
+                <div className="flex-1 min-w-0 relative">
+                  {editingTitleTaskId === task.id ? (
+                    <input
+                      ref={titleInputRef}
+                      type="text"
+                      value={editingTitleValue}
+                      onChange={(e) => setEditingTitleValue(e.target.value)}
+                      onKeyPress={(e) => handleTitleKeyPress(e, task.id)}
+                      onBlur={() => handleTitleSave(task.id)}
+                      className="w-full bg-transparent border-none outline-none text-sm font-medium"
+                      placeholder="Enter task title..."
+                    />
+                  ) : (
+                    <div className="relative">
+                      <div 
+                        ref={(ref) => setTitleRef(task.id, ref)}
+                        className="text-sm font-medium truncate cursor-pointer hover:text-blue-600 hover:bg-blue-50 px-1 py-1 rounded"
                         onClick={(e) => {
                           e.stopPropagation();
-                          handlePriorityClick(task);
+                          handleTitleClick(task);
                         }}
-                        className="p-0.5 rounded hover:bg-gray-200 transition-colors cursor-pointer"
-                        title={`Click to cycle priority (${task.priority})`}
-                      >
-                    {getPriorityIcon(task.priority)}
-                      </button>
-                    )}
-                  </div>
-
-                  {/* Task title */}
-                  <div className="flex-1 min-w-0 relative">
-                    {editingTitleTaskId === task.id ? (
-                      <input
-                        ref={titleInputRef}
-                        type="text"
-                        value={editingTitleValue}
-                        onChange={(e) => setEditingTitleValue(e.target.value)}
-                        onKeyPress={(e) => handleTitleKeyPress(e, task.id)}
-                        onBlur={() => handleTitleSave(task.id)}
-                        className="w-full bg-transparent border-none outline-none text-sm font-medium"
-                        placeholder="Enter task title..."
-                      />
-                    ) : (
-                      <div className="relative">
-                        <div 
-                          ref={(ref) => setTitleRef(task.id, ref)}
-                          className="text-sm font-medium truncate cursor-pointer hover:text-blue-600 hover:bg-blue-50 px-1 py-1 rounded"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleTitleClick(task);
-                          }}
-                          onMouseEnter={(e) => {
-                            // Set hovered task immediately for responsive UI
-                            setHoveredTask(task.id);
-                            
-                            // Check if title is actually truncated on hover as a fallback
-                            const target = e.currentTarget;
-                            const isTruncated = target.scrollWidth > target.clientWidth;
-                            
-                            // Update title tooltips state if needed
-                            if (isTruncated && !titleTooltips.has(task.id)) {
-                              setTitleTooltips(prev => new Set(prev).add(task.id));
-                            }
-                            
-                            showTooltip(task.id);
-                          }}
-                          onMouseLeave={(e) => {
-                            // Check if we're moving to the chat icon or tooltip container
-                            const relatedTarget = e.relatedTarget as Element | null;
-                            const isMovingToChatIcon = relatedTarget && typeof relatedTarget.closest === 'function' ? relatedTarget.closest('[data-chat-icon]') : null;
-                            const isMovingToTooltip = relatedTarget && typeof relatedTarget.closest === 'function' ? relatedTarget.closest('[style*="z-index: 1000"]') : null;
-                            
-                            if (isMovingToChatIcon || isMovingToTooltip) {
-                              // Don't hide if moving to chat icon or tooltip
-                              return;
-                            }
-                            
-                            setHoveredTask(null);
-                            hideTooltip(task.id);
-                          }}
-                        >
-                          {task.title}
-                        </div>
-                        
-                        {/* Title Tooltip - show on hover for truncated titles only */}
-                        {hoveredTask === task.id && (
-                          <div className="hidden md:block">
-                            <TitleTooltip 
-                              title={task.title} 
-                              titleRef={titleRefs.current.get(task.id)} 
-                            />
-                          </div>
-                        )}
-                      </div>
-                    )}
-                    
-                    {/* Chat Icon for blank descriptions */}
-                    {chatIcons.has(task.id) && (
-                      <div
-                        data-chat-icon
-                        className="hidden md:block"
                         onMouseEnter={(e) => {
-                          // Clear any existing timer when mouse enters chat icon
-                          const existingTimer = tooltipTimers.get(task.id);
-                          if (existingTimer) {
-                            clearTimeout(existingTimer);
-                            setTooltipTimers(prev => {
-                              const newMap = new Map(prev);
-                              newMap.delete(task.id);
-                              return newMap;
-                            });
-                          }
-                        }}
-                        onMouseLeave={(e) => {
-                          // Check if we're moving to the tooltip container
-                          const relatedTarget = e.relatedTarget as Element | null;
-                          const isMovingToTooltip = relatedTarget && typeof relatedTarget.closest === 'function' ? relatedTarget.closest('[style*="z-index: 1000"]') : null;
+                          // Set hovered task immediately for responsive UI
+                          setHoveredTask(task.id);
                           
-                          if (isMovingToTooltip) {
-                            // Don't hide if moving to tooltip
-                            return;
+                          // Check if title is actually truncated on hover as a fallback
+                          const target = e.currentTarget;
+                          const isTruncated = target.scrollWidth > target.clientWidth;
+                          
+                          // Update title tooltips state if needed
+                          if (isTruncated && !titleTooltips.has(task.id)) {
+                            setTitleTooltips(prev => new Set(prev).add(task.id));
                           }
                           
-                          hideTooltip(task.id);
-                        }}
-                        style={{ 
-                          zIndex: 1000
-                        }}
-                      >
-                        <div
-                          className="absolute top-0 left-0 rounded px-2 py-1 cursor-pointer transition-colors hover:bg-gray-100"
-                          style={{
-                            ...getTitleEndPositionStyle(task.id),
-                            transform: 'translateY(-12px)'
-                          }}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleChatIconClick(task.id);
-                          }}
-                          title="Click to add description"
-                        >
-                          <MessageSquarePlus className="w-6 h-6 text-gray-600 hover:text-blue-600" />
-                        </div>
-                      </div>
-                    )}
-                    
-                    {/* Description Tooltip */}
-                    {visibleTooltips.has(task.id) && (
-                      <div
-                        className="hidden md:block"
-                        onMouseEnter={() => {
-                          // Clear any existing timer when mouse enters tooltip
-                          const existingTimer = tooltipTimers.get(task.id);
-                          if (existingTimer) {
-                            clearTimeout(existingTimer);
-                            setTooltipTimers(prev => {
-                              const newMap = new Map(prev);
-                              newMap.delete(task.id);
-                              return newMap;
-                            });
-                          }
+                          showTooltip(task.id);
                         }}
                         onMouseLeave={(e) => {
-                          // Check if we're moving to the chat icon
+                          // Check if we're moving to the chat icon or tooltip container
                           const relatedTarget = e.relatedTarget as Element | null;
                           const isMovingToChatIcon = relatedTarget && typeof relatedTarget.closest === 'function' ? relatedTarget.closest('[data-chat-icon]') : null;
+                          const isMovingToTooltip = relatedTarget && typeof relatedTarget.closest === 'function' ? relatedTarget.closest('[style*="z-index: 1000"]') : null;
                           
-                          if (isMovingToChatIcon) {
-                            // Don't hide if moving to chat icon
+                          if (isMovingToChatIcon || isMovingToTooltip) {
+                            // Don't hide if moving to chat icon or tooltip
                             return;
                           }
                           
+                          setHoveredTask(null);
                           hideTooltip(task.id);
                         }}
-                        style={{ 
-                          zIndex: 1000
-                        }}
                       >
-                        <TaskTooltip 
-                          description={task.description || ''}
-                          taskId={task.id}
-                          onSave={handleDescriptionSave}
-                          onClose={handleDescriptionTooltipClose}
-                          position={getTitleEndPosition(task.id)}
-                          positionStyle={getTitleEndPositionStyle(task.id)}
-                          maxWidth={getMaxTooltipWidth(task.id)}
-                          startEditing={editingTooltips.has(task.id)}
-                        />
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Tag */}
-                  {viewMode === 'planner' && (
-                    <div className="flex-shrink-0 w-20 text-center relative">
-                      <div
-                        className={clsx(
-                          "text-xs rounded px-1 py-1 w-full transition-all cursor-pointer min-h-[20px] flex items-center justify-center",
-                          editingTagTaskId === task.id 
-                            ? "border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500" 
-                            : "border border-transparent hover:border-gray-300 hover:bg-blue-50"
-                        )}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (editingTagTaskId !== task.id) {
-                            setEditingTagTaskId(task.id);
-                            setEditingTagValue(task.tag_id?.toString() || '');
-                          } else {
-                            setEditingTagTaskId(null);
-                          }
-                        }}
-                        title="Click to edit tag"
-                      >
-                        {task.tag_name ? (
-                          <span className="text-sm font-medium">{task.tag_name}</span>
-                        ) : (
-                          <span className="text-gray-400">-</span>
-                        )}
+                        {task.title}
                       </div>
                       
-                      {/* Tag dropdown menu */}
-                      {editingTagTaskId === task.id && (
-                        <div 
-                          className="absolute top-full left-0 right-0 bg-white border border-gray-200 rounded-lg shadow-lg z-50 mt-1"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <div className="max-h-40 overflow-y-auto">
-                            <div 
-                              className="px-2 py-1 text-xs text-gray-500 hover:bg-gray-50 cursor-pointer border-b"
-                              onClick={() => {
-                                setEditingTagValue('');
-                                handleTagSave(task.id, undefined);
-                                setEditingTagTaskId(null);
-                              }}
-                            >
-                              No tag
-                            </div>
-                            {tags.filter(tag => tag.hidden !== true).map((tag) => (
-                              <div
-                                key={tag.id}
-                                className={clsx(
-                                  "px-2 py-1 text-xs cursor-pointer hover:bg-blue-50 transition-colors",
-                                  editingTagValue === tag.id.toString() && "bg-blue-100 text-blue-700"
-                                )}
-                                onClick={() => {
-                                  setEditingTagValue(tag.id.toString());
-                                  handleTagSave(task.id, tag.id);
-                                  setEditingTagTaskId(null);
-                                }}
-                              >
-                                {tag.name}
-                              </div>
-                            ))}
-                            <div className="border-t border-gray-200">
-                              <div 
-                                className="px-2 py-1 text-xs text-blue-600 hover:bg-blue-50 cursor-pointer transition-colors"
-                                onClick={() => {
-                                  setShowTagEditModal(true);
-                                  setEditingTagTaskId(null);
-                                }}
-                              >
-                                Edit tags
-                              </div>
-                            </div>
-                          </div>
+                      {/* Title Tooltip - show on hover for truncated titles only */}
+                      {hoveredTask === task.id && (
+                        <div className="hidden md:block">
+                          <TitleTooltip 
+                            title={task.title} 
+                            titleRef={titleRefs.current.get(task.id)} 
+                          />
                         </div>
                       )}
                     </div>
                   )}
+                  
+                  {/* Chat Icon for blank descriptions */}
+                  {chatIcons.has(task.id) && (
+                    <div
+                      data-chat-icon
+                      className="hidden md:block"
+                      onMouseEnter={(e) => {
+                        // Clear any existing timer when mouse enters chat icon
+                        const existingTimer = tooltipTimers.get(task.id);
+                        if (existingTimer) {
+                          clearTimeout(existingTimer);
+                          setTooltipTimers(prev => {
+                            const newMap = new Map(prev);
+                            newMap.delete(task.id);
+                            return newMap;
+                          });
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        // Check if we're moving to the tooltip container
+                        const relatedTarget = e.relatedTarget as Element | null;
+                        const isMovingToTooltip = relatedTarget && typeof relatedTarget.closest === 'function' ? relatedTarget.closest('[style*="z-index: 1000"]') : null;
+                        
+                        if (isMovingToTooltip) {
+                          // Don't hide if moving to tooltip
+                          return;
+                        }
+                        
+                        hideTooltip(task.id);
+                      }}
+                      style={{ 
+                        zIndex: 1000
+                      }}
+                    >
+                      <div
+                        className="absolute top-0 left-0 rounded px-2 py-1 cursor-pointer transition-colors hover:bg-gray-100"
+                        style={{
+                          ...getTitleEndPositionStyle(task.id),
+                          transform: 'translateY(-12px)'
+                        }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleChatIconClick(task.id);
+                        }}
+                        title="Click to add description"
+                      >
+                        <MessageSquarePlus className="w-6 h-6 text-gray-600 hover:text-blue-600" />
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Description Tooltip */}
+                  {visibleTooltips.has(task.id) && (
+                    <div
+                      className="hidden md:block"
+                      onMouseEnter={() => {
+                        // Clear any existing timer when mouse enters tooltip
+                        const existingTimer = tooltipTimers.get(task.id);
+                        if (existingTimer) {
+                          clearTimeout(existingTimer);
+                          setTooltipTimers(prev => {
+                            const newMap = new Map(prev);
+                            newMap.delete(task.id);
+                            return newMap;
+                          });
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        // Check if we're moving to the chat icon
+                        const relatedTarget = e.relatedTarget as Element | null;
+                        const isMovingToChatIcon = relatedTarget && typeof relatedTarget.closest === 'function' ? relatedTarget.closest('[data-chat-icon]') : null;
+                        
+                        if (isMovingToChatIcon) {
+                          // Don't hide if moving to chat icon
+                          return;
+                        }
+                        
+                        hideTooltip(task.id);
+                      }}
+                      style={{ 
+                        zIndex: 1000
+                      }}
+                    >
+                      <TaskTooltip
+                        description={task.description || ''}
+                        taskId={task.id}
+                        onSave={handleDescriptionSave}
+                        onClose={handleDescriptionTooltipClose}
+                        position={getTitleEndPosition(task.id)}
+                        positionStyle={getTitleEndPositionStyle(task.id)}
+                        maxWidth={getMaxTooltipWidth(task.id)}
+                        startEditing={editingTooltips.has(task.id)}
+                      />
+                    </div>
+                  )}
+                </div>
 
-                  {/* Start date */}
+                {/* Tag */}
+                {viewMode === 'planner' && (
+                  <div className="flex-shrink-0 w-20 text-center relative">
+                    <div
+                      className={clsx(
+                        "text-xs rounded px-1 py-1 w-full transition-all cursor-pointer min-h-[20px] flex items-center justify-center",
+                        editingTagTaskId === task.id 
+                          ? "border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500" 
+                          : "border border-transparent hover:border-gray-300 hover:bg-blue-50"
+                      )}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (editingTagTaskId !== task.id) {
+                          setEditingTagTaskId(task.id);
+                          setEditingTagValue(task.tag_id?.toString() || '');
+                        } else {
+                          setEditingTagTaskId(null);
+                        }
+                      }}
+                      title="Click to edit tag"
+                    >
+                      {task.tag_name ? (
+                        <span className="text-sm font-medium">{task.tag_name}</span>
+                      ) : (
+                        <span className="text-gray-400">-</span>
+                      )}
+                    </div>
+                    
+                    {/* Tag dropdown menu */}
+                    {editingTagTaskId === task.id && (
+                      <div 
+                        className="absolute top-full left-0 right-0 bg-white border border-gray-200 rounded-lg shadow-lg z-50 mt-1"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <div className="max-h-40 overflow-y-auto">
+                          <div 
+                            className="px-2 py-1 text-xs text-gray-500 hover:bg-gray-50 cursor-pointer border-b"
+                            onClick={() => {
+                              setEditingTagValue('');
+                              handleTagSave(task.id, undefined);
+                              setEditingTagTaskId(null);
+                            }}
+                          >
+                            No tag
+                          </div>
+                          {tags.filter(tag => tag.hidden !== true).map((tag) => (
+                            <div
+                              key={tag.id}
+                              className={clsx(
+                                "px-2 py-1 text-xs cursor-pointer hover:bg-blue-50 transition-colors",
+                                editingTagValue === tag.id.toString() && "bg-blue-100 text-blue-700"
+                              )}
+                              onClick={() => {
+                                setEditingTagValue(tag.id.toString());
+                                handleTagSave(task.id, tag.id);
+                                setEditingTagTaskId(null);
+                              }}
+                            >
+                              {tag.name}
+                            </div>
+                          ))}
+                          <div className="border-t border-gray-200">
+                            <div 
+                              className="px-2 py-1 text-xs text-blue-600 hover:bg-blue-50 cursor-pointer transition-colors"
+                              onClick={() => {
+                                setShowTagEditModal(true);
+                                setEditingTagTaskId(null);
+                              }}
+                            >
+                              Edit tags
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Start date - hidden on mobile but present for alignment */}
+                <div className="hidden md:flex flex-shrink-0 w-16 text-center">
+                  {editingDateTaskId === task.id && editingDateType === 'start_date' ? (
+                    <input
+                      ref={dateInputRef}
+                      type="date"
+                      value={editingDateValue}
+                      onChange={(e) => setEditingDateValue(e.target.value)}
+                      onKeyPress={(e) => handleDateKeyPress(e, task.id)}
+                      onBlur={() => handleDateSave(task.id)}
+                      className="text-xs border border-gray-300 rounded px-1 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500 w-full"
+                      title="Press Enter to save, Escape to cancel"
+                    />
+                  ) : (
+                    <div 
+                      className="flex items-center justify-center text-xs text-gray-500 cursor-pointer hover:text-blue-600 hover:bg-blue-50 px-1 py-1 rounded min-h-[20px]"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDateClick(task, 'start_date');
+                      }}
+                      title="Click to set start date"
+                    >
+                      {task.start_date ? (
+                        <span>{formatDate(task.start_date)}</span>
+                      ) : (
+                        <Calendar className="w-3 h-3" />
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Completion date - only show in tracker view, hidden on mobile but present for alignment */}
+                {viewMode === 'tracker' && (
                   <div className="hidden md:flex flex-shrink-0 w-16 text-center">
-                    {editingDateTaskId === task.id && editingDateType === 'start_date' ? (
+                    {editingDateTaskId === task.id && editingDateType === 'completion_date' ? (
                       <input
                         ref={dateInputRef}
                         type="date"
@@ -1688,23 +1675,431 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
                         className="flex items-center justify-center text-xs text-gray-500 cursor-pointer hover:text-blue-600 hover:bg-blue-50 px-1 py-1 rounded min-h-[20px]"
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleDateClick(task, 'start_date');
+                          handleDateClick(task, 'completion_date');
                         }}
-                        title="Click to set start date"
+                        title="Click to set completion date"
                       >
-                        {task.start_date ? (
-                          <span>{formatDate(task.start_date)}</span>
+                        {task.completion_date ? (
+                          <span>{formatDate(task.completion_date)}</span>
                         ) : (
                           <Calendar className="w-3 h-3" />
                         )}
                       </div>
                     )}
                   </div>
+                )}
 
-                  {/* Completion date - only show in tracker view */}
-                  {viewMode === 'tracker' && (
+                {/* Due date - hidden on mobile but present for alignment */}
+                <div className="hidden md:flex flex-shrink-0 w-16 text-center">
+                  {editingDateTaskId === task.id && editingDateType === 'due_date' ? (
+                    <input
+                      ref={dateInputRef}
+                      type="date"
+                      value={editingDateValue}
+                      onChange={(e) => setEditingDateValue(e.target.value)}
+                      onKeyPress={(e) => handleDateKeyPress(e, task.id)}
+                      onBlur={() => handleDateSave(task.id)}
+                      className="text-xs border border-gray-300 rounded px-1 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500 w-full"
+                      title="Press Enter to save, Escape to cancel"
+                    />
+                  ) : (
+                    <div 
+                      className="flex items-center justify-center text-xs text-gray-500 cursor-pointer hover:text-blue-600 hover:bg-blue-50 px-1 py-1 rounded min-h-[20px]"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDateClick(task, 'due_date');
+                      }}
+                      title="Click to set due date"
+                    >
+                      {task.due_date ? (
+                        <span>{formatDate(task.due_date)}</span>
+                      ) : (
+                        <Calendar className="w-3 h-3" />
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Desktop: Grouped sections */}
+      <div className="hidden md:block">
+        {sortedStatusNames.map((groupName) => (
+          <div key={groupName} className="border rounded">
+            {/* Group header */}
+            <div 
+              className="flex items-center justify-between p-2 bg-gray-100 cursor-pointer hover:bg-gray-200"
+              onClick={() => {
+                if (viewMode === 'planner') {
+                  toggleStatusExpansion(getStatusId(groupName));
+                } else {
+                  toggleTagExpansion(getTagId(groupName));
+                }
+              }}
+            >
+              <div className="flex items-center space-x-2">
+                {(viewMode === 'planner' ? isStatusExpanded(groupName) : isTagExpanded(groupName)) ? (
+                  <ChevronDown className="w-4 h-4" />
+                ) : (
+                  <ChevronRight className="w-4 h-4" />
+                )}
+                <span className="font-medium text-sm">{groupName === 'Unassigned' ? '' : groupName}</span>
+                <span className="text-xs text-gray-500">({groupedTasks[groupName].length})</span>
+              </div>
+            </div>
+
+            {/* Tasks in group */}
+            {(viewMode === 'planner' ? isStatusExpanded(groupName) : isTagExpanded(groupName)) && (
+              <div 
+                className="divide-y"
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={(e) => {
+                  if (viewMode === 'planner') {
+                    const statusId = getStatusId(groupName);
+                    if (statusId) {
+                      handleDrop(e, statusId);
+                    }
+                  } else {
+                    const tagId = getTagId(groupName);
+                    if (tagId) {
+                      handleDrop(e, tagId);
+                    }
+                  }
+                }}
+              >
+                {/* Column headers */}
+                <div className="flex items-center space-x-3 p-3 bg-gray-50 text-xs font-medium text-gray-600 border-b">
+                  <div className="w-4"></div> {/* Status */}
+                  <div className="w-4"></div> {/* Priority */}
+                  <div className="flex-1">Task</div>
+                  {viewMode === 'planner' && <div className="w-20 text-center">Tag</div>}
+                  <div className="hidden md:block w-16 text-center">Start</div>
+                  {viewMode === 'tracker' && <div className="hidden md:block w-16 text-center">Complete</div>}
+                  <div className="hidden md:block w-16 text-center">Due</div>
+                </div>
+                
+                {groupedTasks[groupName].map((task) => (
+                  <div
+                    key={task.id}
+                    className="flex items-center space-x-3 p-3 hover:bg-gray-50 relative"
+                    onContextMenu={(e) => handleContextMenu(e, task.id)}
+                    draggable={editingTitleTaskId !== task.id}
+                    onDragStart={(e) => handleDragStart(e, task)}
+                  >
+                    {/* Status button */}
+                    <div className="w-4 flex justify-center">
+                    <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          // Start a timer for single click
+                          if (statusClickTimers.current[task.id]) {
+                            clearTimeout(statusClickTimers.current[task.id]);
+                          }
+                          statusClickTimers.current[task.id] = setTimeout(() => {
+                            handleStatusClick(task);
+                            delete statusClickTimers.current[task.id];
+                          }, 250); // 250ms delay to distinguish from double click
+                        }}
+                        onDoubleClick={(e) => {
+                          e.stopPropagation();
+                          // If timer exists, cancel single click
+                          if (statusClickTimers.current[task.id]) {
+                            clearTimeout(statusClickTimers.current[task.id]);
+                            delete statusClickTimers.current[task.id];
+                          }
+                          handleStatusDoubleClick(task);
+                        }}
+                      className={clsx(
+                        "p-0.5 rounded hover:bg-gray-200 transition-colors",
+                        getStatusColor(task.status)
+                      )}
+                      title={`Click to change status, double-click to complete`}
+                    >
+                      {getStatusIcon(task.status)}
+                    </button>
+                    </div>
+
+                    {/* Priority flag */}
+                    <div className="w-4 flex justify-center">
+                      {editingPriorityTaskId === task.id ? (
+                        <select
+                          value={editingPriorityValue}
+                          onChange={(e) => setEditingPriorityValue(e.target.value as Task['priority'])}
+                          onKeyPress={(e) => handlePriorityKeyPress(e, task.id)}
+                          onBlur={() => handlePrioritySave(task.id)}
+                          className="text-xs border border-gray-300 rounded px-1 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500 w-full"
+                          title="Press Enter to save, Escape to cancel"
+                          data-task-id={task.id}
+                          autoFocus
+                        >
+                          <option value="low">Low</option>
+                          <option value="normal">Normal</option>
+                          <option value="high">High</option>
+                          <option value="urgent">Urgent</option>
+                        </select>
+                      ) : (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handlePriorityClick(task);
+                          }}
+                          className="p-0.5 rounded hover:bg-gray-200 transition-colors cursor-pointer"
+                          title={`Click to cycle priority (${task.priority})`}
+                        >
+                          {getPriorityIcon(task.priority)}
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Task title */}
+                    <div className="flex-1 min-w-0 relative">
+                      {editingTitleTaskId === task.id ? (
+                        <input
+                          ref={titleInputRef}
+                          type="text"
+                          value={editingTitleValue}
+                          onChange={(e) => setEditingTitleValue(e.target.value)}
+                          onKeyPress={(e) => handleTitleKeyPress(e, task.id)}
+                          onBlur={() => handleTitleSave(task.id)}
+                          className="w-full bg-transparent border-none outline-none text-sm font-medium"
+                          placeholder="Enter task title..."
+                        />
+                      ) : (
+                        <div className="relative">
+                          <div 
+                            ref={(ref) => setTitleRef(task.id, ref)}
+                            className="text-sm font-medium truncate cursor-pointer hover:text-blue-600 hover:bg-blue-50 px-1 py-1 rounded"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleTitleClick(task);
+                            }}
+                            onMouseEnter={(e) => {
+                              // Set hovered task immediately for responsive UI
+                              setHoveredTask(task.id);
+                              
+                              // Check if title is actually truncated on hover as a fallback
+                              const target = e.currentTarget;
+                              const isTruncated = target.scrollWidth > target.clientWidth;
+                              
+                              // Update title tooltips state if needed
+                              if (isTruncated && !titleTooltips.has(task.id)) {
+                                setTitleTooltips(prev => new Set(prev).add(task.id));
+                              }
+                              
+                              showTooltip(task.id);
+                            }}
+                            onMouseLeave={(e) => {
+                              // Check if we're moving to the chat icon or tooltip container
+                              const relatedTarget = e.relatedTarget as Element | null;
+                              const isMovingToChatIcon = relatedTarget && typeof relatedTarget.closest === 'function' ? relatedTarget.closest('[data-chat-icon]') : null;
+                              const isMovingToTooltip = relatedTarget && typeof relatedTarget.closest === 'function' ? relatedTarget.closest('[style*="z-index: 1000"]') : null;
+                              
+                              if (isMovingToChatIcon || isMovingToTooltip) {
+                                // Don't hide if moving to chat icon or tooltip
+                                return;
+                              }
+                              
+                              setHoveredTask(null);
+                              hideTooltip(task.id);
+                            }}
+                          >
+                            {task.title}
+                          </div>
+                          
+                          {/* Title Tooltip - show on hover for truncated titles only */}
+                          {hoveredTask === task.id && (
+                            <div className="hidden md:block">
+                              <TitleTooltip 
+                                title={task.title} 
+                                titleRef={titleRefs.current.get(task.id)} 
+                              />
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      
+                      {/* Chat Icon for blank descriptions */}
+                      {chatIcons.has(task.id) && (
+                        <div
+                          data-chat-icon
+                          className="hidden md:block"
+                          onMouseEnter={(e) => {
+                            // Clear any existing timer when mouse enters chat icon
+                            const existingTimer = tooltipTimers.get(task.id);
+                            if (existingTimer) {
+                              clearTimeout(existingTimer);
+                              setTooltipTimers(prev => {
+                                const newMap = new Map(prev);
+                                newMap.delete(task.id);
+                                return newMap;
+                              });
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            // Check if we're moving to the tooltip container
+                            const relatedTarget = e.relatedTarget as Element | null;
+                            const isMovingToTooltip = relatedTarget && typeof relatedTarget.closest === 'function' ? relatedTarget.closest('[style*="z-index: 1000"]') : null;
+                            
+                            if (isMovingToTooltip) {
+                              // Don't hide if moving to tooltip
+                              return;
+                            }
+                            
+                            hideTooltip(task.id);
+                          }}
+                          style={{ 
+                            zIndex: 1000
+                          }}
+                        >
+                          <div
+                            className="absolute top-0 left-0 rounded px-2 py-1 cursor-pointer transition-colors hover:bg-gray-100"
+                            style={{
+                              ...getTitleEndPositionStyle(task.id),
+                              transform: 'translateY(-12px)'
+                            }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleChatIconClick(task.id);
+                            }}
+                            title="Click to add description"
+                          >
+                            <MessageSquarePlus className="w-6 h-6 text-gray-600 hover:text-blue-600" />
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Description Tooltip */}
+                      {visibleTooltips.has(task.id) && (
+                        <div
+                          className="hidden md:block"
+                          onMouseEnter={() => {
+                            // Clear any existing timer when mouse enters tooltip
+                            const existingTimer = tooltipTimers.get(task.id);
+                            if (existingTimer) {
+                              clearTimeout(existingTimer);
+                              setTooltipTimers(prev => {
+                                const newMap = new Map(prev);
+                                newMap.delete(task.id);
+                                return newMap;
+                              });
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            // Check if we're moving to the chat icon
+                            const relatedTarget = e.relatedTarget as Element | null;
+                            const isMovingToChatIcon = relatedTarget && typeof relatedTarget.closest === 'function' ? relatedTarget.closest('[data-chat-icon]') : null;
+                            
+                            if (isMovingToChatIcon) {
+                              // Don't hide if moving to chat icon
+                              return;
+                            }
+                            
+                            hideTooltip(task.id);
+                          }}
+                          style={{ 
+                            zIndex: 1000
+                          }}
+                        >
+                          <TaskTooltip 
+                            description={task.description || ''}
+                            taskId={task.id}
+                            onSave={handleDescriptionSave}
+                            onClose={handleDescriptionTooltipClose}
+                            position={getTitleEndPosition(task.id)}
+                            positionStyle={getTitleEndPositionStyle(task.id)}
+                            maxWidth={getMaxTooltipWidth(task.id)}
+                            startEditing={editingTooltips.has(task.id)}
+                          />
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Tag */}
+                    {viewMode === 'planner' && (
+                      <div className="flex-shrink-0 w-20 text-center relative">
+                        <div
+                          className={clsx(
+                            "text-xs rounded px-1 py-1 w-full transition-all cursor-pointer min-h-[20px] flex items-center justify-center",
+                            editingTagTaskId === task.id 
+                              ? "border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500" 
+                              : "border border-transparent hover:border-gray-300 hover:bg-blue-50"
+                          )}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (editingTagTaskId !== task.id) {
+                              setEditingTagTaskId(task.id);
+                              setEditingTagValue(task.tag_id?.toString() || '');
+                            } else {
+                              setEditingTagTaskId(null);
+                            }
+                          }}
+                          title="Click to edit tag"
+                        >
+                          {task.tag_name ? (
+                            <span className="text-sm font-medium">{task.tag_name}</span>
+                          ) : (
+                            <span className="text-gray-400">-</span>
+                          )}
+                        </div>
+                        
+                        {/* Tag dropdown menu */}
+                        {editingTagTaskId === task.id && (
+                          <div 
+                            className="absolute top-full left-0 right-0 bg-white border border-gray-200 rounded-lg shadow-lg z-50 mt-1"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <div className="max-h-40 overflow-y-auto">
+                              <div 
+                                className="px-2 py-1 text-xs text-gray-500 hover:bg-gray-50 cursor-pointer border-b"
+                                onClick={() => {
+                                  setEditingTagValue('');
+                                  handleTagSave(task.id, undefined);
+                                  setEditingTagTaskId(null);
+                                }}
+                              >
+                                No tag
+                              </div>
+                              {tags.filter(tag => tag.hidden !== true).map((tag) => (
+                                <div
+                                  key={tag.id}
+                                  className={clsx(
+                                    "px-2 py-1 text-xs cursor-pointer hover:bg-blue-50 transition-colors",
+                                    editingTagValue === tag.id.toString() && "bg-blue-100 text-blue-700"
+                                  )}
+                                  onClick={() => {
+                                    setEditingTagValue(tag.id.toString());
+                                    handleTagSave(task.id, tag.id);
+                                    setEditingTagTaskId(null);
+                                  }}
+                                >
+                                  {tag.name}
+                                </div>
+                              ))}
+                              <div className="border-t border-gray-200">
+                                <div 
+                                  className="px-2 py-1 text-xs text-blue-600 hover:bg-blue-50 cursor-pointer transition-colors"
+                                  onClick={() => {
+                                    setShowTagEditModal(true);
+                                    setEditingTagTaskId(null);
+                                  }}
+                                >
+                                  Edit tags
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Start date - hidden on mobile but present for alignment */}
                     <div className="hidden md:flex flex-shrink-0 w-16 text-center">
-                      {editingDateTaskId === task.id && editingDateType === 'completion_date' ? (
+                      {editingDateTaskId === task.id && editingDateType === 'start_date' ? (
                         <input
                           ref={dateInputRef}
                           type="date"
@@ -1720,58 +2115,89 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
                           className="flex items-center justify-center text-xs text-gray-500 cursor-pointer hover:text-blue-600 hover:bg-blue-50 px-1 py-1 rounded min-h-[20px]"
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleDateClick(task, 'completion_date');
+                            handleDateClick(task, 'start_date');
                           }}
-                          title="Click to set completion date"
+                          title="Click to set start date"
                         >
-                          {task.completion_date ? (
-                            <span>{formatDate(task.completion_date)}</span>
+                          {task.start_date ? (
+                            <span>{formatDate(task.start_date)}</span>
                           ) : (
                             <Calendar className="w-3 h-3" />
                           )}
                         </div>
                       )}
                     </div>
-                  )}
 
-                  {/* Due date */}
-                  <div className="hidden md:flex flex-shrink-0 w-16 text-center">
-                    {editingDateTaskId === task.id && editingDateType === 'due_date' ? (
-                      <input
-                        ref={dateInputRef}
-                        type="date"
-                        value={editingDateValue}
-                        onChange={(e) => setEditingDateValue(e.target.value)}
-                        onKeyPress={(e) => handleDateKeyPress(e, task.id)}
-                        onBlur={() => handleDateSave(task.id)}
-                        className="text-xs border border-gray-300 rounded px-1 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500 w-full"
-                        title="Press Enter to save, Escape to cancel"
-                      />
-                    ) : (
-                      <div 
-                        className="flex items-center justify-center text-xs text-gray-500 cursor-pointer hover:text-blue-600 hover:bg-blue-50 px-1 py-1 rounded min-h-[20px]"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDateClick(task, 'due_date');
-                        }}
-                        title="Click to set due date"
-                      >
-                        {task.due_date ? (
-                          <span>{formatDate(task.due_date)}</span>
+                    {/* Completion date - only show in tracker view, hidden on mobile but present for alignment */}
+                    {viewMode === 'tracker' && (
+                      <div className="hidden md:flex flex-shrink-0 w-16 text-center">
+                        {editingDateTaskId === task.id && editingDateType === 'completion_date' ? (
+                          <input
+                            ref={dateInputRef}
+                            type="date"
+                            value={editingDateValue}
+                            onChange={(e) => setEditingDateValue(e.target.value)}
+                            onKeyPress={(e) => handleDateKeyPress(e, task.id)}
+                            onBlur={() => handleDateSave(task.id)}
+                            className="text-xs border border-gray-300 rounded px-1 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500 w-full"
+                            title="Press Enter to save, Escape to cancel"
+                          />
                         ) : (
-                          <Calendar className="w-3 h-3" />
+                          <div 
+                            className="flex items-center justify-center text-xs text-gray-500 cursor-pointer hover:text-blue-600 hover:bg-blue-50 px-1 py-1 rounded min-h-[20px]"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDateClick(task, 'completion_date');
+                            }}
+                            title="Click to set completion date"
+                          >
+                            {task.completion_date ? (
+                              <span>{formatDate(task.completion_date)}</span>
+                            ) : (
+                              <Calendar className="w-3 h-3" />
+                            )}
+                          </div>
                         )}
                       </div>
                     )}
+
+                    {/* Due date - hidden on mobile but present for alignment */}
+                    <div className="hidden md:flex flex-shrink-0 w-16 text-center">
+                      {editingDateTaskId === task.id && editingDateType === 'due_date' ? (
+                        <input
+                          ref={dateInputRef}
+                          type="date"
+                          value={editingDateValue}
+                          onChange={(e) => setEditingDateValue(e.target.value)}
+                          onKeyPress={(e) => handleDateKeyPress(e, task.id)}
+                          onBlur={() => handleDateSave(task.id)}
+                          className="text-xs border border-gray-300 rounded px-1 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500 w-full"
+                          title="Press Enter to save, Escape to cancel"
+                        />
+                      ) : (
+                        <div 
+                          className="flex items-center justify-center text-xs text-gray-500 cursor-pointer hover:text-blue-600 hover:bg-blue-50 px-1 py-1 rounded min-h-[20px]"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDateClick(task, 'due_date');
+                          }}
+                          title="Click to set due date"
+                        >
+                          {task.due_date ? (
+                            <span>{formatDate(task.due_date)}</span>
+                          ) : (
+                            <Calendar className="w-3 h-3" />
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
-
-
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      ))}
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
 
       {/* Edit modal */}
       {editingTask && (
