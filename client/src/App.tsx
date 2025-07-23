@@ -7,7 +7,7 @@ import Register from './pages/Register';
 import TaskList from './components/TaskList';
 import TaskSummary from './components/TaskSummary';
 import WorkspaceSelector from './components/WorkspaceSelector';
-import { Download, ArrowUpDown } from 'lucide-react';
+import { Download, ArrowUpDown, CheckCircle } from 'lucide-react';
 import { TaskFilters, ViewMode, Task } from './types';
 
 function MainApp() {
@@ -146,28 +146,17 @@ function MainApp() {
               </button>
             </div>
             
-            {/* Controls row */}
+                        {/* Controls row */}
             <div className="flex items-center justify-between">
-              {/* Show completed toggle for planner */}
-              {viewMode === 'planner' && (
-                <label className="flex items-center space-x-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={filters.show_completed}
-                    onChange={(e) => setFilters({ ...filters, show_completed: e.target.checked })}
-                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                  />
-                  <span>Show completed</span>
-                </label>
-              )}
-              {/* Days filter for tracker */}
-              {viewMode === 'tracker' && (
-                <div className="flex items-center space-x-2">
-                  <span className="text-sm text-gray-600">Last</span>
+              {/* Left side: Grouping selector */}
+              <div className="flex items-center">
+                {/* Days filter for tracker */}
+                {viewMode === 'tracker' && (
                   <select
                     value={filters.days || 7}
                     onChange={(e) => setFilters({ ...filters, days: Number(e.target.value) })}
                     className="px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    title="Filter by days"
                   >
                     <option value={1}>1 day</option>
                     <option value={3}>3 days</option>
@@ -175,9 +164,42 @@ function MainApp() {
                     <option value={14}>14 days</option>
                     <option value={30}>30 days</option>
                   </select>
-                </div>
-                              )}
-                <div className="flex space-x-2">
+                )}
+                {/* Grouping selector */}
+                <select
+                  value={filters.grouping || 'none'}
+                  onChange={(e) => setFilters({ ...filters, grouping: e.target.value as 'none' | 'status' | 'priority' | 'tag' })}
+                  className="px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  title="Group tasks by"
+                >
+                  <option value="none">No grouping</option>
+                  <option value="status">Status</option>
+                  <option value="priority">Priority</option>
+                  <option value="tag">Tag</option>
+                </select>
+              </div>
+              
+              {/* Right side: Action buttons */}
+              <div className="flex items-center space-x-2">
+                {/* Show completed toggle for planner */}
+                {viewMode === 'planner' && (
+                  <button
+                    onClick={() => setFilters({ ...filters, show_completed: !filters.show_completed })}
+                    className="flex items-center justify-center w-6 h-6 rounded-full transition-colors hover:bg-gray-100"
+                    title={filters.show_completed ? "Hide completed tasks" : "Show completed tasks"}
+                  >
+                    {filters.show_completed ? (
+                      <CheckCircle className="w-4 h-4 text-green-500" />
+                    ) : (
+                      <div className="relative">
+                        <CheckCircle className="w-4 h-4 text-green-500" />
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <div className="w-5 h-0.5 bg-red-500 transform rotate-45"></div>
+                        </div>
+                      </div>
+                    )}
+                  </button>
+                )}
                 <button
                   onClick={handleSort}
                   className="flex items-center justify-center w-10 h-10 text-gray-600 hover:text-gray-900 hover:bg-white rounded-md transition-colors"
@@ -229,63 +251,68 @@ function MainApp() {
               </div>
               
               <div className="flex items-center space-x-4">
-                {/* Show completed toggle for planner */}
-                {viewMode === 'planner' && (
-                  <label className="flex items-center space-x-2 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={filters.show_completed}
-                      onChange={(e) => setFilters({ ...filters, show_completed: e.target.checked })}
-                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                    />
-                    <span>Show completed</span>
-                  </label>
-                )}
                 {/* Days filter for tracker */}
                 {viewMode === 'tracker' && (
-                  <div className="flex items-center space-x-2">
-                    <span className="text-sm text-gray-600">Last</span>
-                    <select
-                      value={filters.days || 7}
-                      onChange={(e) => setFilters({ ...filters, days: Number(e.target.value) })}
-                      className="px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value={1}>1 day</option>
-                      <option value={3}>3 days</option>
-                      <option value={7}>7 days</option>
-                      <option value={14}>14 days</option>
-                      <option value={30}>30 days</option>
-                    </select>
-                  </div>
+                  <select
+                    value={filters.days || 7}
+                    onChange={(e) => setFilters({ ...filters, days: Number(e.target.value) })}
+                    className="px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    title="Filter by days"
+                  >
+                    <option value={1}>1 day</option>
+                    <option value={3}>3 days</option>
+                    <option value={7}>7 days</option>
+                    <option value={14}>14 days</option>
+                    <option value={30}>30 days</option>
+                  </select>
                 )}
                 {/* Grouping selector */}
-                <div className="flex items-center space-x-2">
-                  <span className="text-sm text-gray-600">Group by:</span>
-                  <select
-                    value={filters.grouping || 'none'}
-                    onChange={(e) => setFilters({ ...filters, grouping: e.target.value as 'none' | 'status' | 'priority' | 'tag' })}
-                    className="px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                <select
+                  value={filters.grouping || 'none'}
+                  onChange={(e) => setFilters({ ...filters, grouping: e.target.value as 'none' | 'status' | 'priority' | 'tag' })}
+                  className="px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  title="Group tasks by"
+                >
+                  <option value="none">No grouping</option>
+                  <option value="status">Status</option>
+                  <option value="priority">Priority</option>
+                  <option value="tag">Tag</option>
+                </select>
+                {/* Show completed toggle for planner */}
+                {viewMode === 'planner' && (
+                  <button
+                    onClick={() => setFilters({ ...filters, show_completed: !filters.show_completed })}
+                    className="flex items-center justify-center w-6 h-6 rounded-full transition-colors hover:bg-gray-100"
+                    title={filters.show_completed ? "Hide completed tasks" : "Show completed tasks"}
                   >
-                    <option value="none">No grouping</option>
-                    <option value="status">Status</option>
-                    <option value="priority">Priority</option>
-                    <option value="tag">Tag</option>
-                  </select>
+                    {filters.show_completed ? (
+                      <CheckCircle className="w-4 h-4 text-green-500" />
+                    ) : (
+                      <div className="relative">
+                        <CheckCircle className="w-4 h-4 text-green-500" />
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <div className="w-5 h-0.5 bg-red-500 transform rotate-45"></div>
+                        </div>
+                      </div>
+                    )}
+                  </button>
+                )}
+                <div className="flex space-x-2">
+                  <button
+                    onClick={handleSort}
+                    className="flex items-center justify-center w-10 h-10 text-gray-600 hover:text-gray-900 hover:bg-white rounded-md transition-colors"
+                    title="Sort Tasks"
+                  >
+                    <ArrowUpDown className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={handleExport}
+                    className="flex items-center justify-center w-10 h-10 text-gray-600 hover:text-gray-900 hover:bg-white rounded-md transition-colors"
+                    title="Export tasks"
+                  >
+                    <Download className="w-4 h-4" />
+                  </button>
                 </div>
-                <button
-                  onClick={handleSort}
-                  className="flex items-center justify-center w-10 h-10 text-gray-600 hover:text-gray-900 hover:bg-white rounded-md transition-colors"
-                  title="Sort Tasks"
-                >
-                  <ArrowUpDown className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={handleExport}
-                  className="flex items-center justify-center w-10 h-10 text-gray-600 hover:text-gray-900 hover:bg-white rounded-md transition-colors"
-                  title="Export tasks"
-                >
-                  <Download className="w-4 h-4" />
-                </button>
               </div>
             </div>
           </div>
