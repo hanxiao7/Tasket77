@@ -1218,13 +1218,13 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
   const handleContextMenu = (e: React.MouseEvent, taskId: number) => {
     e.preventDefault();
     
-    // For mobile (three-dot menu), position the context menu better
-    const isMobile = window.innerWidth < 768; // md breakpoint
+    // Position the context menu appropriately for all screen sizes
+    const isSmallScreen = window.innerWidth < 640; // sm breakpoint
     let x = e.clientX;
     let y = e.clientY;
     
-    if (isMobile) {
-      // Position the menu to the right of the three-dot button, but ensure it stays on screen
+    if (isSmallScreen) {
+      // For small screens, position the menu to the right of the three-dot button
       const menuWidth = 150; // Approximate menu width
       const menuHeight = 80; // Approximate menu height
       
@@ -1399,10 +1399,10 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
                   <div className="w-4"></div> {/* Priority */}
                   <div className="flex-1">Task</div>
                   {viewMode === 'planner' && <div className="w-20 text-center">Tag</div>}
-                  <div className="hidden md:block w-16 text-center">Start</div>
-                  {viewMode === 'tracker' && <div className="hidden md:block w-16 text-center">Complete</div>}
-                  <div className="hidden md:block w-16 text-center">Due</div>
-                  <div className="md:hidden w-3"></div> {/* Mobile three-dot menu space */}
+                  <div className="hidden sm:block w-16 text-center">Start</div>
+                  {viewMode === 'tracker' && <div className="hidden sm:block w-16 text-center">Complete</div>}
+                  <div className="hidden sm:block w-16 text-center">Due</div>
+                  <div className="w-3"></div> {/* Three-dot menu space */}
                 </div>
 
                 {groupedTasks?.[groupName]?.map((task) => (
@@ -1485,10 +1485,10 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
             <div className="w-4"></div> {/* Priority */}
             <div className="flex-1">Task</div>
             {viewMode === 'planner' && <div className="w-20 text-center">Tag</div>}
-            <div className="hidden md:block w-16 text-center">Start</div>
-            {viewMode === 'tracker' && <div className="hidden md:block w-16 text-center">Complete</div>}
-            <div className="hidden md:block w-16 text-center">Due</div>
-            <div className="md:hidden w-3"></div> {/* Mobile three-dot menu space */}
+            <div className="hidden sm:block w-16 text-center">Start</div>
+            {viewMode === 'tracker' && <div className="hidden sm:block w-16 text-center">Complete</div>}
+            <div className="hidden sm:block w-16 text-center">Due</div>
+            <div className="w-3"></div> {/* Three-dot menu space */}
           </div>
           
           {/* All tasks in single list */}

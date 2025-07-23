@@ -274,7 +274,7 @@ const TaskRow: React.FC<TaskRowProps> = ({
             
             {/* Title Tooltip - show on hover for truncated titles only */}
             {hoveredTask === task.id && (
-              <div className="hidden md:block">
+              <div className="hidden sm:block">
                 <TitleTooltip 
                   title={task.title} 
                   titleRef={titleRefs.current.get(task.id)} 
@@ -288,7 +288,7 @@ const TaskRow: React.FC<TaskRowProps> = ({
         {chatIcons.has(task.id) && (
           <div
             data-chat-icon
-            className="hidden md:block"
+            className="hidden sm:block"
             style={{ 
               zIndex: 1000
             }}
@@ -313,7 +313,7 @@ const TaskRow: React.FC<TaskRowProps> = ({
         {/* Description Tooltip */}
         {visibleTooltips.has(task.id) && (
           <div
-            className="hidden md:block"
+            className="hidden sm:block"
             style={{ 
               zIndex: 1000
             }}
@@ -400,7 +400,7 @@ const TaskRow: React.FC<TaskRowProps> = ({
       )}
 
       {/* Start date */}
-      <div className="hidden md:flex flex-shrink-0 w-16 justify-center">
+      <div className="hidden sm:flex flex-shrink-0 w-16 justify-center">
         {editingDateTaskId === task.id && editingDateType === 'start_date' ? (
           <input
             ref={dateInputRef}
@@ -432,7 +432,7 @@ const TaskRow: React.FC<TaskRowProps> = ({
 
       {/* Completion date - only show in tracker view */}
       {viewMode === 'tracker' && (
-        <div className="hidden md:flex flex-shrink-0 w-16 justify-center">
+        <div className="hidden sm:flex flex-shrink-0 w-16 justify-center">
           {editingDateTaskId === task.id && editingDateType === 'completion_date' ? (
             <input
               ref={dateInputRef}
@@ -464,7 +464,7 @@ const TaskRow: React.FC<TaskRowProps> = ({
       )}
 
       {/* Due date */}
-      <div className="hidden md:flex flex-shrink-0 w-16 justify-center">
+      <div className="hidden sm:flex flex-shrink-0 w-16 justify-center">
         {editingDateTaskId === task.id && editingDateType === 'due_date' ? (
           <input
             ref={dateInputRef}
@@ -494,8 +494,8 @@ const TaskRow: React.FC<TaskRowProps> = ({
         )}
       </div>
 
-      {/* Mobile three-dot menu */}
-      <div className="md:hidden flex-shrink-0">
+      {/* Three-dot menu */}
+      <div className="flex-shrink-0">
         <button
           onClick={(e) => {
             e.stopPropagation();

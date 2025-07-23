@@ -60,7 +60,7 @@ function MainApp() {
         {/* Header */}
         <div className="mb-6">
           {/* Mobile Layout: Stack vertically */}
-          <div className="md:hidden">
+          <div className="sm:hidden">
             {/* Top row: App name and logout */}
             <div className="flex items-center justify-between mb-3">
               <h1 className="text-2xl font-bold text-gray-900">Tasket77</h1>
@@ -84,7 +84,7 @@ function MainApp() {
           </div>
 
           {/* Desktop Layout: Original horizontal layout */}
-          <div className="hidden md:block">
+          <div className="hidden sm:block">
             <div className="flex items-start justify-between mb-2">
               <div>
                 <h1 className="text-3xl font-bold text-gray-900">Tasket77</h1>
@@ -115,7 +115,7 @@ function MainApp() {
         {/* View Tabs */}
         <div className="mb-4">
           {/* Mobile Layout: Stack controls vertically */}
-          <div className="md:hidden space-y-3">
+          <div className="sm:hidden space-y-3">
             {/* Tabs */}
             <div className="flex space-x-1 bg-white rounded-lg p-1 shadow-sm">
               <button
@@ -219,7 +219,7 @@ function MainApp() {
           </div>
 
           {/* Desktop Layout: Original horizontal layout */}
-          <div className="hidden md:block">
+          <div className="hidden sm:block">
             <div className="flex items-center justify-between">
               <div className="flex space-x-1 bg-white rounded-lg p-1 shadow-sm">
                 <button
