@@ -17,7 +17,7 @@ function MainApp() {
     view: 'planner',
     show_completed: false,
     days: 7,
-    workspace_id: 1
+    grouping: 'none' // Default to no grouping for planner
   });
   const [currentTasks, setCurrentTasks] = useState<Task[]>([]);
   const taskListRef = useRef<{ sortTasks: () => void; getTasks: () => Task[] }>(null);
@@ -121,7 +121,7 @@ function MainApp() {
               <button
                 onClick={() => {
                   setViewMode('planner');
-                  setFilters({ ...filters, view: 'planner', show_completed: false });
+                  setFilters({ ...filters, view: 'planner', show_completed: false, grouping: 'none' });
                 }}
                 className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex-1 ${
                   viewMode === 'planner'
@@ -134,7 +134,7 @@ function MainApp() {
               <button
                 onClick={() => {
                   setViewMode('tracker');
-                  setFilters({ ...filters, view: 'tracker', show_completed: true });
+                  setFilters({ ...filters, view: 'tracker', show_completed: true, grouping: 'tag' });
                 }}
                 className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex-1 ${
                   viewMode === 'tracker'
@@ -176,8 +176,8 @@ function MainApp() {
                     <option value={30}>30 days</option>
                   </select>
                 </div>
-              )}
-              <div className="flex space-x-2">
+                              )}
+                <div className="flex space-x-2">
                 <button
                   onClick={handleSort}
                   className="flex items-center justify-center w-10 h-10 text-gray-600 hover:text-gray-900 hover:bg-white rounded-md transition-colors"
@@ -203,7 +203,7 @@ function MainApp() {
                 <button
                   onClick={() => {
                     setViewMode('planner');
-                    setFilters({ ...filters, view: 'planner', show_completed: false });
+                    setFilters({ ...filters, view: 'planner', show_completed: false, grouping: 'none' });
                   }}
                   className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
                     viewMode === 'planner'
@@ -216,7 +216,7 @@ function MainApp() {
                 <button
                   onClick={() => {
                     setViewMode('tracker');
-                    setFilters({ ...filters, view: 'tracker', show_completed: true });
+                    setFilters({ ...filters, view: 'tracker', show_completed: true, grouping: 'tag' });
                   }}
                   className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
                     viewMode === 'tracker'
@@ -258,6 +258,20 @@ function MainApp() {
                     </select>
                   </div>
                 )}
+                {/* Grouping selector */}
+                <div className="flex items-center space-x-2">
+                  <span className="text-sm text-gray-600">Group by:</span>
+                  <select
+                    value={filters.grouping || 'none'}
+                    onChange={(e) => setFilters({ ...filters, grouping: e.target.value as 'none' | 'status' | 'priority' | 'tag' })}
+                    className="px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="none">No grouping</option>
+                    <option value="status">Status</option>
+                    <option value="priority">Priority</option>
+                    <option value="tag">Tag</option>
+                  </select>
+                </div>
                 <button
                   onClick={handleSort}
                   className="flex items-center justify-center w-10 h-10 text-gray-600 hover:text-gray-900 hover:bg-white rounded-md transition-colors"
