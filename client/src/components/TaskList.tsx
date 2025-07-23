@@ -1626,7 +1626,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
                 )}
 
                 {/* Start date - hidden on mobile but present for alignment */}
-                <div className="hidden md:flex flex-shrink-0 w-16 text-center">
+                <div className="hidden md:flex flex-shrink-0 w-16 justify-center">
                   {editingDateTaskId === task.id && editingDateType === 'start_date' ? (
                     <input
                       ref={dateInputRef}
@@ -1658,7 +1658,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
 
                 {/* Completion date - only show in tracker view, hidden on mobile but present for alignment */}
                 {viewMode === 'tracker' && (
-                  <div className="hidden md:flex flex-shrink-0 w-16 text-center">
+                  <div className="hidden md:flex flex-shrink-0 w-16 justify-center">
                     {editingDateTaskId === task.id && editingDateType === 'completion_date' ? (
                       <input
                         ref={dateInputRef}
@@ -1690,7 +1690,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
                 )}
 
                 {/* Due date - hidden on mobile but present for alignment */}
-                <div className="hidden md:flex flex-shrink-0 w-16 text-center">
+                <div className="hidden md:flex flex-shrink-0 w-16 justify-center">
                   {editingDateTaskId === task.id && editingDateType === 'due_date' ? (
                     <input
                       ref={dateInputRef}
@@ -2098,7 +2098,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
                     )}
 
                     {/* Start date - hidden on mobile but present for alignment */}
-                    <div className="hidden md:flex flex-shrink-0 w-16 text-center">
+                    <div className="hidden md:flex flex-shrink-0 w-16 justify-center">
                       {editingDateTaskId === task.id && editingDateType === 'start_date' ? (
                         <input
                           ref={dateInputRef}
@@ -2130,7 +2130,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
 
                     {/* Completion date - only show in tracker view, hidden on mobile but present for alignment */}
                     {viewMode === 'tracker' && (
-                      <div className="hidden md:flex flex-shrink-0 w-16 text-center">
+                      <div className="hidden md:flex flex-shrink-0 w-16 justify-center">
                         {editingDateTaskId === task.id && editingDateType === 'completion_date' ? (
                           <input
                             ref={dateInputRef}
@@ -2162,7 +2162,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
                     )}
 
                     {/* Due date - hidden on mobile but present for alignment */}
-                    <div className="hidden md:flex flex-shrink-0 w-16 text-center">
+                    <div className="hidden md:flex flex-shrink-0 w-16 justify-center">
                       {editingDateTaskId === task.id && editingDateType === 'due_date' ? (
                         <input
                           ref={dateInputRef}
