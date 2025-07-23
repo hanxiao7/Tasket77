@@ -9,7 +9,8 @@ import {
   Calendar,
   ChevronDown,
   ChevronRight,
-  MessageSquarePlus
+  MessageSquarePlus,
+  MoreVertical
 } from 'lucide-react';
 import clsx from 'clsx';
 import TaskTooltip from './TaskTooltip';
@@ -491,6 +492,20 @@ const TaskRow: React.FC<TaskRowProps> = ({
             )}
           </div>
         )}
+      </div>
+
+      {/* Mobile three-dot menu */}
+      <div className="md:hidden flex-shrink-0">
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onContextMenu(e, task.id);
+          }}
+          className="p-0 rounded hover:bg-gray-100 transition-colors"
+          title="More options"
+        >
+          <MoreVertical className="w-2.5 h-2.5 text-gray-500" />
+        </button>
       </div>
     </div>
   );

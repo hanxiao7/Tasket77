@@ -1217,10 +1217,28 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
   // Context menu handlers
   const handleContextMenu = (e: React.MouseEvent, taskId: number) => {
     e.preventDefault();
+    
+    // For mobile (three-dot menu), position the context menu better
+    const isMobile = window.innerWidth < 768; // md breakpoint
+    let x = e.clientX;
+    let y = e.clientY;
+    
+    if (isMobile) {
+      // Position the menu to the right of the three-dot button, but ensure it stays on screen
+      const menuWidth = 150; // Approximate menu width
+      const menuHeight = 80; // Approximate menu height
+      
+      // Position to the right of the button
+      x = Math.min(x + 20, window.innerWidth - menuWidth - 10);
+      
+      // Position below the button, but ensure it doesn't go off screen
+      y = Math.min(y + 10, window.innerHeight - menuHeight - 10);
+    }
+    
     setContextMenu({
       visible: true,
-      x: e.clientX,
-      y: e.clientY,
+      x,
+      y,
       taskId
     });
   };
@@ -1384,6 +1402,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
                   <div className="hidden md:block w-16 text-center">Start</div>
                   {viewMode === 'tracker' && <div className="hidden md:block w-16 text-center">Complete</div>}
                   <div className="hidden md:block w-16 text-center">Due</div>
+                  <div className="md:hidden w-3"></div> {/* Mobile three-dot menu space */}
                 </div>
 
                 {groupedTasks?.[groupName]?.map((task) => (
@@ -1469,6 +1488,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
             <div className="hidden md:block w-16 text-center">Start</div>
             {viewMode === 'tracker' && <div className="hidden md:block w-16 text-center">Complete</div>}
             <div className="hidden md:block w-16 text-center">Due</div>
+            <div className="md:hidden w-3"></div> {/* Mobile three-dot menu space */}
           </div>
           
           {/* All tasks in single list */}
@@ -1597,7 +1617,8 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
           style={{
             left: contextMenu.x,
             top: contextMenu.y,
-            minWidth: '150px'
+            minWidth: '150px',
+            maxWidth: '200px'
           }}
           onClick={(e) => e.stopPropagation()}
         >
@@ -1609,7 +1630,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
               }
               handleContextMenuClose();
             }}
-            className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center space-x-2"
+            className="w-full px-4 py-3 text-left text-sm text-gray-700 hover:bg-gray-50 active:bg-gray-100 flex items-center space-x-2 transition-colors"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -1618,7 +1639,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
           </button>
           <button
             onClick={() => handleDeleteTask(contextMenu.taskId!)}
-            className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center space-x-2"
+            className="w-full px-4 py-3 text-left text-sm text-red-600 hover:bg-red-50 active:bg-red-100 flex items-center space-x-2 transition-colors"
           >
             <Trash2 className="w-4 h-4" />
             <span>Delete Task</span>
