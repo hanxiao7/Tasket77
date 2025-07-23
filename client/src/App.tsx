@@ -56,45 +56,74 @@ function MainApp() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-6xl mx-auto p-6">
+      <div className="max-w-6xl mx-auto p-3 md:p-6">
         {/* Header */}
         <div className="mb-6">
-          <div className="flex items-start justify-between mb-2">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">Tasket77</h1>
-              <p className="text-gray-600">Quick to log. Easy to maintain. See what got done.</p>
+          {/* Mobile Layout: Stack vertically */}
+          <div className="md:hidden">
+            {/* Top row: App name and logout */}
+            <div className="flex items-center justify-between mb-3">
+              <h1 className="text-2xl font-bold text-gray-900">Tasket77</h1>
+              {user && (
+                <button
+                  onClick={logout}
+                  className="px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-white rounded-md border border-gray-300 transition-colors"
+                  title="Logout"
+                >
+                  Logout
+                </button>
+              )}
             </div>
-            <div className="flex flex-col items-end space-y-2">
-              <div className="flex items-center space-x-4">
-                <WorkspaceSelector 
-                  selectedWorkspaceId={selectedWorkspaceId}
-                  onWorkspaceChange={handleWorkspaceChange}
-                />
-                {user && (
-                  <button
-                    onClick={logout}
-                    className="px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-white rounded-md border border-gray-300 transition-colors"
-                    title="Logout"
-                  >
-                    Logout
-                  </button>
-                )}
+            {/* Second row: Workspace selector */}
+            <div className="mb-3">
+              <WorkspaceSelector 
+                selectedWorkspaceId={selectedWorkspaceId}
+                onWorkspaceChange={handleWorkspaceChange}
+              />
+            </div>
+          </div>
+
+          {/* Desktop Layout: Original horizontal layout */}
+          <div className="hidden md:block">
+            <div className="flex items-start justify-between mb-2">
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900">Tasket77</h1>
+                <p className="text-gray-600">Quick to log. Easy to maintain. See what got done.</p>
               </div>
-              {/* Task Summary */}
-              <TaskSummary tasks={currentTasks} />
+              <div className="flex flex-col items-end space-y-2">
+                <div className="flex items-center space-x-4">
+                  <WorkspaceSelector 
+                    selectedWorkspaceId={selectedWorkspaceId}
+                    onWorkspaceChange={handleWorkspaceChange}
+                  />
+                  {user && (
+                    <button
+                      onClick={logout}
+                      className="px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-white rounded-md border border-gray-300 transition-colors"
+                      title="Logout"
+                    >
+                      Logout
+                    </button>
+                  )}
+                </div>
+                {/* Task Summary - hidden on mobile */}
+                <TaskSummary tasks={currentTasks} />
+              </div>
             </div>
           </div>
         </div>
         {/* View Tabs */}
-        <div className="mb-6">
-          <div className="flex items-center justify-between">
+        <div className="mb-4">
+          {/* Mobile Layout: Stack controls vertically */}
+          <div className="md:hidden space-y-3">
+            {/* Tabs */}
             <div className="flex space-x-1 bg-white rounded-lg p-1 shadow-sm">
               <button
                 onClick={() => {
                   setViewMode('planner');
                   setFilters({ ...filters, view: 'planner', show_completed: false });
                 }}
-                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex-1 ${
                   viewMode === 'planner'
                     ? 'bg-blue-100 text-blue-700'
                     : 'text-gray-600 hover:text-gray-900'
@@ -107,7 +136,7 @@ function MainApp() {
                   setViewMode('tracker');
                   setFilters({ ...filters, view: 'tracker', show_completed: true });
                 }}
-                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex-1 ${
                   viewMode === 'tracker'
                     ? 'bg-blue-100 text-blue-700'
                     : 'text-gray-600 hover:text-gray-900'
@@ -116,7 +145,9 @@ function MainApp() {
                 Tracker
               </button>
             </div>
-            <div className="flex items-center space-x-3">
+            
+            {/* Controls row */}
+            <div className="flex items-center justify-between">
               {/* Show completed toggle for planner */}
               {viewMode === 'planner' && (
                 <label className="flex items-center space-x-2 text-sm">
@@ -146,20 +177,102 @@ function MainApp() {
                   </select>
                 </div>
               )}
-              <button
-                onClick={handleSort}
-                className="flex items-center justify-center w-10 h-10 text-gray-600 hover:text-gray-900 hover:bg-white rounded-md transition-colors"
-                title="Sort Tasks"
-              >
-                <ArrowUpDown className="w-4 h-4" />
-              </button>
-              <button
-                onClick={handleExport}
-                className="flex items-center justify-center w-10 h-10 text-gray-600 hover:text-gray-900 hover:bg-white rounded-md transition-colors"
-                title="Export tasks"
-              >
-                <Download className="w-4 h-4" />
-              </button>
+              <div className="flex space-x-2">
+                <button
+                  onClick={handleSort}
+                  className="flex items-center justify-center w-10 h-10 text-gray-600 hover:text-gray-900 hover:bg-white rounded-md transition-colors"
+                  title="Sort Tasks"
+                >
+                  <ArrowUpDown className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={handleExport}
+                  className="flex items-center justify-center w-10 h-10 text-gray-600 hover:text-gray-900 hover:bg-white rounded-md transition-colors"
+                  title="Export tasks"
+                >
+                  <Download className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Desktop Layout: Original horizontal layout */}
+          <div className="hidden md:block">
+            <div className="flex items-center justify-between">
+              <div className="flex space-x-1 bg-white rounded-lg p-1 shadow-sm">
+                <button
+                  onClick={() => {
+                    setViewMode('planner');
+                    setFilters({ ...filters, view: 'planner', show_completed: false });
+                  }}
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                    viewMode === 'planner'
+                      ? 'bg-blue-100 text-blue-700'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  Planner
+                </button>
+                <button
+                  onClick={() => {
+                    setViewMode('tracker');
+                    setFilters({ ...filters, view: 'tracker', show_completed: true });
+                  }}
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                    viewMode === 'tracker'
+                      ? 'bg-blue-100 text-blue-700'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  Tracker
+                </button>
+              </div>
+              
+              <div className="flex items-center space-x-4">
+                {/* Show completed toggle for planner */}
+                {viewMode === 'planner' && (
+                  <label className="flex items-center space-x-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={filters.show_completed}
+                      onChange={(e) => setFilters({ ...filters, show_completed: e.target.checked })}
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <span>Show completed</span>
+                  </label>
+                )}
+                {/* Days filter for tracker */}
+                {viewMode === 'tracker' && (
+                  <div className="flex items-center space-x-2">
+                    <span className="text-sm text-gray-600">Last</span>
+                    <select
+                      value={filters.days || 7}
+                      onChange={(e) => setFilters({ ...filters, days: Number(e.target.value) })}
+                      className="px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value={1}>1 day</option>
+                      <option value={3}>3 days</option>
+                      <option value={7}>7 days</option>
+                      <option value={14}>14 days</option>
+                      <option value={30}>30 days</option>
+                    </select>
+                  </div>
+                )}
+                <button
+                  onClick={handleSort}
+                  className="flex items-center justify-center w-10 h-10 text-gray-600 hover:text-gray-900 hover:bg-white rounded-md transition-colors"
+                  title="Sort Tasks"
+                >
+                  <ArrowUpDown className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={handleExport}
+                  className="flex items-center justify-center w-10 h-10 text-gray-600 hover:text-gray-900 hover:bg-white rounded-md transition-colors"
+                  title="Export tasks"
+                >
+                  <Download className="w-4 h-4" />
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -176,9 +289,9 @@ function MainApp() {
           />
         </div>
         {/* Instructions */}
-        <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-          <h3 className="font-medium text-blue-900 mb-2">Quick Tips:</h3>
-          <ul className="text-sm text-blue-800 space-y-1">
+        <div className="mt-6 p-3 md:p-4 bg-blue-50 rounded-lg">
+          <h3 className="font-medium text-blue-900 mb-2 text-sm md:text-base">Quick Tips:</h3>
+          <ul className="text-xs md:text-sm text-blue-800 space-y-1">
             <li>• Planner view helps create and follow tasks. Switch to Tracker to review recent progress.</li>
             <li>• Use tags to classify tasks by category or theme</li>
             <li>• Click the status button to cycle through: To Do → In Progress → Paused → In Progress → …</li>

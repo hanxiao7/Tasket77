@@ -1227,7 +1227,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
         <Plus className="w-5 h-5 text-blue-500" />
         <div className="relative">
           <div
-            className="text-sm rounded-md px-3 py-1.5 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-44 cursor-pointer bg-white hover:bg-gray-50 transition-colors min-h-[32px] flex items-center"
+            className="text-sm rounded-md px-3 py-1.5 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-32 md:w-44 cursor-pointer bg-white hover:bg-gray-50 transition-colors min-h-[32px] flex items-center"
             onClick={(e) => {
               e.stopPropagation();
               setShowNewTaskTagDropdown(!showNewTaskTagDropdown);
@@ -1350,9 +1350,9 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
                 <div className="w-6"></div> {/* Priority */}
                 <div className="flex-1">Task</div>
                 {viewMode === 'planner' && <div className="w-20 text-center">Tag</div>}
-                <div className="w-16 text-center">Start</div>
-                {viewMode === 'tracker' && <div className="w-16 text-center">Complete</div>}
-                <div className="w-16 text-center">Due</div>
+                <div className="hidden md:block w-16 text-center">Start</div>
+                {viewMode === 'tracker' && <div className="hidden md:block w-16 text-center">Complete</div>}
+                <div className="hidden md:block w-16 text-center">Due</div>
               </div>
               
               {groupedTasks[groupName].map((task) => (
@@ -1486,10 +1486,12 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
                         
                         {/* Title Tooltip - show on hover for truncated titles only */}
                         {hoveredTask === task.id && (
-                          <TitleTooltip 
-                            title={task.title} 
-                            titleRef={titleRefs.current.get(task.id)} 
-                          />
+                          <div className="hidden md:block">
+                            <TitleTooltip 
+                              title={task.title} 
+                              titleRef={titleRefs.current.get(task.id)} 
+                            />
+                          </div>
                         )}
                       </div>
                     )}
@@ -1498,6 +1500,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
                     {chatIcons.has(task.id) && (
                       <div
                         data-chat-icon
+                        className="hidden md:block"
                         onMouseEnter={(e) => {
                           // Clear any existing timer when mouse enters chat icon
                           const existingTimer = tooltipTimers.get(task.id);
@@ -1546,6 +1549,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
                     {/* Description Tooltip */}
                     {visibleTooltips.has(task.id) && (
                       <div
+                        className="hidden md:block"
                         onMouseEnter={() => {
                           // Clear any existing timer when mouse enters tooltip
                           const existingTimer = tooltipTimers.get(task.id);
@@ -1667,7 +1671,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
                   )}
 
                   {/* Start date */}
-                  <div className="flex-shrink-0 w-16 text-center">
+                  <div className="hidden md:flex flex-shrink-0 w-16 text-center">
                     {editingDateTaskId === task.id && editingDateType === 'start_date' ? (
                       <input
                         ref={dateInputRef}
@@ -1699,7 +1703,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
 
                   {/* Completion date - only show in tracker view */}
                   {viewMode === 'tracker' && (
-                    <div className="flex-shrink-0 w-16 text-center">
+                    <div className="hidden md:flex flex-shrink-0 w-16 text-center">
                       {editingDateTaskId === task.id && editingDateType === 'completion_date' ? (
                         <input
                           ref={dateInputRef}
@@ -1731,7 +1735,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
                   )}
 
                   {/* Due date */}
-                  <div className="flex-shrink-0 w-16 text-center">
+                  <div className="hidden md:flex flex-shrink-0 w-16 text-center">
                     {editingDateTaskId === task.id && editingDateType === 'due_date' ? (
                       <input
                         ref={dateInputRef}

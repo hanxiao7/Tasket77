@@ -128,7 +128,7 @@ const WorkspaceSelector: React.FC<WorkspaceSelectorProps> = ({
   };
 
   return (
-    <div className="relative w-64">
+    <div className="relative w-full md:w-64">
       {/* Main Selector */}
       <button
         onClick={() => setIsOpen(!isOpen)}
