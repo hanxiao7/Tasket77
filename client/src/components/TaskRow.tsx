@@ -552,10 +552,10 @@ const TaskRow: React.FC<TaskRowProps> = ({
             e.stopPropagation();
             onContextMenu(e, task.id);
           }}
-          className="p-0 rounded hover:bg-gray-100 transition-colors"
+          className="p-2 rounded hover:bg-gray-100 transition-colors"
           title="More options"
         >
-          <MoreVertical className="w-2.5 h-2.5 text-gray-500" />
+          <MoreVertical className="w-4 h-4 text-gray-500" />
         </button>
       </div>
     </div>

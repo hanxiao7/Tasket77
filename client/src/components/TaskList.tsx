@@ -1427,11 +1427,11 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
                   <div className="w-4"></div> {/* Status */}
                   <div className="w-4"></div> {/* Priority */}
                   <div className="flex-1">Task</div>
-                  {viewMode === 'planner' && <div className="w-20 text-center">Tag</div>}
+                  {viewMode === 'planner' && <div className="hidden sm:block w-20 text-center">Tag</div>}
                   <div className="hidden sm:block w-12 text-center">Start</div>
                   {viewMode === 'tracker' && <div className="hidden sm:block w-12 text-center">Complete</div>}
                   <div className="hidden sm:block w-12 text-center">Due</div>
-                  <div className="w-3"></div> {/* Three-dot menu space */}
+                  <div className="w-8"></div> {/* Three-dot menu space */}
                 </div>
 
                 {groupedTasks?.[groupName]?.map((task) => (
@@ -1513,11 +1513,11 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
             <div className="w-4"></div> {/* Status */}
             <div className="w-4"></div> {/* Priority */}
             <div className="flex-1">Task</div>
-            {viewMode === 'planner' && <div className="w-20 text-center">Tag</div>}
+            {viewMode === 'planner' && <div className="hidden sm:block w-20 text-center">Tag</div>}
             <div className="hidden sm:block w-12 text-center">Start</div>
             {viewMode === 'tracker' && <div className="hidden sm:block w-12 text-center">Complete</div>}
             <div className="hidden sm:block w-12 text-center">Due</div>
-            <div className="w-3"></div> {/* Three-dot menu space */}
+            <div className="w-8"></div> {/* Three-dot menu space */}
           </div>
           
           {/* All tasks in single list */}
