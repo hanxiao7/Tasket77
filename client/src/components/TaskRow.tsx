@@ -400,7 +400,7 @@ const TaskRow: React.FC<TaskRowProps> = ({
       )}
 
       {/* Start date */}
-      <div className="hidden sm:flex flex-shrink-0 w-16 justify-center">
+      <div className="hidden sm:flex flex-shrink-0 w-12 justify-center">
         {editingDateTaskId === task.id && editingDateType === 'start_date' ? (
           <div className="relative w-full">
             <input
@@ -449,7 +449,7 @@ const TaskRow: React.FC<TaskRowProps> = ({
 
       {/* Completion date - only show in tracker view */}
       {viewMode === 'tracker' && (
-        <div className="hidden sm:flex flex-shrink-0 w-16 justify-center">
+        <div className="hidden sm:flex flex-shrink-0 w-12 justify-center">
           {editingDateTaskId === task.id && editingDateType === 'completion_date' ? (
             <div className="relative w-full">
               <input
@@ -498,7 +498,7 @@ const TaskRow: React.FC<TaskRowProps> = ({
       )}
 
       {/* Due date */}
-      <div className="hidden sm:flex flex-shrink-0 w-16 justify-center">
+      <div className="hidden sm:flex flex-shrink-0 w-12 justify-center">
         {editingDateTaskId === task.id && editingDateType === 'due_date' ? (
           <div className="relative w-full">
             <input
