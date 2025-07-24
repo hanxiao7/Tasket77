@@ -302,9 +302,9 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, tags, onClose, onSa
 
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-6">
-      <div className="bg-gray-50 rounded-lg p-10 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-        <div className="flex items-start justify-between mb-4">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 sm:p-6">
+      <div className="bg-gray-50 rounded-lg p-4 sm:p-6 lg:p-8 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div className="flex items-start justify-between mb-6">
           <div className="flex-1 mr-4">
             {isEditingTitle ? (
               <input
@@ -335,11 +335,11 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, tags, onClose, onSa
           </button>
         </div>
 
-        <form className="space-y-4">
-          {/* Tag and Due Date - side by side */}
-          <div className="grid grid-cols-2 gap-4">
+        <form className="space-y-6">
+          {/* Tag and Due Date - responsive grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
                 Tag
               </label>
               <select
@@ -348,7 +348,7 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, tags, onClose, onSa
                   setFormData({ ...formData, tag_id: e.target.value });
                   await handleTagAutoSave(e.target.value);
                 }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
               >
                 <option value="">Select a tag</option>
                 {tags.filter(tag => tag.hidden !== true).map((tag) => (
@@ -360,7 +360,7 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, tags, onClose, onSa
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
                 Due Date
               </label>
               <input
@@ -371,18 +371,18 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, tags, onClose, onSa
                   setFormData({ ...formData, due_date: onlyDate });
                   await handleDateAutoSave('due_date', onlyDate);
                 }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
               />
             </div>
           </div>
 
-          {/* Status and Priority - side by side with cycling buttons */}
-          <div className="grid grid-cols-2 gap-4">
+          {/* Status and Priority - responsive grid with better spacing */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
                 Status
               </label>
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-3">
                 <button
                   type="button"
                   onClick={async (e) => {
@@ -406,7 +406,7 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, tags, onClose, onSa
                     setFormData((prev) => ({ ...prev, status: 'done' }));
                   }}
                   className={clsx(
-                    "px-3 py-2 rounded-md border border-gray-300 bg-white hover:bg-gray-200 transition-colors min-w-[44px] flex items-center justify-center",
+                    "px-3 py-2.5 rounded-md border border-gray-300 bg-white hover:bg-gray-200 transition-colors min-w-[48px] flex items-center justify-center",
                     getStatusColor(formData.status)
                   )}
                   title="Click to cycle status"
@@ -420,7 +420,7 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, tags, onClose, onSa
                     setFormData({ ...formData, status: newStatus });
                     await handleStatusAutoSave(newStatus);
                   }}
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="flex-1 px-3 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                 >
                   <option value="todo">To Do</option>
                   <option value="in_progress">In Progress</option>
@@ -431,14 +431,14 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, tags, onClose, onSa
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
                 Priority
               </label>
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-3">
                 <button
                   type="button"
                   onClick={handlePriorityClick}
-                  className="px-3 py-2 rounded-md border border-gray-300 bg-white hover:bg-gray-200 transition-colors min-w-[44px] flex items-center justify-center"
+                  className="px-3 py-2.5 rounded-md border border-gray-300 bg-white hover:bg-gray-200 transition-colors min-w-[48px] flex items-center justify-center"
                   title="Click to cycle priority"
                 >
                   {getPriorityIcon(formData.priority)}
@@ -450,7 +450,7 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, tags, onClose, onSa
                     setFormData({ ...formData, priority: newPriority });
                     await handlePriorityAutoSave(newPriority);
                   }}
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="flex-1 px-3 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                 >
                   <option value="low">Low</option>
                   <option value="normal">Normal</option>
@@ -461,10 +461,10 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, tags, onClose, onSa
             </div>
           </div>
 
-          {/* Start Date and Completion Date - side by side */}
-          <div className="grid grid-cols-2 gap-4">
+          {/* Start Date and Completion Date - responsive grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
                 Start Date
               </label>
               <input
@@ -475,12 +475,12 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, tags, onClose, onSa
                   setFormData({ ...formData, start_date: onlyDate });
                   await handleDateAutoSave('start_date', onlyDate);
                 }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
                 Completion Date
               </label>
               <input
@@ -491,14 +491,14 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, tags, onClose, onSa
                   setFormData({ ...formData, completion_date: onlyDate });
                   await handleDateAutoSave('completion_date', onlyDate);
                 }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
               />
             </div>
           </div>
 
           {/* Description - full width at bottom */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
               Description
             </label>
             <textarea
@@ -506,13 +506,11 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, tags, onClose, onSa
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               onBlur={async () => await handleDescriptionAutoSave(formData.description)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none text-sm"
               placeholder="Enter task description..."
-              style={{ minHeight: '100px', maxHeight: '400px' }}
+              style={{ minHeight: '120px', maxHeight: '400px' }}
             />
           </div>
-
-
         </form>
       </div>
     </div>
