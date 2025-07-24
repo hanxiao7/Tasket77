@@ -367,7 +367,7 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, tags, onClose, onSa
               <div className="relative">
                 <input
                   type="date"
-                  value={formData.due_date}
+                  value={formData.due_date || ''}
                   onChange={async (e) => {
                     const onlyDate = e.target.value; // already in YYYY-MM-DD
                     setFormData({ ...formData, due_date: onlyDate });
@@ -489,7 +489,7 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, tags, onClose, onSa
               <div className="relative">
                 <input
                   type="date"
-                  value={formData.start_date}
+                  value={formData.start_date || ''}
                   onChange={async (e) => {
                     const onlyDate = e.target.value; // already in YYYY-MM-DD
                     setFormData({ ...formData, start_date: onlyDate });
@@ -522,7 +522,7 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, tags, onClose, onSa
               <div className="relative">
                 <input
                   type="date"
-                  value={formData.completion_date}
+                  value={formData.completion_date || ''}
                   onChange={async (e) => {
                     const onlyDate = e.target.value; // already in YYYY-MM-DD
                     setFormData({ ...formData, completion_date: onlyDate });
