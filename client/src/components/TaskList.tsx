@@ -994,6 +994,35 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
     }, 10);
   };
 
+  // Handle mobile date picker reset functionality
+  const handleDateInputChange = (e: React.ChangeEvent<HTMLInputElement>, taskId: number) => {
+    const newValue = e.target.value;
+    setEditingDateValue(newValue);
+    
+    // For mobile, also handle the case where the date picker is closed without a selection
+    // This helps with the "Reset" button functionality
+    if (!newValue) {
+      // If the value is empty, it means the date was cleared (Reset button pressed)
+      setTimeout(() => {
+        handleDateSave(taskId);
+      }, 100); // Small delay to ensure the picker is fully closed
+    }
+  };
+
+  // Enhanced date change handler that works better with mobile date pickers
+  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>, taskId: number) => {
+    const newValue = e.target.value;
+    setEditingDateValue(newValue);
+    
+    // For mobile date pickers, handle the reset functionality
+    if (!newValue) {
+      // When the value is empty (Reset button pressed), save immediately
+      setTimeout(() => {
+        handleDateSave(taskId);
+      }, 150); // Slightly longer delay for mobile picker to fully close
+    }
+  };
+
   const handleDateSave = async (taskId: number) => {
     if (!editingDateType) return;
     

@@ -406,7 +406,20 @@ const TaskRow: React.FC<TaskRowProps> = ({
             ref={dateInputRef}
             type="date"
             value={editingDateValue}
-            onChange={(e) => onSetEditingDateValue(e.target.value)}
+            onChange={(e) => {
+              onSetEditingDateValue(e.target.value);
+              // Handle mobile date picker reset
+              if (!e.target.value) {
+                setTimeout(() => onDateSave(task.id), 150);
+              }
+            }}
+            onInput={(e) => {
+              // Additional handler for mobile date picker reset
+              const target = e.target as HTMLInputElement;
+              if (!target.value) {
+                setTimeout(() => onDateSave(task.id), 200);
+              }
+            }}
             onKeyPress={(e) => onDateKeyPress(e, task.id)}
             onBlur={() => onDateSave(task.id)}
             className="text-xs border border-gray-300 rounded px-1 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500 w-full"
@@ -438,7 +451,20 @@ const TaskRow: React.FC<TaskRowProps> = ({
               ref={dateInputRef}
               type="date"
               value={editingDateValue}
-              onChange={(e) => onSetEditingDateValue(e.target.value)}
+              onChange={(e) => {
+                onSetEditingDateValue(e.target.value);
+                // Handle mobile date picker reset
+                if (!e.target.value) {
+                  setTimeout(() => onDateSave(task.id), 150);
+                }
+              }}
+              onInput={(e) => {
+                // Additional handler for mobile date picker reset
+                const target = e.target as HTMLInputElement;
+                if (!target.value) {
+                  setTimeout(() => onDateSave(task.id), 200);
+                }
+              }}
               onKeyPress={(e) => onDateKeyPress(e, task.id)}
               onBlur={() => onDateSave(task.id)}
               className="text-xs border border-gray-300 rounded px-1 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500 w-full"
@@ -470,7 +496,20 @@ const TaskRow: React.FC<TaskRowProps> = ({
             ref={dateInputRef}
             type="date"
             value={editingDateValue}
-            onChange={(e) => onSetEditingDateValue(e.target.value)}
+            onChange={(e) => {
+              onSetEditingDateValue(e.target.value);
+              // Handle mobile date picker reset
+              if (!e.target.value) {
+                setTimeout(() => onDateSave(task.id), 150);
+              }
+            }}
+            onInput={(e) => {
+              // Additional handler for mobile date picker reset
+              const target = e.target as HTMLInputElement;
+              if (!target.value) {
+                setTimeout(() => onDateSave(task.id), 200);
+              }
+            }}
             onKeyPress={(e) => onDateKeyPress(e, task.id)}
             onBlur={() => onDateSave(task.id)}
             className="text-xs border border-gray-300 rounded px-1 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500 w-full"
