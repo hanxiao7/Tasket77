@@ -348,7 +348,7 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, tags, onClose, onSa
                   setFormData({ ...formData, tag_id: e.target.value });
                   await handleTagAutoSave(e.target.value);
                 }}
-                className="w-full px-3 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm appearance-none bg-white"
+                className="w-full px-3 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm appearance-none bg-white min-h-[40px]"
                 style={{ WebkitAppearance: 'none', MozAppearance: 'none' }}
               >
                 <option value="">Select a tag</option>
@@ -367,13 +367,13 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, tags, onClose, onSa
               <div className="relative">
                 <input
                   type="date"
-                  value={formData.due_date || ''}
+                  value={formData.due_date}
                   onChange={async (e) => {
                     const onlyDate = e.target.value; // already in YYYY-MM-DD
                     setFormData({ ...formData, due_date: onlyDate });
                     await handleDateAutoSave('due_date', onlyDate);
                   }}
-                  className="w-full px-3 py-2.5 pr-8 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm appearance-none bg-white"
+                  className="w-full px-3 py-2.5 pr-8 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm appearance-none bg-white min-h-[40px]"
                   style={{ WebkitAppearance: 'none', MozAppearance: 'none' }}
                   placeholder="mm/dd/yyyy"
                 />
@@ -437,7 +437,7 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, tags, onClose, onSa
                     setFormData({ ...formData, status: newStatus });
                     await handleStatusAutoSave(newStatus);
                   }}
-                  className="flex-1 px-3 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm appearance-none bg-white"
+                  className="flex-1 px-3 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm appearance-none bg-white min-h-[40px]"
                   style={{ WebkitAppearance: 'none', MozAppearance: 'none' }}
                 >
                 <option value="todo">To Do</option>
@@ -469,7 +469,7 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, tags, onClose, onSa
                     setFormData({ ...formData, priority: newPriority });
                     await handlePriorityAutoSave(newPriority);
                   }}
-                  className="flex-1 px-3 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm appearance-none bg-white"
+                  className="flex-1 px-3 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm appearance-none bg-white min-h-[40px]"
                   style={{ WebkitAppearance: 'none', MozAppearance: 'none' }}
                 >
                 <option value="low">Low</option>
@@ -489,13 +489,13 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, tags, onClose, onSa
               <div className="relative">
                 <input
                   type="date"
-                  value={formData.start_date || ''}
+                  value={formData.start_date}
                   onChange={async (e) => {
                     const onlyDate = e.target.value; // already in YYYY-MM-DD
                     setFormData({ ...formData, start_date: onlyDate });
                     await handleDateAutoSave('start_date', onlyDate);
                   }}
-                  className="w-full px-3 py-2.5 pr-8 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm appearance-none bg-white"
+                  className="w-full px-3 py-2.5 pr-8 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm appearance-none bg-white min-h-[40px]"
                   style={{ WebkitAppearance: 'none', MozAppearance: 'none' }}
                   placeholder="mm/dd/yyyy"
                 />
@@ -522,13 +522,13 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, tags, onClose, onSa
               <div className="relative">
                 <input
                   type="date"
-                  value={formData.completion_date || ''}
+                  value={formData.completion_date}
                   onChange={async (e) => {
                     const onlyDate = e.target.value; // already in YYYY-MM-DD
                     setFormData({ ...formData, completion_date: onlyDate });
                     await handleDateAutoSave('completion_date', onlyDate);
                   }}
-                  className="w-full px-3 py-2.5 pr-8 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm appearance-none bg-white"
+                  className="w-full px-3 py-2.5 pr-8 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm appearance-none bg-white min-h-[40px]"
                   style={{ WebkitAppearance: 'none', MozAppearance: 'none' }}
                   placeholder="mm/dd/yyyy"
                 />
