@@ -402,29 +402,33 @@ const TaskRow: React.FC<TaskRowProps> = ({
       {/* Start date */}
       <div className="hidden sm:flex flex-shrink-0 w-16 justify-center">
         {editingDateTaskId === task.id && editingDateType === 'start_date' ? (
-          <input
-            ref={dateInputRef}
-            type="date"
-            value={editingDateValue}
-            onChange={(e) => {
-              onSetEditingDateValue(e.target.value);
-              // Handle mobile date picker reset
-              if (!e.target.value) {
-                setTimeout(() => onDateSave(task.id), 150);
-              }
-            }}
-            onInput={(e) => {
-              // Additional handler for mobile date picker reset
-              const target = e.target as HTMLInputElement;
-              if (!target.value) {
-                setTimeout(() => onDateSave(task.id), 200);
-              }
-            }}
-            onKeyPress={(e) => onDateKeyPress(e, task.id)}
-            onBlur={() => onDateSave(task.id)}
-            className="text-xs border border-gray-300 rounded px-1 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500 w-full"
-            title="Press Enter to save, Escape to cancel"
-          />
+          <div className="relative w-full">
+            <input
+              ref={dateInputRef}
+              type="date"
+              value={editingDateValue}
+              onChange={(e) => {
+                onSetEditingDateValue(e.target.value);
+              }}
+              onKeyPress={(e) => onDateKeyPress(e, task.id)}
+              onBlur={() => onDateSave(task.id)}
+              className="text-xs border border-gray-300 rounded px-1 py-1 pr-5 focus:outline-none focus:ring-1 focus:ring-blue-500 w-full"
+              title="Press Enter to save, Escape to cancel"
+            />
+            {editingDateValue && (
+              <button
+                type="button"
+                onClick={() => {
+                  onSetEditingDateValue('');
+                  onDateSave(task.id);
+                }}
+                className="absolute right-1 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-red-500 text-xs font-bold"
+                title="Clear date"
+              >
+                ×
+              </button>
+            )}
+          </div>
         ) : (
           <div 
             className="flex items-center justify-center text-xs text-gray-500 cursor-pointer hover:text-blue-600 hover:bg-blue-50 px-1 py-1 rounded min-h-[20px]"
@@ -447,29 +451,33 @@ const TaskRow: React.FC<TaskRowProps> = ({
       {viewMode === 'tracker' && (
         <div className="hidden sm:flex flex-shrink-0 w-16 justify-center">
           {editingDateTaskId === task.id && editingDateType === 'completion_date' ? (
-            <input
-              ref={dateInputRef}
-              type="date"
-              value={editingDateValue}
-              onChange={(e) => {
-                onSetEditingDateValue(e.target.value);
-                // Handle mobile date picker reset
-                if (!e.target.value) {
-                  setTimeout(() => onDateSave(task.id), 150);
-                }
-              }}
-              onInput={(e) => {
-                // Additional handler for mobile date picker reset
-                const target = e.target as HTMLInputElement;
-                if (!target.value) {
-                  setTimeout(() => onDateSave(task.id), 200);
-                }
-              }}
-              onKeyPress={(e) => onDateKeyPress(e, task.id)}
-              onBlur={() => onDateSave(task.id)}
-              className="text-xs border border-gray-300 rounded px-1 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500 w-full"
-              title="Press Enter to save, Escape to cancel"
-            />
+            <div className="relative w-full">
+              <input
+                ref={dateInputRef}
+                type="date"
+                value={editingDateValue}
+                onChange={(e) => {
+                  onSetEditingDateValue(e.target.value);
+                }}
+                onKeyPress={(e) => onDateKeyPress(e, task.id)}
+                onBlur={() => onDateSave(task.id)}
+                className="text-xs border border-gray-300 rounded px-1 py-1 pr-5 focus:outline-none focus:ring-1 focus:ring-blue-500 w-full"
+                title="Press Enter to save, Escape to cancel"
+              />
+              {editingDateValue && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onSetEditingDateValue('');
+                    onDateSave(task.id);
+                  }}
+                  className="absolute right-1 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-red-500 text-xs font-bold"
+                  title="Clear date"
+                >
+                  ×
+                </button>
+              )}
+            </div>
           ) : (
             <div 
               className="flex items-center justify-center text-xs text-gray-500 cursor-pointer hover:text-blue-600 hover:bg-blue-50 px-1 py-1 rounded min-h-[20px]"
@@ -492,29 +500,33 @@ const TaskRow: React.FC<TaskRowProps> = ({
       {/* Due date */}
       <div className="hidden sm:flex flex-shrink-0 w-16 justify-center">
         {editingDateTaskId === task.id && editingDateType === 'due_date' ? (
-          <input
-            ref={dateInputRef}
-            type="date"
-            value={editingDateValue}
-            onChange={(e) => {
-              onSetEditingDateValue(e.target.value);
-              // Handle mobile date picker reset
-              if (!e.target.value) {
-                setTimeout(() => onDateSave(task.id), 150);
-              }
-            }}
-            onInput={(e) => {
-              // Additional handler for mobile date picker reset
-              const target = e.target as HTMLInputElement;
-              if (!target.value) {
-                setTimeout(() => onDateSave(task.id), 200);
-              }
-            }}
-            onKeyPress={(e) => onDateKeyPress(e, task.id)}
-            onBlur={() => onDateSave(task.id)}
-            className="text-xs border border-gray-300 rounded px-1 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500 w-full"
-            title="Press Enter to save, Escape to cancel"
-          />
+          <div className="relative w-full">
+            <input
+              ref={dateInputRef}
+              type="date"
+              value={editingDateValue}
+              onChange={(e) => {
+                onSetEditingDateValue(e.target.value);
+              }}
+              onKeyPress={(e) => onDateKeyPress(e, task.id)}
+              onBlur={() => onDateSave(task.id)}
+              className="text-xs border border-gray-300 rounded px-1 py-1 pr-5 focus:outline-none focus:ring-1 focus:ring-blue-500 w-full"
+              title="Press Enter to save, Escape to cancel"
+            />
+            {editingDateValue && (
+              <button
+                type="button"
+                onClick={() => {
+                  onSetEditingDateValue('');
+                  onDateSave(task.id);
+                }}
+                className="absolute right-1 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-red-500 text-xs font-bold"
+                title="Clear date"
+              >
+                ×
+              </button>
+            )}
+          </div>
         ) : (
           <div 
             className="flex items-center justify-center text-xs text-gray-500 cursor-pointer hover:text-blue-600 hover:bg-blue-50 px-1 py-1 rounded min-h-[20px]"
