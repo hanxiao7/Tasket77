@@ -348,7 +348,8 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, tags, onClose, onSa
                   setFormData({ ...formData, tag_id: e.target.value });
                   await handleTagAutoSave(e.target.value);
                 }}
-                className="w-full px-3 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                className="w-full px-3 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm appearance-none bg-white"
+                style={{ WebkitAppearance: 'none', MozAppearance: 'none' }}
               >
                 <option value="">Select a tag</option>
                 {tags.filter(tag => tag.hidden !== true).map((tag) => (
@@ -374,6 +375,7 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, tags, onClose, onSa
                   }}
                   className="w-full px-3 py-2.5 pr-8 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm appearance-none bg-white"
                   style={{ WebkitAppearance: 'none', MozAppearance: 'none' }}
+                  placeholder="mm/dd/yyyy"
                 />
                 {formData.due_date && (
                   <button
@@ -428,15 +430,16 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, tags, onClose, onSa
               >
                 {getStatusIcon(formData.status)}
               </button>
-              <select
-                value={formData.status}
-                onChange={async (e) => {
-                  const newStatus = e.target.value as Task['status'];
-                  setFormData({ ...formData, status: newStatus });
-                  await handleStatusAutoSave(newStatus);
-                }}
-                className="flex-1 px-3 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-              >
+                              <select
+                  value={formData.status}
+                  onChange={async (e) => {
+                    const newStatus = e.target.value as Task['status'];
+                    setFormData({ ...formData, status: newStatus });
+                    await handleStatusAutoSave(newStatus);
+                  }}
+                  className="flex-1 px-3 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm appearance-none bg-white"
+                  style={{ WebkitAppearance: 'none', MozAppearance: 'none' }}
+                >
                 <option value="todo">To Do</option>
                 <option value="in_progress">In Progress</option>
                 <option value="paused">Paused</option>
@@ -459,15 +462,16 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, tags, onClose, onSa
               >
                 {getPriorityIcon(formData.priority)}
               </button>
-              <select
-                value={formData.priority}
-                onChange={async (e) => {
-                  const newPriority = e.target.value as Task['priority'];
-                  setFormData({ ...formData, priority: newPriority });
-                  await handlePriorityAutoSave(newPriority);
-                }}
-                className="flex-1 px-3 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-              >
+                              <select
+                  value={formData.priority}
+                  onChange={async (e) => {
+                    const newPriority = e.target.value as Task['priority'];
+                    setFormData({ ...formData, priority: newPriority });
+                    await handlePriorityAutoSave(newPriority);
+                  }}
+                  className="flex-1 px-3 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm appearance-none bg-white"
+                  style={{ WebkitAppearance: 'none', MozAppearance: 'none' }}
+                >
                 <option value="low">Low</option>
                 <option value="normal">Normal</option>
                 <option value="high">High</option>
@@ -493,6 +497,7 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, tags, onClose, onSa
                   }}
                   className="w-full px-3 py-2.5 pr-8 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm appearance-none bg-white"
                   style={{ WebkitAppearance: 'none', MozAppearance: 'none' }}
+                  placeholder="mm/dd/yyyy"
                 />
                 {formData.start_date && (
                   <button
@@ -525,6 +530,7 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, tags, onClose, onSa
                   }}
                   className="w-full px-3 py-2.5 pr-8 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm appearance-none bg-white"
                   style={{ WebkitAppearance: 'none', MozAppearance: 'none' }}
+                  placeholder="mm/dd/yyyy"
                 />
                 {formData.completion_date && (
                   <button
@@ -555,7 +561,7 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, tags, onClose, onSa
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               onBlur={async () => await handleDescriptionAutoSave(formData.description)}
-              className="w-full px-3 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none text-sm"
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none text-sm bg-white"
               placeholder="Enter task description..."
               style={{ minHeight: '120px', maxHeight: '400px' }}
             />
