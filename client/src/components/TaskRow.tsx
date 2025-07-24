@@ -334,7 +334,7 @@ const TaskRow: React.FC<TaskRowProps> = ({
 
       {/* Tag */}
       {viewMode === 'planner' && (
-        <div className="flex-shrink-0 w-20 text-center relative">
+        <div className="hidden sm:flex flex-shrink-0 w-20 text-center relative">
           <div
             className={clsx(
               "text-xs rounded px-1 py-1 w-full transition-all cursor-pointer min-h-[20px] flex items-center justify-center",
