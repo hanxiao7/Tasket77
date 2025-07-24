@@ -322,16 +322,16 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
       positionCache.current.clear();
       maxWidthCache.current.clear();
       
-      // Set expansion state based on view mode
-      if (viewMode === 'planner') {
-        // Always expand In Progress & Paused and To Do sections
-        const plannerExpanded = new Set([1, 2]); // In Progress & Paused, To Do
-        if (filters.show_completed) {
-          plannerExpanded.add(3); // Completed
-        }
-        setExpandedTags(plannerExpanded);
-      } else {
-        // Always expand all tags in tracker view
+      // Always expand all groups by default
+      const groupingMethod = filters.grouping || (viewMode === 'planner' ? 'none' : 'tag');
+      
+      if (groupingMethod === 'none') {
+        setExpandedTags(new Set());
+      } else if (groupingMethod === 'status') {
+        setExpandedTags(new Set([1, 2, 3])); // All status groups
+      } else if (groupingMethod === 'priority') {
+        setExpandedTags(new Set([1, 2, 3, 4])); // All priority groups
+      } else if (groupingMethod === 'tag') {
         const allTagIds = new Set(tagsData.map(tag => tag.id));
         allTagIds.add(-1); // Add unassigned tag ID
         setExpandedTags(allTagIds);
