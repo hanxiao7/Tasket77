@@ -16,12 +16,22 @@ export interface Category {
   updated_at: string;
 }
 
+export interface Tag {
+  id: number;
+  name: string;
+  workspace_id: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Task {
   id: number;
   title: string;
   description?: string;
   category_id?: number;
   category_name?: string;
+  tag_id?: number;
+  tag_name?: string;
   workspace_id: number;
   status: 'todo' | 'in_progress' | 'paused' | 'done';
   priority: 'urgent' | 'high' | 'normal' | 'low';
@@ -44,6 +54,7 @@ export interface CreateTaskData {
   title: string;
   description?: string;
   category_id?: number;
+  tag_id?: number;
   priority?: Task['priority'];
   due_date?: string;
   workspace_id: number;
@@ -53,6 +64,7 @@ export interface UpdateTaskData {
   title?: string;
   description?: string;
   category_id?: number;
+  tag_id?: number;
   priority?: Task['priority'];
   status?: Task['status'];
   start_date?: string;

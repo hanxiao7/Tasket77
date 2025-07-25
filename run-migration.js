@@ -11,18 +11,18 @@ async function runMigration() {
   const client = await pool.connect();
   
   try {
-    console.log('Running migration: Rename tags to categories...');
+    console.log('Running migration: Add tags table...');
     
     // Read the migration file
-    const migrationPath = path.join(__dirname, 'server', 'migrations', '002_rename_tags_to_categories.sql');
+    const migrationPath = path.join(__dirname, 'server', 'migrations', '003_add_tags_table.sql');
     const migrationSQL = fs.readFileSync(migrationPath, 'utf8');
     
     // Execute the migration
     await client.query(migrationSQL);
     
     console.log('Migration completed successfully!');
-    console.log('Tags table has been renamed to categories');
-    console.log('tag_id column has been renamed to category_id');
+    console.log('Tags table has been created');
+    console.log('tag_id column has been added to tasks table');
     
   } catch (error) {
     console.error('Migration failed:', error);

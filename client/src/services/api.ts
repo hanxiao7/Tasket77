@@ -1,4 +1,4 @@
-import { Task, TaskFilters, Category, Workspace, CreateTaskData, UpdateTaskData, TaskHistory } from '../types';
+import { Task, TaskFilters, Category, Tag, Workspace, CreateTaskData, UpdateTaskData, TaskHistory } from '../types';
 
 const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
 
@@ -98,6 +98,38 @@ class ApiService {
   async toggleCategoryHidden(id: number): Promise<Category> {
     return this.request<Category>(`/categories/${id}/toggle-hidden`, {
       method: 'PATCH',
+    });
+  }
+
+  // Tags
+  async getTags(workspaceId?: number): Promise<Tag[]> {
+    const params = new URLSearchParams();
+    if (workspaceId) {
+      params.append('workspace_id', workspaceId.toString());
+    }
+    
+    const queryString = params.toString();
+    const endpoint = queryString ? `/tags?${queryString}` : '/tags';
+    return this.request<Tag[]>(endpoint);
+  }
+
+  async createTag(name: string, workspaceId: number): Promise<Tag> {
+    return this.request<Tag>('/tags', {
+      method: 'POST',
+      body: JSON.stringify({ name, workspace_id: workspaceId }),
+    });
+  }
+
+  async updateTag(id: number, name: string): Promise<Tag> {
+    return this.request<Tag>(`/tags/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ name }),
+    });
+  }
+
+  async deleteTag(id: number): Promise<void> {
+    return this.request<void>(`/tags/${id}`, {
+      method: 'DELETE',
     });
   }
 

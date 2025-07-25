@@ -271,6 +271,11 @@ const TaskRow: React.FC<TaskRowProps> = ({
                 onHideTooltip(task.id);
               }}
             >
+              {task.tag_name && (
+                <span className="inline-block px-1.5 py-0.5 text-xs rounded border border-gray-300 bg-gray-50 text-gray-600 mr-2">
+                  {task.tag_name}
+                </span>
+              )}
               {task.title}
             </div>
             

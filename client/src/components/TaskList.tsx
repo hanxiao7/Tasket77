@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback, useImperativeHandle, useMemo } from 'react';
-import { Task, TaskFilters, Category } from '../types';
+import { Task, TaskFilters, Category, Tag } from '../types';
 import { apiService } from '../services/api';
 import { format } from 'date-fns';
 import { 
@@ -22,6 +22,7 @@ import TaskEditModal from './TaskEditModal';
 import TaskTooltip from './TaskTooltip';
 import TitleTooltip from './TitleTooltip';
 import CategoryEditModal from './CategoryEditModal';
+import TagEditModal from './TagEditModal';
 import TaskRow from './TaskRow';
 
 interface TaskListProps {
@@ -36,9 +37,11 @@ interface TaskListProps {
 const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[] }, TaskListProps>(({ viewMode, filters, selectedWorkspaceId, onFiltersChange, onSort, onTasksChange }, ref) => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [tags, setTags] = useState<Tag[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [showCategoryEditModal, setShowCategoryEditModal] = useState(false);
+  const [showTagEditModal, setShowTagEditModal] = useState(false);
   const [showNewTaskCategoryDropdown, setShowNewTaskCategoryDropdown] = useState(false);
   const [hoveredTask, setHoveredTask] = useState<number | null>(null);
   const [expandedCategories, setExpandedCategories] = useState<Set<number>>(new Set());
@@ -52,6 +55,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
   const [isCreatingCategory, setIsCreatingCategory] = useState(false);
   const [showCategoryInput, setShowCategoryInput] = useState(false);
   const [selectedNewTaskCategory, setSelectedNewTaskCategory] = useState<Record<number, string>>({});
+  const [selectedNewTaskTag, setSelectedNewTaskTag] = useState<Record<number, number | null>>({});
   const [editingDateTaskId, setEditingDateTaskId] = useState<number | null>(null);
   const [editingDateType, setEditingDateType] = useState<'due_date' | 'start_date' | 'completion_date' | null>(null);
   const [editingDateValue, setEditingDateValue] = useState('');
@@ -310,16 +314,18 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
-      const [tasksData, categoriesData] = await Promise.all([
+      const [tasksData, categoriesData, tagsData] = await Promise.all([
         apiService.getTasks({ ...filters, view: viewMode, workspace_id: selectedWorkspaceId }),
-        apiService.getCategories(true, selectedWorkspaceId) // Include hidden categories and filter by workspace
+        apiService.getCategories(true, selectedWorkspaceId), // Include hidden categories and filter by workspace
+        apiService.getTags(selectedWorkspaceId) // Get tags for the workspace
       ]);
       
       // Apply sorting to the loaded data
       const sortedTasks = sortTasks(tasksData);
       setTasks(sortedTasks);
       setCategories(categoriesData);
-      console.log(`📋 Loaded ${tasksData.length} tasks and ${categoriesData.length} categories`);
+      setTags(tagsData);
+      console.log(`📋 Loaded ${tasksData.length} tasks, ${categoriesData.length} categories, and ${tagsData.length} tags`);
       
       // Clear caches when data changes
       positionCache.current.clear();
@@ -575,10 +581,13 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
     try {
       const selectedCategoryId = selectedNewTaskCategory[selectedWorkspaceId] ? Number(selectedNewTaskCategory[selectedWorkspaceId]) : undefined;
       const selectedCategoryName = selectedCategoryId ? categories.find(c => c.id === selectedCategoryId)?.name : undefined;
-      console.log(`➕ Creating new task: "${newTaskTitle.trim()}" with category: ${selectedCategoryName || 'none'} and priority: ${newTaskPriority}`);
+      const selectedTagId = selectedNewTaskTag[selectedWorkspaceId] || undefined;
+      const selectedTagName = selectedTagId ? tags.find(t => t.id === selectedTagId)?.name : undefined;
+      console.log(`➕ Creating new task: "${newTaskTitle.trim()}" with category: ${selectedCategoryName || 'none'}, tag: ${selectedTagName || 'none'}, and priority: ${newTaskPriority}`);
       const newTask = await apiService.createTask({
         title: newTaskTitle.trim(),
         category_id: selectedCategoryId,
+        tag_id: selectedTagId,
         due_date: newTaskDueDate || undefined,
         workspace_id: selectedWorkspaceId,
         priority: newTaskPriority
@@ -587,6 +596,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
       setNewTaskTitle('');
       setNewTaskDueDate('');
       setNewTaskPriority('normal');
+      setSelectedNewTaskTag(prev => ({ ...prev, [selectedWorkspaceId]: null }));
       setTimeout(() => {
         newTaskInputRef.current?.focus();
       }, 100);
@@ -1340,7 +1350,9 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
   return (
     <div className="space-y-2">
       {/* New task input */}
-      <div className="flex items-center gap-3 p-2 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200 shadow-sm">
+      <div className="p-2 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200 shadow-sm space-y-2">
+        {/* Main input row */}
+        <div className="flex items-center gap-3">
         <div title="Add new task" className="p-0">
           <Plus 
             className="w-5 h-5 text-blue-500 cursor-pointer hover:text-blue-700 transition-colors" 
@@ -1487,6 +1499,46 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
               )}
             </div>
           )}
+        </div>
+        </div>
+        
+        {/* Tag selection row */}
+        <div className="flex items-center gap-2">
+          <TagIcon className="w-4 h-4 text-gray-500" />
+          <div className="flex flex-wrap gap-1">
+            {tags.map((tag) => (
+              <button
+                key={tag.id}
+                onClick={() => {
+                  const currentTagId = selectedNewTaskTag[selectedWorkspaceId];
+                  if (currentTagId === tag.id) {
+                    // Deselect if already selected
+                    setSelectedNewTaskTag(prev => ({ ...prev, [selectedWorkspaceId]: null }));
+                  } else {
+                    // Select this tag
+                    setSelectedNewTaskTag(prev => ({ ...prev, [selectedWorkspaceId]: tag.id }));
+                  }
+                }}
+                className={clsx(
+                  "px-2 py-1 text-xs rounded-full border transition-colors",
+                  selectedNewTaskTag[selectedWorkspaceId] === tag.id
+                    ? "bg-blue-100 border-blue-300 text-blue-700"
+                    : "bg-white border-gray-300 text-gray-600 hover:bg-gray-50"
+                )}
+              >
+                {tag.name}
+              </button>
+            ))}
+            {tags.length === 0 && (
+              <span className="text-xs text-gray-400 italic">No tags available</span>
+            )}
+          </div>
+          <button
+            onClick={() => setShowTagEditModal(true)}
+            className="text-xs text-blue-600 hover:text-blue-800 hover:underline"
+          >
+            Edit tags
+          </button>
         </div>
       </div>
 
@@ -1740,6 +1792,16 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
           workspaceId={selectedWorkspaceId}
           onClose={() => setShowCategoryEditModal(false)}
           onCategoriesUpdate={loadData}
+        />
+      )}
+
+      {/* Tag Edit Modal */}
+      {showTagEditModal && (
+        <TagEditModal
+          tags={tags}
+          workspaceId={selectedWorkspaceId}
+          onClose={() => setShowTagEditModal(false)}
+          onTagsUpdate={loadData}
         />
       )}
 

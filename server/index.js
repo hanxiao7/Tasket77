@@ -189,13 +189,102 @@ app.delete('/api/categories/:id', authenticateToken, async (req, res) => {
   }
 });
 
+// Get all tags
+app.get('/api/tags', authenticateToken, async (req, res) => {
+  const { workspace_id } = req.query;
+  let query = 'SELECT * FROM tags';
+  const conditions = [];
+  const params = [];
+  // Always filter by user_id for data isolation
+  conditions.push('user_id = $1');
+  params.push(req.user.userId);
+  if (workspace_id) {
+    conditions.push('workspace_id = $2');
+    params.push(workspace_id);
+  }
+  if (conditions.length > 0) {
+    query += ' WHERE ' + conditions.join(' AND ');
+  }
+  query += ' ORDER BY name';
+  try {
+    const result = await pool.query(query, params);
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Create new tag
+app.post('/api/tags', authenticateToken, async (req, res) => {
+  const { name, workspace_id } = req.body;
+  if (!name) {
+    res.status(400).json({ error: 'Tag name is required' });
+    return;
+  }
+  if (!workspace_id) {
+    res.status(400).json({ error: 'Workspace ID is required' });
+    return;
+  }
+  try {
+    const now = moment().utc().format('YYYY-MM-DD HH:mm:ss');
+    const result = await pool.query(
+      'INSERT INTO tags (name, workspace_id, user_id, created_at, updated_at) VALUES ($1, $2, $3, $4, $4) RETURNING *',
+      [name, workspace_id, req.user.userId, now]
+    );
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Update tag
+app.put('/api/tags/:id', authenticateToken, async (req, res) => {
+  const { id } = req.params;
+  const { name } = req.body;
+  if (!name) {
+    res.status(400).json({ error: 'Tag name is required' });
+    return;
+  }
+  try {
+    const now = moment().utc().format('YYYY-MM-DD HH:mm:ss');
+    const updateResult = await pool.query(
+      'UPDATE tags SET name = $1, updated_at = $2 WHERE id = $3 AND user_id = $4 RETURNING *',
+      [name, now, id, req.user.userId]
+    );
+    if (updateResult.rowCount === 0) {
+      res.status(404).json({ error: 'Tag not found' });
+      return;
+    }
+    res.json(updateResult.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Delete tag
+app.delete('/api/tags/:id', authenticateToken, async (req, res) => {
+  const { id } = req.params;
+  try {
+    await pool.query('UPDATE tasks SET tag_id = NULL WHERE tag_id = $1', [id]);
+    const deleteResult = await pool.query('DELETE FROM tags WHERE id = $1 RETURNING *', [id]);
+    if (deleteResult.rowCount === 0) {
+      res.status(404).json({ error: 'Tag not found' });
+      return;
+    }
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Get tasks with optional filters
 app.get('/api/tasks', authenticateToken, async (req, res) => {
   const { view, days, category_id, status, priority, show_completed, workspace_id } = req.query;
   let query = `
-    SELECT t.*, c.name as category_name
+    SELECT t.*, c.name as category_name, tg.name as tag_name
     FROM tasks t
     LEFT JOIN categories c ON t.category_id = c.id
+    LEFT JOIN tags tg ON t.tag_id = tg.id
     WHERE t.user_id = $1
   `;
   const params = [req.user.userId];
@@ -272,7 +361,7 @@ app.get('/api/tasks', authenticateToken, async (req, res) => {
 
 // Create new task
 app.post('/api/tasks', authenticateToken, async (req, res) => {
-  const { title, description, category_id, priority, due_date, workspace_id } = req.body;
+  const { title, description, category_id, tag_id, priority, due_date, workspace_id } = req.body;
   
   if (!title) {
     res.status(400).json({ error: 'Task title is required' });
@@ -298,21 +387,22 @@ app.post('/api/tasks', authenticateToken, async (req, res) => {
     const now = moment().utc().format('YYYY-MM-DD HH:mm:ss');
     const result = await pool.query(
       `
-    INSERT INTO tasks (user_id, workspace_id, title, description, category_id, priority, due_date, created_at, last_modified)
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $8)
+    INSERT INTO tasks (user_id, workspace_id, title, description, category_id, tag_id, priority, due_date, created_at, last_modified)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $9)
     RETURNING *
-  `, [req.user.userId, workspace_id, title, description, category_id, finalPriority, parsedDueDate, now]
+  `, [req.user.userId, workspace_id, title, description, category_id, tag_id, finalPriority, parsedDueDate, now]
     );
     
     const taskId = result.rows[0].id;
     await addTaskHistory(taskId, 'todo', 'Task created');
     
-    // Get the complete task information including category details
+    // Get the complete task information including category and tag details
     const fullRowResult = await pool.query(
       `
-      SELECT t.*, c.name as category_name
+      SELECT t.*, c.name as category_name, tg.name as tag_name
       FROM tasks t
       LEFT JOIN categories c ON t.category_id = c.id
+      LEFT JOIN tags tg ON t.tag_id = tg.id
       WHERE t.id = $1
     `, [taskId]
     );
@@ -387,7 +477,7 @@ app.patch('/api/tasks/:id/status', authenticateToken, async (req, res) => {
 // Update task
 app.put('/api/tasks/:id', authenticateToken, async (req, res) => {
   const { id } = req.params;
-  const { title, description, category_id, priority, status, start_date, due_date, completion_date } = req.body;
+  const { title, description, category_id, tag_id, priority, status, start_date, due_date, completion_date } = req.body;
 
   try {
     const currentTaskResult = await pool.query('SELECT * FROM tasks WHERE id = $1', [id]);
@@ -415,6 +505,11 @@ app.put('/api/tasks/:id', authenticateToken, async (req, res) => {
     if (category_id !== undefined) {
       updateFields.push(`category_id = $${paramIndex}`);
       updateParams.push(category_id);
+      paramIndex++;
+    }
+    if (tag_id !== undefined) {
+      updateFields.push(`tag_id = $${paramIndex}`);
+      updateParams.push(tag_id);
       paramIndex++;
     }
     if (priority !== undefined) {
