@@ -1325,8 +1325,8 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
             }}
             title="Select category for new task"
           >
-            <span className="text-gray-600">
-              {selectedNewTaskCategory[selectedWorkspaceId] ? (categories.find(c => c.id.toString() === selectedNewTaskCategory[selectedWorkspaceId])?.name || 'Select category') : 'Select category'}
+            <span className="text-gray-400">
+              {selectedNewTaskCategory[selectedWorkspaceId] ? (categories.find(c => c.id.toString() === selectedNewTaskCategory[selectedWorkspaceId])?.name || 'Category') : 'Category'}
             </span>
           </div>
           
