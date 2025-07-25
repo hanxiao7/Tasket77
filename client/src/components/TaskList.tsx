@@ -44,6 +44,8 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
   const [expandedCategories, setExpandedCategories] = useState<Set<number>>(new Set());
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [isCreatingTask, setIsCreatingTask] = useState(false);
+  const [newTaskDueDate, setNewTaskDueDate] = useState('');
+  const [showNewTaskDueDatePicker, setShowNewTaskDueDatePicker] = useState(false);
   const [editingTitleTaskId, setEditingTitleTaskId] = useState<number | null>(null);
   const [editingTitleValue, setEditingTitleValue] = useState('');
   const [newCategoryName, setNewCategoryName] = useState('');
@@ -382,13 +384,17 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
       if (showNewTaskCategoryDropdown) {
         setShowNewTaskCategoryDropdown(false);
       }
+      // Also close new task due date picker when clicking outside
+      if (showNewTaskDueDatePicker) {
+        setShowNewTaskDueDatePicker(false);
+      }
     };
 
     document.addEventListener('click', handleClickOutside);
     return () => {
       document.removeEventListener('click', handleClickOutside);
     };
-  }, [contextMenu.visible, editingCategoryTaskId, showNewTaskCategoryDropdown]);
+  }, [contextMenu.visible, editingCategoryTaskId, showNewTaskCategoryDropdown, showNewTaskDueDatePicker]);
 
   // Debug editingCategoryTaskId changes
   useEffect(() => {
@@ -554,16 +560,23 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
       const newTask = await apiService.createTask({
         title: newTaskTitle.trim(),
         category_id: selectedCategoryId,
+        due_date: newTaskDueDate || undefined,
         workspace_id: selectedWorkspaceId
       });
       
-      setNewTaskTitle('');
+      // Add new task to local state
+      setTasks(prevTasks => [...prevTasks, newTask]);
       
-      // Add new task to local state (server now returns complete task info)
-      setTasks(prevTasks => {
-        const updatedTasks = [...prevTasks, newTask as Task];
-        return updatedTasks;
-      });
+      // Clear form
+      setNewTaskTitle('');
+      setNewTaskDueDate('');
+      setSelectedNewTaskCategory(prev => ({ ...prev, [selectedWorkspaceId]: '' }));
+      
+      // Focus back to input
+      setTimeout(() => {
+        newTaskInputRef.current?.focus();
+      }, 100);
+      
     } catch (error) {
       console.error('Error creating task:', error);
     } finally {
@@ -1386,6 +1399,67 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
           disabled={isCreatingTask}
           className="flex-1 bg-white border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder-gray-400"
         />
+        
+        {/* New task due date */}
+        <div className="relative">
+          {showNewTaskDueDatePicker ? (
+            <div className="relative w-full">
+              <input
+                ref={dateInputRef}
+                type="date"
+                value={newTaskDueDate}
+                onChange={(e) => {
+                  setNewTaskDueDate(e.target.value);
+                }}
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
+                    setShowNewTaskDueDatePicker(false);
+                  } else if (e.key === 'Escape') {
+                    setShowNewTaskDueDatePicker(false);
+                  }
+                }}
+                onBlur={() => setShowNewTaskDueDatePicker(false)}
+                className="text-xs border border-gray-300 rounded px-1 py-1 pr-5 focus:outline-none focus:ring-1 focus:ring-blue-500 w-full"
+                title="Press Enter to save, Escape to cancel"
+                autoFocus
+              />
+              {newTaskDueDate && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setNewTaskDueDate('');
+                  }}
+                  className="absolute right-1 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-red-500 text-xs font-bold"
+                  title="Clear date"
+                >
+                  ×
+                </button>
+              )}
+            </div>
+          ) : (
+            <div 
+              className="flex items-center justify-center text-xs text-gray-500 cursor-pointer hover:text-blue-600 hover:bg-blue-50 px-1 py-1.5 rounded min-h-[32px] border border-gray-300 bg-white hover:border-blue-300 transition-colors w-16"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowNewTaskDueDatePicker(true);
+                // Show native date picker immediately
+                setTimeout(() => {
+                  dateInputRef.current?.showPicker?.();
+                }, 10);
+              }}
+              title="Click to set due date"
+            >
+              {newTaskDueDate ? (
+                <span>{formatDate(newTaskDueDate)}</span>
+              ) : (
+                <span className="flex items-center gap-1">
+                  <span>Due</span>
+                  <Calendar className="w-3 h-3" />
+                </span>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Unified Task List Layout */}

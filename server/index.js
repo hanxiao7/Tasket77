@@ -287,6 +287,13 @@ app.post('/api/tasks', authenticateToken, async (req, res) => {
   // Parse the due date - due_date is DATE type, not TIMESTAMP
   const parsedDueDate = due_date ? due_date : null;
   
+  // Check if due date is on or before next business day and set priority to urgent
+  let finalPriority = priority || 'normal';
+  const nextBusinessDay = getNextBusinessDay();
+  if (parsedDueDate && parsedDueDate <= nextBusinessDay) {
+    finalPriority = 'urgent';
+  }
+  
   try {
     const now = moment().utc().format('YYYY-MM-DD HH:mm:ss');
     const result = await pool.query(
@@ -294,7 +301,7 @@ app.post('/api/tasks', authenticateToken, async (req, res) => {
     INSERT INTO tasks (user_id, workspace_id, title, description, category_id, priority, due_date, created_at, last_modified)
     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $8)
     RETURNING *
-  `, [req.user.userId, workspace_id, title, description, category_id, priority || 'normal', parsedDueDate, now]
+  `, [req.user.userId, workspace_id, title, description, category_id, finalPriority, parsedDueDate, now]
     );
     
     const taskId = result.rows[0].id;
