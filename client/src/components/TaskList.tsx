@@ -85,6 +85,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
   const dateInputRef = useRef<HTMLInputElement>(null);
   const categoryInputRef = useRef<HTMLSelectElement>(null);
   const statusClickTimers = useRef<{ [taskId: number]: NodeJS.Timeout }>({});
+  const [newTaskPriority, setNewTaskPriority] = useState<Task['priority']>('normal');
 
   const checkTitleTruncation = (taskId: number) => {
     const titleRef = titleRefs.current.get(taskId);
@@ -547,36 +548,49 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
     }
   };
 
+  const handleNewTaskPriorityClick = () => {
+    let newPriority: Task['priority'];
+    switch (newTaskPriority) {
+      case 'normal':
+        newPriority = 'high';
+        break;
+      case 'high':
+        newPriority = 'urgent';
+        break;
+      case 'urgent':
+        newPriority = 'low';
+        break;
+      case 'low':
+        newPriority = 'normal';
+        break;
+      default:
+        newPriority = 'normal';
+    }
+    setNewTaskPriority(newPriority);
+  };
+
   const handleCreateTask = async () => {
     if (!newTaskTitle.trim()) return;
-    
     setIsCreatingTask(true);
     try {
       const selectedCategoryId = selectedNewTaskCategory[selectedWorkspaceId] ? Number(selectedNewTaskCategory[selectedWorkspaceId]) : undefined;
       const selectedCategoryName = selectedCategoryId ? categories.find(c => c.id === selectedCategoryId)?.name : undefined;
-      
-      console.log(`➕ Creating new task: "${newTaskTitle.trim()}" with category: ${selectedCategoryName || 'none'}`);
-      
+      console.log(`➕ Creating new task: "${newTaskTitle.trim()}" with category: ${selectedCategoryName || 'none'} and priority: ${newTaskPriority}`);
       const newTask = await apiService.createTask({
         title: newTaskTitle.trim(),
         category_id: selectedCategoryId,
         due_date: newTaskDueDate || undefined,
-        workspace_id: selectedWorkspaceId
+        workspace_id: selectedWorkspaceId,
+        priority: newTaskPriority
       });
-      
-      // Add new task to local state
       setTasks(prevTasks => [...prevTasks, newTask]);
-      
-      // Clear form
       setNewTaskTitle('');
       setNewTaskDueDate('');
       setSelectedNewTaskCategory(prev => ({ ...prev, [selectedWorkspaceId]: '' }));
-      
-      // Focus back to input
+      setNewTaskPriority('normal');
       setTimeout(() => {
         newTaskInputRef.current?.focus();
       }, 100);
-      
     } catch (error) {
       console.error('Error creating task:', error);
     } finally {
@@ -1328,7 +1342,22 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
     <div className="space-y-2">
       {/* New task input */}
       <div className="flex items-center gap-3 p-2 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200 shadow-sm">
-        <Plus className="w-5 h-5 text-blue-500" />
+        <div title="Add new task">
+          <Plus 
+            className="w-5 h-5 text-blue-500 cursor-pointer hover:text-blue-700 transition-colors" 
+            onClick={handleCreateTask}
+          />
+        </div>
+        {/* Priority flag for new task */}
+        <button
+          type="button"
+          className="flex items-center justify-center w-7 h-7 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-400 hover:bg-blue-100 transition-colors"
+          onClick={handleNewTaskPriorityClick}
+          title={`Priority: ${newTaskPriority.charAt(0).toUpperCase() + newTaskPriority.slice(1)}`}
+          tabIndex={0}
+        >
+          {getPriorityIcon(newTaskPriority)}
+        </button>
         <input
           ref={newTaskInputRef}
           type="text"
