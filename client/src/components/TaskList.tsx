@@ -1341,7 +1341,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
     <div className="space-y-2">
       {/* New task input */}
       <div className="flex items-center gap-3 p-2 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200 shadow-sm">
-        <div title="Add new task">
+        <div title="Add new task" className="p-0">
           <Plus 
             className="w-5 h-5 text-blue-500 cursor-pointer hover:text-blue-700 transition-colors" 
             onClick={handleCreateTask}
@@ -1350,9 +1350,9 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
         {/* Priority flag for new task */}
         <button
           type="button"
-          className="flex items-center justify-center w-7 h-7 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-400 hover:bg-blue-100 transition-colors"
+          className="flex items-center justify-center w-5 h-5 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-400 hover:bg-blue-100 transition-colors"
           onClick={handleNewTaskPriorityClick}
-          title={`Priority: ${newTaskPriority.charAt(0).toUpperCase() + newTaskPriority.slice(1)}`}
+          title={`Click to cycle priority (${newTaskPriority})`}
           tabIndex={0}
         >
           {getPriorityIcon(newTaskPriority)}
@@ -1530,10 +1530,10 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
                   <div className="w-4"></div> {/* Priority */}
                   <div className="flex-1">Task</div>
                   {viewMode === 'planner' && <div className="hidden sm:block w-20 text-center">Category</div>}
-                  <div className="hidden sm:block w-12 text-center">Start</div>
-                  {viewMode === 'tracker' && <div className="hidden sm:block w-12 text-center">Complete</div>}
-                  <div className="hidden sm:block w-12 text-center">Due</div>
-                  <div className="w-8"></div> {/* Three-dot menu space */}
+                  <div className="hidden sm:block w-10 text-center">Start</div>
+                  {viewMode === 'tracker' && <div className="hidden sm:block w-10 text-center">Complete</div>}
+                  <div className="hidden sm:block w-10 text-center">Due</div>
+                  <div className="w-4"></div> {/* Three-dot menu space */}
                 </div>
 
                 {groupedTasks?.[groupName]?.map((task) => (
@@ -1617,10 +1617,10 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
             <div className="w-4"></div> {/* Priority */}
             <div className="flex-1">Task</div>
             {viewMode === 'planner' && <div className="hidden sm:block w-20 text-center">Category</div>}
-            <div className="hidden sm:block w-12 text-center">Start</div>
-            {viewMode === 'tracker' && <div className="hidden sm:block w-12 text-center">Complete</div>}
-            <div className="hidden sm:block w-12 text-center">Due</div>
-            <div className="w-8"></div> {/* Three-dot menu space */}
+            <div className="hidden sm:block w-10 text-center">Start</div>
+            {viewMode === 'tracker' && <div className="hidden sm:block w-10 text-center">Complete</div>}
+            <div className="hidden sm:block w-10 text-center">Due</div>
+            <div className="w-4"></div> {/* Three-dot menu space */}
           </div>
           
           {/* All tasks in single list */}

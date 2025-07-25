@@ -402,7 +402,7 @@ const TaskRow: React.FC<TaskRowProps> = ({
       )}
 
       {/* Start date */}
-      <div className="hidden sm:flex flex-shrink-0 w-12 justify-center">
+      <div className="hidden sm:flex flex-shrink-0 w-10 justify-center">
         {editingDateTaskId === task.id && editingDateType === 'start_date' ? (
           <div className="relative w-full">
             <input
@@ -451,7 +451,7 @@ const TaskRow: React.FC<TaskRowProps> = ({
 
       {/* Completion date - only show in tracker view */}
       {viewMode === 'tracker' && (
-        <div className="hidden sm:flex flex-shrink-0 w-12 justify-center">
+        <div className="hidden sm:flex flex-shrink-0 w-10 justify-center">
           {editingDateTaskId === task.id && editingDateType === 'completion_date' ? (
             <div className="relative w-full">
               <input
@@ -500,7 +500,7 @@ const TaskRow: React.FC<TaskRowProps> = ({
       )}
 
       {/* Due date */}
-      <div className="hidden sm:flex flex-shrink-0 w-12 justify-center">
+      <div className="hidden sm:flex flex-shrink-0 w-10 justify-center">
         {editingDateTaskId === task.id && editingDateType === 'due_date' ? (
           <div className="relative w-full">
             <input
@@ -548,13 +548,13 @@ const TaskRow: React.FC<TaskRowProps> = ({
       </div>
 
       {/* Three-dot menu */}
-      <div className="flex-shrink-0">
+      <div className="flex-shrink-0 flex items-center justify-center">
         <button
           onClick={(e) => {
             e.stopPropagation();
             onContextMenu(e, task.id);
           }}
-          className="p-2 rounded hover:bg-gray-100 transition-colors"
+          className="p-0 rounded hover:bg-gray-100 transition-colors"
           title="More options"
         >
           <MoreVertical className="w-4 h-4 text-gray-500" />
