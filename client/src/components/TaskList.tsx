@@ -1329,6 +1329,16 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
       {/* New task input */}
       <div className="flex items-center gap-3 p-2 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200 shadow-sm">
         <Plus className="w-5 h-5 text-blue-500" />
+        <input
+          ref={newTaskInputRef}
+          type="text"
+          placeholder="Add new task..."
+          value={newTaskTitle}
+          onChange={(e) => setNewTaskTitle(e.target.value)}
+          onKeyPress={handleKeyPress}
+          disabled={isCreatingTask}
+          className="flex-1 bg-white border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder-gray-400"
+        />
         <div className="relative">
           <div
             className="text-sm rounded-md px-3 py-1.5 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-32 md:w-44 cursor-pointer bg-white hover:bg-gray-50 transition-colors min-h-[32px] flex items-center"
@@ -1389,16 +1399,6 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
             </div>
           )}
         </div>
-        <input
-          ref={newTaskInputRef}
-          type="text"
-          placeholder="Add new task..."
-          value={newTaskTitle}
-          onChange={(e) => setNewTaskTitle(e.target.value)}
-          onKeyPress={handleKeyPress}
-          disabled={isCreatingTask}
-          className="flex-1 bg-white border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder-gray-400"
-        />
         
         {/* New task due date */}
         <div className="relative">
