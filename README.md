@@ -21,20 +21,20 @@ A minimal, fast-to-use task management tool designed for handling many small tas
 - **Workspace selector** in the header to switch between workspaces
 - **Set default workspace** by clicking the star icon next to any workspace
 - **Create, edit, and delete** workspaces with descriptions
-- **Isolated task sets** - each workspace has its own tasks and tags
+- **Isolated task sets** - each workspace has its own tasks and categories
 - **Visual indicators** for default workspace (star icon)
 
 ### Enhanced UI/UX
 - **Intelligent title tooltips** that show only truncated text, positioned below titles
 - **Dynamic tooltip positioning** that adapts to available space
 - **Context menus** for quick task actions
-- **Inline editing** for titles, dates, priorities, and tags
+- **Inline editing** for titles, dates, priorities, and categories
 - **Auto-save functionality** for descriptions and other fields
 - **Keyboard shortcuts** (Ctrl+Enter to save, Esc to cancel)
 - **Responsive design** with Tailwind CSS
 
 ### Task Organization
-- **Tag-based categorization** for organizing tasks by subject or project
+- **Category-based categorization** for organizing tasks by subject or project
 - **Sub-tasks support** with automatic parent status updates
 - **Priority levels**: Urgent (red), High (yellow), Normal (green), Low (gray)
 - **Automatic urgent priority** for tasks due tomorrow
@@ -188,7 +188,7 @@ REACT_APP_API_URL=https://your-render-app.onrender.com/api
 - **Status Cycling**: Click the status button to cycle through states
 - **Complete Task**: Double-click the status button to mark as done
 - **Priority**: Click the priority flag to cycle through levels
-- **Tags**: Use the tag selector to categorize tasks
+- **Categories**: Use the category selector to categorize tasks
 - **Due Dates**: Set due dates for time-sensitive tasks
 
 ### Views and Filtering
@@ -214,11 +214,11 @@ REACT_APP_API_URL=https://your-render-app.onrender.com/api
 - `DELETE /api/tasks/:id` - Delete task
 - `GET /api/tasks/:id/history` - Get task history
 
-### Tags
-- `GET /api/tags` - Get all tags
-- `POST /api/tags` - Create new tag
-- `PUT /api/tags/:id` - Update tag
-- `DELETE /api/tags/:id` - Delete tag
+### Categories
+- `GET /api/categories` - Get all categories
+- `POST /api/categories` - Create new category
+- `PUT /api/categories/:id` - Update category
+- `DELETE /api/categories/:id` - Delete category
 
 ### Workspaces
 - `GET /api/workspaces` - Get all workspaces
@@ -238,7 +238,7 @@ REACT_APP_API_URL=https://your-render-app.onrender.com/api
 
 ### Tables
 - **workspaces**: Workspace management with default workspace support
-- **tags**: Task categorization system (workspace-scoped)
+- **categories**: Task categorization system (workspace-scoped)
 - **tasks**: Main task data with status, priority, dates (workspace-scoped)
 - **task_history**: Complete audit trail of status changes
 
@@ -247,8 +247,8 @@ REACT_APP_API_URL=https://your-render-app.onrender.com/api
 - Automatic timestamp management
 - Status validation constraints
 - Priority validation constraints
-- Tag-based organization
-- Workspace isolation for tasks and tags
+- Category-based organization
+- Workspace isolation for tasks and categories
 - Default workspace management
 
 ## Technical Improvements
@@ -273,7 +273,7 @@ REACT_APP_API_URL=https://your-render-app.onrender.com/api
 ## Future Enhancements
 
 ### Planned Features
-- **Task moving between workspaces** with automatic tag migration
+- **Task moving between workspaces** with automatic category migration
 - **Long-press status menu** for manual status selection
 - **Sub-task confirmation dialog** when all sub-tasks are complete
 - **Advanced filtering** with AND/OR/NOT combinations
@@ -309,7 +309,7 @@ ToDoList/
 │   │   │   ├── TaskList.tsx      # Main task list component
 │   │   │   ├── WorkspaceSelector.tsx  # Workspace management
 │   │   │   ├── TaskEditModal.tsx # Task editing modal
-│   │   │   ├── TagEditModal.tsx  # Tag editing modal
+│   │   │   ├── CategoryEditModal.tsx  # Category editing modal
 │   │   │   └── ...               # Other components
 │   │   ├── services/    # API services
 │   │   ├── types/       # TypeScript type definitions

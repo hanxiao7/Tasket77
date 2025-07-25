@@ -1,4 +1,4 @@
-import { Task, Tag, Workspace, CreateTaskData, UpdateTaskData, TaskFilters, TaskHistory } from '../types';
+import { Task, TaskFilters, Category, Workspace, CreateTaskData, UpdateTaskData, TaskHistory } from '../types';
 
 const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
 
@@ -60,8 +60,8 @@ class ApiService {
     });
   }
 
-  // Tags
-  async getTags(includeHidden?: boolean, workspaceId?: number): Promise<Tag[]> {
+  // Categories
+  async getCategories(includeHidden?: boolean, workspaceId?: number): Promise<Category[]> {
     const params = new URLSearchParams();
     if (includeHidden) {
       params.append('include_hidden', 'true');
@@ -71,32 +71,32 @@ class ApiService {
     }
     
     const queryString = params.toString();
-    const endpoint = queryString ? `/tags?${queryString}` : '/tags';
-    return this.request<Tag[]>(endpoint);
+    const endpoint = queryString ? `/categories?${queryString}` : '/categories';
+    return this.request<Category[]>(endpoint);
   }
 
-  async createTag(name: string, workspaceId: number): Promise<Tag> {
-    return this.request<Tag>('/tags', {
+  async createCategory(name: string, workspaceId: number): Promise<Category> {
+    return this.request<Category>('/categories', {
       method: 'POST',
       body: JSON.stringify({ name, workspace_id: workspaceId }),
     });
   }
 
-  async updateTag(id: number, name: string): Promise<Tag> {
-    return this.request<Tag>(`/tags/${id}`, {
+  async updateCategory(id: number, name: string): Promise<Category> {
+    return this.request<Category>(`/categories/${id}`, {
       method: 'PUT',
       body: JSON.stringify({ name }),
     });
   }
 
-  async deleteTag(id: number): Promise<{ success: boolean }> {
-    return this.request<{ success: boolean }>(`/tags/${id}`, {
+  async deleteCategory(id: number): Promise<void> {
+    return this.request<void>(`/categories/${id}`, {
       method: 'DELETE',
     });
   }
 
-  async toggleTagHidden(id: number): Promise<Tag> {
-    return this.request<Tag>(`/tags/${id}/toggle-hidden`, {
+  async toggleCategoryHidden(id: number): Promise<Category> {
+    return this.request<Category>(`/categories/${id}/toggle-hidden`, {
       method: 'PATCH',
     });
   }

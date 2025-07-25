@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback, useImperativeHandle, useMemo } from 'react';
-import { Task, TaskFilters, Tag } from '../types';
+import { Task, TaskFilters, Category } from '../types';
 import { apiService } from '../services/api';
 import { format } from 'date-fns';
 import { 
@@ -21,7 +21,7 @@ import clsx from 'clsx';
 import TaskEditModal from './TaskEditModal';
 import TaskTooltip from './TaskTooltip';
 import TitleTooltip from './TitleTooltip';
-import TagEditModal from './TagEditModal';
+import CategoryEditModal from './CategoryEditModal';
 import TaskRow from './TaskRow';
 
 interface TaskListProps {
@@ -35,26 +35,26 @@ interface TaskListProps {
 
 const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[] }, TaskListProps>(({ viewMode, filters, selectedWorkspaceId, onFiltersChange, onSort, onTasksChange }, ref) => {
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [tags, setTags] = useState<Tag[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
-  const [showTagEditModal, setShowTagEditModal] = useState(false);
-  const [showNewTaskTagDropdown, setShowNewTaskTagDropdown] = useState(false);
+  const [showCategoryEditModal, setShowCategoryEditModal] = useState(false);
+  const [showNewTaskCategoryDropdown, setShowNewTaskCategoryDropdown] = useState(false);
   const [hoveredTask, setHoveredTask] = useState<number | null>(null);
-  const [expandedTags, setExpandedTags] = useState<Set<number>>(new Set());
+  const [expandedCategories, setExpandedCategories] = useState<Set<number>>(new Set());
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [isCreatingTask, setIsCreatingTask] = useState(false);
   const [editingTitleTaskId, setEditingTitleTaskId] = useState<number | null>(null);
   const [editingTitleValue, setEditingTitleValue] = useState('');
-  const [newTagName, setNewTagName] = useState('');
-  const [isCreatingTag, setIsCreatingTag] = useState(false);
-  const [showTagInput, setShowTagInput] = useState(false);
-  const [selectedNewTaskTag, setSelectedNewTaskTag] = useState<Record<number, string>>({});
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [isCreatingCategory, setIsCreatingCategory] = useState(false);
+  const [showCategoryInput, setShowCategoryInput] = useState(false);
+  const [selectedNewTaskCategory, setSelectedNewTaskCategory] = useState<Record<number, string>>({});
   const [editingDateTaskId, setEditingDateTaskId] = useState<number | null>(null);
   const [editingDateType, setEditingDateType] = useState<'due_date' | 'start_date' | 'completion_date' | null>(null);
   const [editingDateValue, setEditingDateValue] = useState('');
-  const [editingTagTaskId, setEditingTagTaskId] = useState<number | null>(null);
-  const [editingTagValue, setEditingTagValue] = useState('');
+  const [editingCategoryTaskId, setEditingCategoryTaskId] = useState<number | null>(null);
+  const [editingCategoryValue, setEditingCategoryValue] = useState('');
   const [editingPriorityTaskId, setEditingPriorityTaskId] = useState<number | null>(null);
   const [editingPriorityValue, setEditingPriorityValue] = useState<Task['priority']>('normal');
   const [tooltipTimers, setTooltipTimers] = useState<Map<number, NodeJS.Timeout>>(new Map());
@@ -79,9 +79,9 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
   const maxWidthCache = useRef<Map<number, number>>(new Map());
   const newTaskInputRef = useRef<HTMLInputElement>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
-  const newTagInputRef = useRef<HTMLInputElement>(null);
+  const newCategoryInputRef = useRef<HTMLInputElement>(null);
   const dateInputRef = useRef<HTMLInputElement>(null);
-  const tagInputRef = useRef<HTMLSelectElement>(null);
+  const categoryInputRef = useRef<HTMLSelectElement>(null);
   const statusClickTimers = useRef<{ [taskId: number]: NodeJS.Timeout }>({});
 
   const checkTitleTruncation = (taskId: number) => {
@@ -270,16 +270,16 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
         return a.title.localeCompare(b.title);
       });
     } else {
-      // Tracker view: sort by tag name, then status, then title
+      // Tracker view: sort by category name, then status, then title
       return [...tasksToSort].sort((a, b) => {
-        // First sort by tag name
-        const tagA = a.tag_name || 'Unassigned';
-        const tagB = b.tag_name || 'Unassigned';
+        // First sort by category name
+        const categoryA = a.category_name || 'Unassigned';
+        const categoryB = b.category_name || 'Unassigned';
         
-        if (tagA !== tagB) {
-          if (tagA === 'Unassigned') return -1;
-          if (tagB === 'Unassigned') return 1;
-          return tagA.localeCompare(tagB);
+        if (categoryA !== categoryB) {
+          if (categoryA === 'Unassigned') return -1;
+          if (categoryB === 'Unassigned') return 1;
+          return categoryA.localeCompare(categoryB);
         }
         
         // Then sort by status: done first, then in_progress, paused, todo
@@ -307,34 +307,34 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
-      const [tasksData, tagsData] = await Promise.all([
+      const [tasksData, categoriesData] = await Promise.all([
         apiService.getTasks({ ...filters, view: viewMode, workspace_id: selectedWorkspaceId }),
-        apiService.getTags(true, selectedWorkspaceId) // Include hidden tags and filter by workspace
+        apiService.getCategories(true, selectedWorkspaceId) // Include hidden categories and filter by workspace
       ]);
       
       // Apply sorting to the loaded data
       const sortedTasks = sortTasks(tasksData);
       setTasks(sortedTasks);
-      setTags(tagsData);
-      console.log(`📋 Loaded ${tasksData.length} tasks and ${tagsData.length} tags`);
+      setCategories(categoriesData);
+      console.log(`📋 Loaded ${tasksData.length} tasks and ${categoriesData.length} categories`);
       
       // Clear caches when data changes
       positionCache.current.clear();
       maxWidthCache.current.clear();
       
       // Always expand all groups by default
-      const groupingMethod = filters.grouping || (viewMode === 'planner' ? 'none' : 'tag');
+      const groupingMethod = filters.grouping || (viewMode === 'planner' ? 'none' : 'category');
       
       if (groupingMethod === 'none') {
-        setExpandedTags(new Set());
+        setExpandedCategories(new Set());
       } else if (groupingMethod === 'status') {
-        setExpandedTags(new Set([1, 2, 3])); // All status groups
+        setExpandedCategories(new Set([1, 2, 3])); // All status groups
       } else if (groupingMethod === 'priority') {
-        setExpandedTags(new Set([1, 2, 3, 4])); // All priority groups
-      } else if (groupingMethod === 'tag') {
-        const allTagIds = new Set(tagsData.map(tag => tag.id));
-        allTagIds.add(-1); // Add unassigned tag ID
-        setExpandedTags(allTagIds);
+        setExpandedCategories(new Set([1, 2, 3, 4])); // All priority groups
+      } else if (groupingMethod === 'category') {
+        const allCategoryIds = new Set(categoriesData.map(category => category.id));
+        allCategoryIds.add(-1); // Add unassigned category ID
+        setExpandedCategories(allCategoryIds);
       }
       
       // Clear title tooltips when data changes to force recalculation
@@ -372,15 +372,15 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
       if (contextMenu.visible) {
         handleContextMenuClose();
       }
-      // Also close tag dropdown when clicking outside
-      if (editingTagTaskId !== null) {
-        console.log('Closing tag dropdown due to outside click');
-        setEditingTagTaskId(null);
-        setEditingTagValue('');
+      // Also close category dropdown when clicking outside
+      if (editingCategoryTaskId !== null) {
+        console.log('Closing category dropdown due to outside click');
+        setEditingCategoryTaskId(null);
+        setEditingCategoryValue('');
       }
-      // Also close new task tag dropdown when clicking outside
-      if (showNewTaskTagDropdown) {
-        setShowNewTaskTagDropdown(false);
+      // Also close new task category dropdown when clicking outside
+      if (showNewTaskCategoryDropdown) {
+        setShowNewTaskCategoryDropdown(false);
       }
     };
 
@@ -388,12 +388,12 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
     return () => {
       document.removeEventListener('click', handleClickOutside);
     };
-  }, [contextMenu.visible, editingTagTaskId, showNewTaskTagDropdown]);
+  }, [contextMenu.visible, editingCategoryTaskId, showNewTaskCategoryDropdown]);
 
-  // Debug editingTagTaskId changes
+  // Debug editingCategoryTaskId changes
   useEffect(() => {
-    console.log('editingTagTaskId changed to:', editingTagTaskId);
-  }, [editingTagTaskId]);
+    console.log('editingCategoryTaskId changed to:', editingCategoryTaskId);
+  }, [editingCategoryTaskId]);
 
   // Notify parent when tasks change
   useEffect(() => {
@@ -546,14 +546,14 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
     
     setIsCreatingTask(true);
     try {
-      const selectedTagId = selectedNewTaskTag[selectedWorkspaceId] ? Number(selectedNewTaskTag[selectedWorkspaceId]) : undefined;
-      const selectedTagName = selectedTagId ? tags.find(t => t.id === selectedTagId)?.name : undefined;
+      const selectedCategoryId = selectedNewTaskCategory[selectedWorkspaceId] ? Number(selectedNewTaskCategory[selectedWorkspaceId]) : undefined;
+      const selectedCategoryName = selectedCategoryId ? categories.find(c => c.id === selectedCategoryId)?.name : undefined;
       
-      console.log(`➕ Creating new task: "${newTaskTitle.trim()}" with tag: ${selectedTagName || 'none'}`);
+      console.log(`➕ Creating new task: "${newTaskTitle.trim()}" with category: ${selectedCategoryName || 'none'}`);
       
       const newTask = await apiService.createTask({
         title: newTaskTitle.trim(),
-        tag_id: selectedTagId,
+        category_id: selectedCategoryId,
         workspace_id: selectedWorkspaceId
       });
       
@@ -623,7 +623,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
 
   // Unified grouping logic with useMemo for performance
   const groupedTasks = useMemo(() => {
-    const groupingMethod = filters.grouping || (viewMode === 'planner' ? 'none' : 'tag');
+    const groupingMethod = filters.grouping || (viewMode === 'planner' ? 'none' : 'category');
     
     if (groupingMethod === 'none') {
       return null; // No grouping, return flat list
@@ -672,14 +672,14 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
       return grouped;
     }
     
-    if (groupingMethod === 'tag') {
+    if (groupingMethod === 'category') {
       const grouped: { [key: string]: Task[] } = {};
       tasks.forEach(task => {
-        const tagName = task.tag_name || 'Unassigned';
-        if (!grouped[tagName]) {
-          grouped[tagName] = [];
+        const categoryName = task.category_name || 'Unassigned';
+        if (!grouped[categoryName]) {
+          grouped[categoryName] = [];
         }
-        grouped[tagName].push(task);
+        grouped[categoryName].push(task);
       });
       return grouped;
     }
@@ -691,7 +691,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
   const sortedGroupNames = useMemo(() => {
     if (!groupedTasks) return [];
     
-    const groupingMethod = filters.grouping || (viewMode === 'planner' ? 'none' : 'tag');
+    const groupingMethod = filters.grouping || (viewMode === 'planner' ? 'none' : 'category');
     
     if (groupingMethod === 'status') {
       return ['In Progress & Paused', 'To Do', 'Completed'];
@@ -701,7 +701,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
       return ['Urgent', 'High', 'Normal', 'Low'];
     }
     
-    if (groupingMethod === 'tag') {
+    if (groupingMethod === 'category') {
       return Object.keys(groupedTasks).sort((a, b) => {
         if (a === 'Unassigned') return -1;
         if (b === 'Unassigned') return 1;
@@ -714,7 +714,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
 
   // Get group ID for expansion tracking
   const getGroupId = useCallback((groupName: string) => {
-    const groupingMethod = filters.grouping || (viewMode === 'planner' ? 'none' : 'tag');
+    const groupingMethod = filters.grouping || (viewMode === 'planner' ? 'none' : 'category');
     
     if (groupingMethod === 'status') {
       if (groupName === 'In Progress & Paused') return 1;
@@ -729,39 +729,39 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
       if (groupName === 'Low') return 4;
     }
     
-    if (groupingMethod === 'tag') {
+    if (groupingMethod === 'category') {
       if (groupName === 'Unassigned') return -1;
-      return tags.find(t => t.name === groupName)?.id || 0;
+      return categories.find(c => c.name === groupName)?.id || 0;
     }
     
     return 0;
-  }, [filters.grouping, viewMode, tags]);
+  }, [filters.grouping, viewMode, categories]);
 
   // Check if group is expanded
   const isGroupExpanded = useCallback((groupName: string) => {
-    const groupingMethod = filters.grouping || (viewMode === 'planner' ? 'none' : 'tag');
+    const groupingMethod = filters.grouping || (viewMode === 'planner' ? 'none' : 'category');
     const groupId = getGroupId(groupName);
     
     // Special handling for completed tasks in status grouping
     if (groupingMethod === 'status' && groupName === 'Completed') {
-      return filters.show_completed && expandedTags.has(groupId);
+      return filters.show_completed && expandedCategories.has(groupId);
     }
     
-    return expandedTags.has(groupId);
-  }, [filters.grouping, viewMode, filters.show_completed, expandedTags, getGroupId]);
+    return expandedCategories.has(groupId);
+  }, [filters.grouping, viewMode, filters.show_completed, expandedCategories, getGroupId]);
 
   // Toggle group expansion
   const toggleGroupExpansion = useCallback((groupName: string) => {
     const groupId = getGroupId(groupName);
-    const newExpanded = new Set(expandedTags);
+    const newExpanded = new Set(expandedCategories);
     
     if (newExpanded.has(groupId)) {
       newExpanded.delete(groupId);
     } else {
       newExpanded.add(groupId);
     }
-    setExpandedTags(newExpanded);
-  }, [expandedTags, getGroupId]);
+    setExpandedCategories(newExpanded);
+  }, [expandedCategories, getGroupId]);
 
   const handleDragStart = (e: React.DragEvent, task: Task) => {
     e.dataTransfer.setData('text/plain', task.id.toString());
@@ -817,17 +817,17 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
           return updatedTasks;
         });
       } else {
-        // In tracker view, we're moving between tag groups
-        const tagId = targetId === -1 ? undefined : targetId;
-        const targetTagName = targetId === -1 ? 'Unassigned' : tags.find(t => t.id === targetId)?.name || 'Unknown';
+        // In tracker view, we're moving between category groups
+        const categoryId = targetId === -1 ? undefined : targetId;
+        const targetCategoryName = targetId === -1 ? 'Unassigned' : categories.find(c => c.id === targetId)?.name || 'Unknown';
         
-        console.log(`📦 Moving task "${task.title}" to tag: ${task.tag_name || 'Unassigned'} → ${targetTagName}`);
-        await apiService.updateTask(taskId, { tag_id: tagId });
+        console.log(`📦 Moving task "${task.title}" to category: ${task.category_name || 'Unassigned'} → ${targetCategoryName}`);
+        await apiService.updateTask(taskId, { category_id: categoryId });
         
         // Update local state instead of reloading
         setTasks(prevTasks => {
           const updatedTasks = prevTasks.map(t => 
-            t.id === taskId ? { ...t, tag_id: tagId, tag_name: targetTagName } as Task : t
+            t.id === taskId ? { ...t, category_id: categoryId, category_name: targetCategoryName } as Task : t
           );
           return updatedTasks;
         });
@@ -899,32 +899,32 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
     }
   };
 
-  const handleCreateTag = async () => {
-    if (!newTagName.trim()) return;
+  const handleCreateCategory = async () => {
+    if (!newCategoryName.trim()) return;
     
-    setIsCreatingTag(true);
+    setIsCreatingCategory(true);
     try {
-      console.log(`➕ Creating new tag: "${newTagName.trim()}"`);
-      const newTag = await apiService.createTag(newTagName.trim(), selectedWorkspaceId);
-      setNewTagName('');
-      setShowTagInput(false);
+      console.log(`➕ Creating new category: "${newCategoryName.trim()}"`);
+      const newCategory = await apiService.createCategory(newCategoryName.trim(), selectedWorkspaceId);
+      setNewCategoryName('');
+      setShowCategoryInput(false);
       
-      // Add new tag to local state
-      setTags(prevTags => [...prevTags, newTag]);
+      // Add new category to local state
+      setCategories(prevCategories => [...prevCategories, newCategory]);
     } catch (error) {
-      console.error('Error creating tag:', error);
+      console.error('Error creating category:', error);
     } finally {
-      setIsCreatingTag(false);
+      setIsCreatingCategory(false);
     }
   };
 
-  const handleTagSave = async (taskId: number, tagId?: number) => {
+  const handleCategorySave = async (taskId: number, categoryId?: number) => {
     try {
-      // Use provided tagId or fall back to editingTagValue
-      const finalTagId = tagId !== undefined ? tagId : (editingTagValue ? Number(editingTagValue) : undefined);
-      const tagName = finalTagId ? tags.find(t => t.id === finalTagId)?.name || 'Unknown' : 'Unassigned';
-      console.log(`🏷️ Updating task tag: "${tagName}"`);
-      await apiService.updateTask(taskId, { tag_id: finalTagId });
+      // Use provided categoryId or fall back to editingCategoryValue
+      const finalCategoryId = categoryId !== undefined ? categoryId : (editingCategoryValue ? Number(editingCategoryValue) : undefined);
+      const categoryName = finalCategoryId ? categories.find(c => c.id === finalCategoryId)?.name || 'Unknown' : 'Unassigned';
+      console.log(`🏷️ Updating task category: "${categoryName}"`);
+      await apiService.updateTask(taskId, { category_id: finalCategoryId });
       
       // Update local state instead of reloading
       setTasks(prevTasks => {
@@ -932,8 +932,8 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
           if (t.id === taskId) {
             return {
               ...t,
-              tag_id: finalTagId,
-              tag_name: tagName
+              category_id: finalCategoryId,
+              category_name: categoryName
             } as Task;
           }
           return t;
@@ -941,29 +941,29 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
         return updatedTasks;
       });
     } catch (error) {
-      console.error('Error updating task tag:', error);
+      console.error('Error updating task category:', error);
     } finally {
-      setEditingTagTaskId(null);
-      setEditingTagValue('');
+      setEditingCategoryTaskId(null);
+      setEditingCategoryValue('');
     }
   };
 
-  const handleTagCancel = () => {
-    setEditingTagTaskId(null);
-    setEditingTagValue('');
+  const handleCategoryCancel = () => {
+    setEditingCategoryTaskId(null);
+    setEditingCategoryValue('');
   };
 
-  const handleTagKeyPress = (e: React.KeyboardEvent, taskId: number) => {
+  const handleCategoryKeyPress = (e: React.KeyboardEvent, taskId: number) => {
     if (e.key === 'Enter') {
-      handleTagSave(taskId);
+      handleCategorySave(taskId);
     } else if (e.key === 'Escape') {
-      handleTagCancel();
+      handleCategoryCancel();
     }
   };
 
-  const handleCreateTagKeyPress = (e: React.KeyboardEvent) => {
+  const handleCreateCategoryKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
-      handleCreateTag();
+      handleCreateCategory();
     }
   };
 
@@ -1321,17 +1321,17 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
             className="text-sm rounded-md px-3 py-1.5 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-32 md:w-44 cursor-pointer bg-white hover:bg-gray-50 transition-colors min-h-[32px] flex items-center"
             onClick={(e) => {
               e.stopPropagation();
-              setShowNewTaskTagDropdown(!showNewTaskTagDropdown);
+              setShowNewTaskCategoryDropdown(!showNewTaskCategoryDropdown);
             }}
-            title="Select tag for new task"
+            title="Select category for new task"
           >
             <span className="text-gray-600">
-              {selectedNewTaskTag[selectedWorkspaceId] ? (tags.find(t => t.id.toString() === selectedNewTaskTag[selectedWorkspaceId])?.name || 'Select tag') : 'Select tag'}
+              {selectedNewTaskCategory[selectedWorkspaceId] ? (categories.find(c => c.id.toString() === selectedNewTaskCategory[selectedWorkspaceId])?.name || 'Select category') : 'Select category'}
             </span>
           </div>
           
-          {/* New task tag dropdown menu */}
-          {showNewTaskTagDropdown && (
+          {/* New task category dropdown menu */}
+          {showNewTaskCategoryDropdown && (
             <div 
               className="absolute top-full left-0 right-0 bg-white border border-gray-200 rounded-lg shadow-lg z-50 mt-1"
               onClick={(e) => e.stopPropagation()}
@@ -1340,36 +1340,36 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
                 <div 
                   className="px-3 py-1.5 text-sm text-gray-500 hover:bg-gray-50 cursor-pointer border-b"
                   onClick={() => {
-                    setSelectedNewTaskTag(prev => ({ ...prev, [selectedWorkspaceId]: '' }));
-                    setShowNewTaskTagDropdown(false);
+                    setSelectedNewTaskCategory(prev => ({ ...prev, [selectedWorkspaceId]: '' }));
+                    setShowNewTaskCategoryDropdown(false);
                   }}
                 >
-                  No tag
+                  No category
                 </div>
-                {tags.filter(tag => tag.hidden !== true).map((tag) => (
+                {categories.filter(category => category.hidden !== true).map((category) => (
                   <div
-                    key={tag.id}
+                    key={category.id}
                     className={clsx(
                       "px-3 py-1.5 text-sm cursor-pointer hover:bg-blue-50 transition-colors",
-                      selectedNewTaskTag[selectedWorkspaceId] === tag.id.toString() && "bg-blue-100 text-blue-700"
+                      selectedNewTaskCategory[selectedWorkspaceId] === category.id.toString() && "bg-blue-100 text-blue-700"
                     )}
                     onClick={() => {
-                      setSelectedNewTaskTag(prev => ({ ...prev, [selectedWorkspaceId]: tag.id.toString() }));
-                      setShowNewTaskTagDropdown(false);
+                      setSelectedNewTaskCategory(prev => ({ ...prev, [selectedWorkspaceId]: category.id.toString() }));
+                      setShowNewTaskCategoryDropdown(false);
                     }}
                   >
-                    {tag.name}
+                    {category.name}
                   </div>
                 ))}
                 <div className="border-t border-gray-200">
                   <div 
                     className="px-3 py-1.5 text-sm text-blue-600 hover:bg-blue-50 cursor-pointer transition-colors"
                     onClick={() => {
-                      setShowTagEditModal(true);
-                      setShowNewTaskTagDropdown(false);
+                      setShowCategoryEditModal(true);
+                      setShowNewTaskCategoryDropdown(false);
                     }}
                   >
-                    Edit tags
+                    Edit categories
                   </div>
                 </div>
               </div>
@@ -1427,7 +1427,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
                   <div className="w-4"></div> {/* Status */}
                   <div className="w-4"></div> {/* Priority */}
                   <div className="flex-1">Task</div>
-                  {viewMode === 'planner' && <div className="hidden sm:block w-20 text-center">Tag</div>}
+                  {viewMode === 'planner' && <div className="hidden sm:block w-20 text-center">Category</div>}
                   <div className="hidden sm:block w-12 text-center">Start</div>
                   {viewMode === 'tracker' && <div className="hidden sm:block w-12 text-center">Complete</div>}
                   <div className="hidden sm:block w-12 text-center">Due</div>
@@ -1448,15 +1448,15 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
                     editingDateValue={editingDateValue}
                     editingTitleValue={editingTitleValue}
                     editingPriorityValue={editingPriorityValue}
-                    editingTagTaskId={editingTagTaskId}
-                    editingTagValue={editingTagValue}
+                    editingCategoryTaskId={editingCategoryTaskId}
+                    editingCategoryValue={editingCategoryValue}
                     visibleTooltips={visibleTooltips}
                     hoveredTask={hoveredTask}
                     chatIcons={chatIcons}
                     editingTooltips={editingTooltips}
                     titleRefs={titleRefs}
                     statusClickTimers={statusClickTimers}
-                    tags={tags}
+                    categories={categories}
                     onStatusClick={handleStatusClick}
                     onStatusDoubleClick={handleStatusDoubleClick}
                     onPriorityClick={handlePriorityClick}
@@ -1469,10 +1469,10 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
                     onDateClick={handleDateClick}
                     onDateSave={handleDateSave}
                     onDateKeyPress={handleDateKeyPress}
-                    onTagClick={(taskId: number) => setEditingTagTaskId(taskId)}
-                    onTagSave={handleTagSave}
-                    onTagCancel={handleTagCancel}
-                    onTagKeyPress={handleTagKeyPress}
+                    onCategoryClick={(taskId: number) => setEditingCategoryTaskId(taskId)}
+                    onCategorySave={handleCategorySave}
+                    onCategoryCancel={handleCategoryCancel}
+                    onCategoryKeyPress={handleCategoryKeyPress}
                     onDescriptionSave={handleDescriptionSave}
                     onDescriptionTooltipClose={handleDescriptionTooltipClose}
                     onChatIconClick={handleChatIconClick}
@@ -1481,15 +1481,16 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
                     onSetEditingTitleValue={setEditingTitleValue}
                     onSetEditingPriorityValue={setEditingPriorityValue}
                     onSetEditingDateValue={setEditingDateValue}
-                    onSetEditingTagValue={setEditingTagValue}
+                    onSetEditingCategoryValue={setEditingCategoryValue}
                     onSetEditingDateType={setEditingDateType}
                     onSetEditingTitleTaskId={setEditingTitleTaskId}
                     onSetEditingPriorityTaskId={setEditingPriorityTaskId}
                     onSetEditingDateTaskId={setEditingDateTaskId}
-                    onSetEditingTagTaskId={setEditingTagTaskId}
+                    onSetEditingCategoryTaskId={setEditingCategoryTaskId}
                     onSetHoveredTask={setHoveredTask}
                     onSetEditingTooltips={setEditingTooltips}
                     titleInputRef={titleInputRef}
+                    categoryInputRef={categoryInputRef}
                     dateInputRef={dateInputRef}
                     formatDate={formatDate}
                     getStatusIcon={getStatusIcon}
@@ -1513,7 +1514,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
             <div className="w-4"></div> {/* Status */}
             <div className="w-4"></div> {/* Priority */}
             <div className="flex-1">Task</div>
-            {viewMode === 'planner' && <div className="hidden sm:block w-20 text-center">Tag</div>}
+            {viewMode === 'planner' && <div className="hidden sm:block w-20 text-center">Category</div>}
             <div className="hidden sm:block w-12 text-center">Start</div>
             {viewMode === 'tracker' && <div className="hidden sm:block w-12 text-center">Complete</div>}
             <div className="hidden sm:block w-12 text-center">Due</div>
@@ -1536,15 +1537,15 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
                 editingDateValue={editingDateValue}
                 editingTitleValue={editingTitleValue}
                 editingPriorityValue={editingPriorityValue}
-                editingTagTaskId={editingTagTaskId}
-                editingTagValue={editingTagValue}
+                editingCategoryTaskId={editingCategoryTaskId}
+                editingCategoryValue={editingCategoryValue}
                 visibleTooltips={visibleTooltips}
                 hoveredTask={hoveredTask}
                 chatIcons={chatIcons}
                 editingTooltips={editingTooltips}
                 titleRefs={titleRefs}
                 statusClickTimers={statusClickTimers}
-                tags={tags}
+                categories={categories}
                 onStatusClick={handleStatusClick}
                 onStatusDoubleClick={handleStatusDoubleClick}
                 onPriorityClick={handlePriorityClick}
@@ -1557,10 +1558,10 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
                 onDateClick={handleDateClick}
                 onDateSave={handleDateSave}
                 onDateKeyPress={handleDateKeyPress}
-                onTagClick={(taskId) => setEditingTagTaskId(taskId)}
-                onTagSave={handleTagSave}
-                onTagCancel={handleTagCancel}
-                onTagKeyPress={handleTagKeyPress}
+                onCategoryClick={(taskId) => setEditingCategoryTaskId(taskId)}
+                onCategorySave={handleCategorySave}
+                onCategoryCancel={handleCategoryCancel}
+                onCategoryKeyPress={handleCategoryKeyPress}
                 onDescriptionSave={handleDescriptionSave}
                 onDescriptionTooltipClose={handleDescriptionTooltipClose}
                 onChatIconClick={handleChatIconClick}
@@ -1569,15 +1570,16 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
                 onSetEditingTitleValue={setEditingTitleValue}
                 onSetEditingPriorityValue={setEditingPriorityValue}
                 onSetEditingDateValue={setEditingDateValue}
-                onSetEditingTagValue={setEditingTagValue}
+                onSetEditingCategoryValue={setEditingCategoryValue}
                 onSetEditingDateType={setEditingDateType}
                 onSetEditingTitleTaskId={setEditingTitleTaskId}
                 onSetEditingPriorityTaskId={setEditingPriorityTaskId}
                 onSetEditingDateTaskId={setEditingDateTaskId}
-                onSetEditingTagTaskId={setEditingTagTaskId}
+                onSetEditingCategoryTaskId={setEditingCategoryTaskId}
                 onSetHoveredTask={setHoveredTask}
                 onSetEditingTooltips={setEditingTooltips}
                 titleInputRef={titleInputRef}
+                categoryInputRef={categoryInputRef}
                 dateInputRef={dateInputRef}
                 formatDate={formatDate}
                 getStatusIcon={getStatusIcon}
@@ -1597,14 +1599,14 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
       {editingTask && (
         <TaskEditModal
           task={editingTask}
-          tags={tags}
+          categories={categories}
           onClose={() => setEditingTask(null)}
           onSave={async (updatedTask) => {
             try {
               await apiService.updateTask(updatedTask.id, {
                 title: updatedTask.title,
                 description: updatedTask.description,
-                tag_id: updatedTask.tag_id,
+                category_id: updatedTask.category_id,
                 priority: updatedTask.priority,
                 status: updatedTask.status,
                 start_date: updatedTask.start_date,
@@ -1625,17 +1627,17 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
             // Also update the editingTask state to keep modal in sync
             setEditingTask(updatedTask);
           }}
-          onTagSave={handleTagSave}
+          onCategorySave={handleCategorySave}
         />
       )}
 
-      {/* Tag Edit Modal */}
-      {showTagEditModal && (
-        <TagEditModal
-          tags={tags}
+      {/* Category Edit Modal */}
+      {showCategoryEditModal && (
+        <CategoryEditModal
+          categories={categories}
           workspaceId={selectedWorkspaceId}
-          onClose={() => setShowTagEditModal(false)}
-          onTagsUpdate={loadData}
+          onClose={() => setShowCategoryEditModal(false)}
+          onCategoriesUpdate={loadData}
         />
       )}
 

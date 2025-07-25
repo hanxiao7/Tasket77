@@ -86,7 +86,7 @@ const WorkspaceSelector: React.FC<WorkspaceSelectorProps> = ({
       alert('Cannot delete the default workspace');
       return;
     }
-    if (!window.confirm('Are you sure you want to delete this workspace? This will also delete all tasks and tags in this workspace.')) {
+    if (!window.confirm('Are you sure you want to delete this workspace? This will also delete all tasks and categories in this workspace.')) {
       return;
     }
     try {

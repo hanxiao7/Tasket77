@@ -23,12 +23,12 @@ CREATE TABLE IF NOT EXISTS user_sessions (
 
 -- Add user_id column to existing tables
 ALTER TABLE workspaces ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id) ON DELETE CASCADE;
-ALTER TABLE tags ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id) ON DELETE CASCADE;
+ALTER TABLE categories ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id) ON DELETE CASCADE;
 ALTER TABLE tasks ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id) ON DELETE CASCADE;
 
 -- Create indexes for better performance
 CREATE INDEX IF NOT EXISTS idx_workspaces_user_id ON workspaces(user_id);
-CREATE INDEX IF NOT EXISTS idx_tags_user_id ON tags(user_id);
+CREATE INDEX IF NOT EXISTS idx_categories_user_id ON categories(user_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_user_id ON tasks(user_id);
 CREATE INDEX IF NOT EXISTS idx_user_sessions_user_id ON user_sessions(user_id);
 CREATE INDEX IF NOT EXISTS idx_user_sessions_token ON user_sessions(session_token);
@@ -36,5 +36,5 @@ CREATE INDEX IF NOT EXISTS idx_user_sessions_expires ON user_sessions(expires_at
 
 -- Add constraints to ensure user_id is not null for new records
 ALTER TABLE workspaces ALTER COLUMN user_id SET NOT NULL;
-ALTER TABLE tags ALTER COLUMN user_id SET NOT NULL;
+ALTER TABLE categories ALTER COLUMN user_id SET NOT NULL;
 ALTER TABLE tasks ALTER COLUMN user_id SET NOT NULL; 

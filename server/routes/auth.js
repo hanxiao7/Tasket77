@@ -76,7 +76,6 @@ router.post('/register', async (req, res) => {
         ]
       );
 
-      // No default tag creation - users will create their own tags as needed
 
       // Generate JWT token
       const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '7d' });

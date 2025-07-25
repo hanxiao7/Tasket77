@@ -98,8 +98,8 @@ class PostgreSQLBackupManager {
       // Create backup tables with data
       const tables = [
         { name: 'workspaces', columns: 'id, name, description, is_default, created_at, updated_at' },
-        { name: 'tags', columns: 'id, name, workspace_id, hidden, created_at, updated_at' },
-        { name: 'tasks', columns: 'id, user_id, workspace_id, title, description, tag_id, priority, status, due_date, start_date, completion_date, last_modified, created_at' },
+        { name: 'categories', columns: 'id, name, workspace_id, hidden, created_at, updated_at' },
+        { name: 'tasks', columns: 'id, user_id, workspace_id, title, description, category_id, priority, status, due_date, start_date, completion_date, last_modified, created_at' },
         { name: 'task_history', columns: 'id, task_id, status, action_date, notes' }
       ];
       

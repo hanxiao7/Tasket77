@@ -134,7 +134,7 @@ function MainApp() {
               <button
                 onClick={() => {
                   setViewMode('tracker');
-                  setFilters({ ...filters, view: 'tracker', show_completed: true, grouping: 'tag' });
+                  setFilters({ ...filters, view: 'tracker', show_completed: true, grouping: 'category' });
                 }}
                 className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex-1 ${
                   viewMode === 'tracker'
@@ -168,14 +168,14 @@ function MainApp() {
                 {/* Grouping selector */}
                 <select
                   value={filters.grouping || 'none'}
-                  onChange={(e) => setFilters({ ...filters, grouping: e.target.value as 'none' | 'status' | 'priority' | 'tag' })}
+                  onChange={(e) => setFilters({ ...filters, grouping: e.target.value as 'none' | 'status' | 'priority' | 'category' })}
                   className="px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                   title="Group tasks by"
                 >
                   <option value="none">No grouping</option>
                   <option value="status">Status</option>
                   <option value="priority">Priority</option>
-                  <option value="tag">Tag</option>
+                  <option value="category">Category</option>
                 </select>
               </div>
               
@@ -238,7 +238,7 @@ function MainApp() {
                 <button
                   onClick={() => {
                     setViewMode('tracker');
-                    setFilters({ ...filters, view: 'tracker', show_completed: true, grouping: 'tag' });
+                    setFilters({ ...filters, view: 'tracker', show_completed: true, grouping: 'category' });
                   }}
                   className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
                     viewMode === 'tracker'
@@ -269,14 +269,14 @@ function MainApp() {
                 {/* Grouping selector */}
                 <select
                   value={filters.grouping || 'none'}
-                  onChange={(e) => setFilters({ ...filters, grouping: e.target.value as 'none' | 'status' | 'priority' | 'tag' })}
+                  onChange={(e) => setFilters({ ...filters, grouping: e.target.value as 'none' | 'status' | 'priority' | 'category' })}
                   className="px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                   title="Group tasks by"
                 >
                   <option value="none">No grouping</option>
                   <option value="status">Status</option>
                   <option value="priority">Priority</option>
-                  <option value="tag">Tag</option>
+                  <option value="category">Category</option>
                 </select>
                 {/* Show completed toggle for planner */}
                 {viewMode === 'planner' && (
@@ -334,7 +334,7 @@ function MainApp() {
           <h3 className="font-medium text-blue-900 mb-2 text-sm md:text-base">Quick Tips:</h3>
           <ul className="text-xs md:text-sm text-blue-800 space-y-1">
             <li>• Planner view helps create and follow tasks. Switch to Tracker to review recent progress.</li>
-            <li>• Use tags to classify tasks by category or theme</li>
+            <li>• Use categories to classify tasks by category or theme</li>
             <li>• Click the status button to cycle through: To Do → In Progress → Paused → In Progress → …</li>
             <li>• Double-click the status button to mark as Done</li>
             <li>• Click the priority flag to cycle: Normal → High → Urgent → Low → Normal → …</li>

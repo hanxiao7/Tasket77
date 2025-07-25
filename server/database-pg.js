@@ -32,8 +32,6 @@ async function initializeDatabase() {
     // Check if default workspace exists
     // (Removed: No longer create a default workspace)
     
-    // Check if default tag exists
-    // (Removed: No longer create a default tag)
     
     client.release();
     console.log('PostgreSQL database initialized successfully');

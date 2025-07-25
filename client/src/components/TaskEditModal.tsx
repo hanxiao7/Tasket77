@@ -1,19 +1,18 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Task, Tag } from '../types';
-import { apiService } from '../services/api';
-import { X, Save, Flag, Circle, Play, Pause, CheckCircle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Task, Category } from '../types';
+import { X, Save, Calendar, Flag, Tag as TagIcon, MessageSquare } from 'lucide-react';
 import clsx from 'clsx';
 
 interface TaskEditModalProps {
   task: Task;
-  tags: Tag[];
+  categories: Category[];
   onClose: () => void;
-  onSave: (task: Task) => void;
-  onUpdate?: (task: Task) => void;
-  onTagSave?: (taskId: number, tagId?: number) => Promise<void>;
+  onSave: (task: Task) => Promise<void>;
+  onUpdate: (task: Task) => void;
+  onCategorySave: (taskId: number, categoryId?: number) => Promise<void>;
 }
 
-const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, tags, onClose, onSave, onUpdate, onTagSave }) => {
+const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, categories, onClose, onSave, onUpdate, onCategorySave }) => {
   const formatDateForInput = (dateString: string | undefined) => {
     if (!dateString) return '';
     
@@ -35,7 +34,7 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, tags, onClose, onSa
   const [formData, setFormData] = useState({
     title: task.title,
     description: task.description || '',
-    tag_id: task.tag_id || '',
+    category_id: task.category_id || '',
     priority: task.priority,
     status: task.status,
     start_date: formatDateForInput(task.start_date),
@@ -44,15 +43,15 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, tags, onClose, onSa
   });
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editingTitleValue, setEditingTitleValue] = useState(task.title);
-  const titleInputRef = useRef<HTMLInputElement>(null);
-  const descriptionRef = useRef<HTMLTextAreaElement>(null);
-  const statusClickTimer = useRef<NodeJS.Timeout | null>(null);
+  const titleInputRef = React.useRef<HTMLInputElement>(null);
+  const descriptionRef = React.useRef<HTMLTextAreaElement>(null);
+  const statusClickTimer = React.useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     setFormData({
       title: task.title,
       description: task.description || '',
-      tag_id: task.tag_id || '',
+      category_id: task.category_id || '',
       priority: task.priority,
       status: task.status,
       start_date: formatDateForInput(task.start_date),
@@ -64,15 +63,15 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, tags, onClose, onSa
   const getStatusIcon = (status: Task['status']) => {
     switch (status) {
       case 'todo':
-        return <Circle className="w-5 h-5" />;
+        return <TagIcon className="w-5 h-5" />;
       case 'in_progress':
-        return <Play className="w-5 h-5" />;
+        return <Calendar className="w-5 h-5" />;
       case 'paused':
-        return <Pause className="w-5 h-5" />;
+        return <MessageSquare className="w-5 h-5" />;
       case 'done':
-        return <CheckCircle className="w-5 h-5" />;
+        return <Flag className="w-5 h-5" />;
       default:
-        return <Circle className="w-5 h-5" />;
+        return <TagIcon className="w-5 h-5" />;
     }
   };
 
@@ -193,8 +192,8 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, tags, onClose, onSa
     
     try {
       console.log(`✏️ Auto-saving task title: "${newTitle.trim()}"`);
-      await apiService.updateTask(task.id, { title: newTitle.trim() });
-      onUpdate?.({ ...task, title: newTitle.trim() });
+      await onSave({ ...task, title: newTitle.trim() });
+      onUpdate({ ...task, title: newTitle.trim() });
     } catch (error) {
       console.error('Error auto-saving task title:', error);
     }
@@ -208,31 +207,31 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, tags, onClose, onSa
     
     try {
       console.log(`📝 Auto-saving task description: "${finalDescription}"`);
-      await apiService.updateTask(task.id, { description: finalDescription });
-      onUpdate?.({ ...task, description: finalDescription });
+      await onSave({ ...task, description: finalDescription });
+      onUpdate({ ...task, description: finalDescription });
     } catch (error) {
       console.error('Error auto-saving task description:', error);
     }
   };
 
-  const handleTagAutoSave = async (newTagId: string) => {
-    const currentTagId = task.tag_id || '';
-    const finalTagId = newTagId ? Number(newTagId) : undefined;
+  const handleCategoryAutoSave = async (newCategoryId: string) => {
+    const currentCategoryId = task.category_id || '';
+    const finalCategoryId = newCategoryId ? Number(newCategoryId) : undefined;
     
-    if (finalTagId === currentTagId) return;
+    if (finalCategoryId === currentCategoryId) return;
     
-    if (onTagSave) {
-      // Use the parent's tag save function if provided
-      await onTagSave(task.id, finalTagId);
+    if (onCategorySave) {
+      // Use the parent's category save function if provided
+      await onCategorySave(task.id, finalCategoryId);
     } else {
       // Fallback to local implementation if not provided
       try {
-        const tagName = finalTagId ? tags.find(t => t.id === finalTagId)?.name || 'Unknown' : 'Unassigned';
-        console.log(`🏷️ Auto-saving task tag: "${tagName}"`);
-        await apiService.updateTask(task.id, { tag_id: finalTagId });
-        onUpdate?.({ ...task, tag_id: finalTagId, tag_name: tagName });
+        const categoryName = finalCategoryId ? categories.find(c => c.id === finalCategoryId)?.name || 'Unknown' : 'Unassigned';
+        console.log(`🏷️ Auto-saving task category: "${categoryName}"`);
+        await onSave({ ...task, category_id: finalCategoryId, category_name: categoryName });
+        onUpdate({ ...task, category_id: finalCategoryId, category_name: categoryName });
       } catch (error) {
-        console.error('Error auto-saving task tag:', error);
+        console.error('Error auto-saving task category:', error);
       }
     }
   };
@@ -242,16 +241,8 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, tags, onClose, onSa
     
     try {
       console.log(`🔄 Auto-saving task status: ${task.status} → ${newStatus}`);
-      await apiService.updateTaskStatus(task.id, newStatus);
-      // Fetch the updated task to get new dates and last_modified
-      const updatedTasks = await apiService.getTasks();
-      const updatedTask = updatedTasks.find(t => t.id === task.id);
-      if (updatedTask) {
-        onUpdate?.(updatedTask);
-      } else {
-        // fallback if not found
-        onUpdate?.({ ...task, status: newStatus });
-      }
+      await onSave({ ...task, status: newStatus });
+      onUpdate({ ...task, status: newStatus });
     } catch (error) {
       console.error('Error auto-saving task status:', error);
     }
@@ -262,8 +253,8 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, tags, onClose, onSa
     
     try {
       console.log(`🚩 Auto-saving task priority: ${task.priority} → ${newPriority}`);
-      await apiService.updateTask(task.id, { priority: newPriority });
-      onUpdate?.({ ...task, priority: newPriority });
+      await onSave({ ...task, priority: newPriority });
+      onUpdate({ ...task, priority: newPriority });
     } catch (error) {
       console.error('Error auto-saving task priority:', error);
     }
@@ -277,8 +268,8 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, tags, onClose, onSa
     
     try {
       console.log(`📅 Auto-saving task ${dateType}: "${finalDate}"`);
-      await apiService.updateTask(task.id, { [dateType]: finalDate });
-      onUpdate?.({ ...task, [dateType]: finalDate });
+      await onSave({ ...task, [dateType]: finalDate });
+      onUpdate({ ...task, [dateType]: finalDate });
     } catch (error) {
       console.error(`Error auto-saving task ${dateType}:`, error);
     }
@@ -336,25 +327,25 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, tags, onClose, onSa
         </div>
 
         <form className="space-y-6">
-          {/* Tag and Due Date - always two columns */}
+          {/* Category and Due Date - always two columns */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Tag
+                Category
               </label>
               <select
-                value={formData.tag_id}
+                value={formData.category_id}
                 onChange={async (e) => {
-                  setFormData({ ...formData, tag_id: e.target.value });
-                  await handleTagAutoSave(e.target.value);
+                  setFormData({ ...formData, category_id: e.target.value });
+                  await handleCategoryAutoSave(e.target.value);
                 }}
                 className="w-full px-3 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm appearance-none bg-white min-h-[40px]"
                 style={{ WebkitAppearance: 'none', MozAppearance: 'none' }}
               >
-                <option value="">Select a tag</option>
-                {tags.filter(tag => tag.hidden !== true).map((tag) => (
-                  <option key={tag.id} value={tag.id}>
-                    {tag.name}
+                <option value="">Select a category</option>
+                {categories.filter(category => category.hidden !== true).map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
                   </option>
                 ))}
               </select>

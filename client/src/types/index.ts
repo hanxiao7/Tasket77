@@ -7,7 +7,7 @@ export interface Workspace {
   updated_at: string;
 }
 
-export interface Tag {
+export interface Category {
   id: number;
   name: string;
   workspace_id: number;
@@ -20,8 +20,8 @@ export interface Task {
   id: number;
   title: string;
   description?: string;
-  tag_id?: number;
-  tag_name?: string;
+  category_id?: number;
+  category_name?: string;
   workspace_id: number;
   status: 'todo' | 'in_progress' | 'paused' | 'done';
   priority: 'urgent' | 'high' | 'normal' | 'low';
@@ -43,19 +43,18 @@ export interface TaskHistory {
 export interface CreateTaskData {
   title: string;
   description?: string;
-  tag_id?: number;
-
-  workspace_id: number;
-  priority?: 'urgent' | 'high' | 'normal' | 'low';
+  category_id?: number;
+  priority?: Task['priority'];
   due_date?: string;
+  workspace_id: number;
 }
 
 export interface UpdateTaskData {
   title?: string;
   description?: string;
-  tag_id?: number;
-  priority?: 'urgent' | 'high' | 'normal' | 'low';
-  status?: 'todo' | 'in_progress' | 'paused' | 'done';
+  category_id?: number;
+  priority?: Task['priority'];
+  status?: Task['status'];
   start_date?: string;
   due_date?: string;
   completion_date?: string;
@@ -64,12 +63,12 @@ export interface UpdateTaskData {
 export interface TaskFilters {
   view?: 'planner' | 'tracker';
   days?: number;
-  tag_id?: number;
-  status?: string;
-  priority?: string;
+  category_id?: number;
+  status?: Task['status'];
+  priority?: Task['priority'];
   show_completed?: boolean;
   workspace_id?: number;
-  grouping?: 'none' | 'status' | 'priority' | 'tag';
+  grouping?: 'none' | 'status' | 'priority' | 'category';
 }
 
 export type ViewMode = 'planner' | 'tracker'; 

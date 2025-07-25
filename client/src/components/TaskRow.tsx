@@ -1,5 +1,5 @@
 import React from 'react';
-import { Task, Tag } from '../types';
+import { Task, Category } from '../types';
 import { 
   Circle, 
   Play, 
@@ -28,15 +28,15 @@ interface TaskRowProps {
   editingDateValue: string;
   editingTitleValue: string;
   editingPriorityValue: Task['priority'];
-  editingTagTaskId: number | null;
-  editingTagValue: string;
+  editingCategoryTaskId: number | null;
+  editingCategoryValue: string;
   visibleTooltips: Set<number>;
   hoveredTask: number | null;
   chatIcons: Set<number>;
   editingTooltips: Set<number>;
   titleRefs: React.MutableRefObject<Map<number, HTMLDivElement | null>>;
   statusClickTimers: React.MutableRefObject<{ [taskId: number]: NodeJS.Timeout }>;
-  tags: Tag[];
+  categories: Category[];
   onStatusClick: (task: Task) => void;
   onStatusDoubleClick: (task: Task) => void;
   onPriorityClick: (task: Task) => void;
@@ -49,10 +49,10 @@ interface TaskRowProps {
   onDateClick: (task: Task, dateType: 'due_date' | 'start_date' | 'completion_date') => void;
   onDateSave: (taskId: number) => void;
   onDateKeyPress: (e: React.KeyboardEvent, taskId: number) => void;
-  onTagClick: (taskId: number) => void;
-  onTagSave: (taskId: number, tagId?: number) => void;
-  onTagCancel: () => void;
-  onTagKeyPress: (e: React.KeyboardEvent, taskId: number) => void;
+  onCategoryClick: (taskId: number) => void;
+  onCategorySave: (taskId: number, categoryId?: number) => void;
+  onCategoryCancel: () => void;
+  onCategoryKeyPress: (e: React.KeyboardEvent, taskId: number) => void;
   onDescriptionSave: (taskId: number, description: string) => Promise<void>;
   onDescriptionTooltipClose: () => void;
   onChatIconClick: (taskId: number) => void;
@@ -61,16 +61,17 @@ interface TaskRowProps {
   onSetEditingTitleValue: (value: string) => void;
   onSetEditingPriorityValue: (value: Task['priority']) => void;
   onSetEditingDateValue: (value: string) => void;
-  onSetEditingTagValue: (value: string) => void;
+  onSetEditingCategoryValue: (value: string) => void;
   onSetEditingDateType: (value: 'due_date' | 'start_date' | 'completion_date' | null) => void;
   onSetEditingTitleTaskId: (value: number | null) => void;
   onSetEditingPriorityTaskId: (value: number | null) => void;
   onSetEditingDateTaskId: (value: number | null) => void;
-  onSetEditingTagTaskId: (value: number | null) => void;
+  onSetEditingCategoryTaskId: (value: number | null) => void;
   onSetHoveredTask: (value: number | null) => void;
   onSetEditingTooltips: (value: Set<number>) => void;
   titleInputRef: React.RefObject<HTMLInputElement>;
   dateInputRef: React.RefObject<HTMLInputElement>;
+  categoryInputRef: React.RefObject<HTMLSelectElement>;
   formatDate: (dateString: string | undefined) => string;
   getStatusIcon: (status: Task['status']) => React.ReactNode;
   getStatusColor: (status: Task['status']) => string;
@@ -93,15 +94,15 @@ const TaskRow: React.FC<TaskRowProps> = ({
   editingDateValue,
   editingTitleValue,
   editingPriorityValue,
-  editingTagTaskId,
-  editingTagValue,
+  editingCategoryTaskId,
+  editingCategoryValue,
   visibleTooltips,
   hoveredTask,
   chatIcons,
   editingTooltips,
   titleRefs,
   statusClickTimers,
-  tags,
+  categories,
   onStatusClick,
   onStatusDoubleClick,
   onPriorityClick,
@@ -114,10 +115,10 @@ const TaskRow: React.FC<TaskRowProps> = ({
   onDateClick,
   onDateSave,
   onDateKeyPress,
-  onTagClick,
-  onTagSave,
-  onTagCancel,
-  onTagKeyPress,
+  onCategoryClick,
+  onCategorySave,
+  onCategoryCancel,
+  onCategoryKeyPress,
   onDescriptionSave,
   onDescriptionTooltipClose,
   onChatIconClick,
@@ -126,16 +127,17 @@ const TaskRow: React.FC<TaskRowProps> = ({
   onSetEditingTitleValue,
   onSetEditingPriorityValue,
   onSetEditingDateValue,
-  onSetEditingTagValue,
+  onSetEditingCategoryValue,
   onSetEditingDateType,
   onSetEditingTitleTaskId,
   onSetEditingPriorityTaskId,
   onSetEditingDateTaskId,
-  onSetEditingTagTaskId,
+  onSetEditingCategoryTaskId,
   onSetHoveredTask,
   onSetEditingTooltips,
   titleInputRef,
   dateInputRef,
+  categoryInputRef,
   formatDate,
   getStatusIcon,
   getStatusColor,
@@ -332,36 +334,36 @@ const TaskRow: React.FC<TaskRowProps> = ({
         )}
       </div>
 
-      {/* Tag */}
+      {/* Category */}
       {viewMode === 'planner' && (
         <div className="hidden sm:flex flex-shrink-0 w-20 text-center relative">
           <div
             className={clsx(
               "text-xs rounded px-1 py-1 w-full transition-all cursor-pointer min-h-[20px] flex items-center justify-center",
-              editingTagTaskId === task.id 
+              editingCategoryTaskId === task.id 
                 ? "border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500" 
                 : "border border-transparent hover:border-gray-300 hover:bg-blue-50"
             )}
             onClick={(e) => {
               e.stopPropagation();
-              if (editingTagTaskId !== task.id) {
-                onTagClick(task.id);
-                onSetEditingTagValue(task.tag_id?.toString() || '');
+              if (editingCategoryTaskId !== task.id) {
+                onCategoryClick(task.id);
+                onSetEditingCategoryValue(task.category_id?.toString() || '');
               } else {
-                onSetEditingTagTaskId(null);
+                onSetEditingCategoryTaskId(null);
               }
             }}
-            title="Click to edit tag"
+            title="Click to edit category"
           >
-            {task.tag_name ? (
-              <span className="text-sm font-medium">{task.tag_name}</span>
+            {task.category_name ? (
+              <span className="text-sm font-medium">{task.category_name}</span>
             ) : (
               <span className="text-gray-400">-</span>
             )}
           </div>
           
-          {/* Tag dropdown menu */}
-          {editingTagTaskId === task.id && (
+          {/* Category dropdown menu */}
+          {editingCategoryTaskId === task.id && (
             <div 
               className="absolute top-full left-0 right-0 bg-white border border-gray-200 rounded-lg shadow-lg z-50 mt-1"
               onClick={(e) => e.stopPropagation()}
@@ -370,27 +372,27 @@ const TaskRow: React.FC<TaskRowProps> = ({
                 <div 
                   className="px-2 py-1 text-xs text-gray-500 hover:bg-gray-50 cursor-pointer border-b"
                   onClick={() => {
-                    onSetEditingTagValue('');
-                    onTagSave(task.id, undefined);
-                    onSetEditingTagTaskId(null);
+                    onSetEditingCategoryValue('');
+                    onCategorySave(task.id, undefined);
+                    onSetEditingCategoryTaskId(null);
                   }}
                 >
-                  No tag
+                  No category
                 </div>
-                {tags.filter(tag => tag.hidden !== true).map((tag) => (
+                {categories.filter(category => category.hidden !== true).map((category) => (
                   <div
-                    key={tag.id}
+                    key={category.id}
                     className={clsx(
                       "px-2 py-1 text-xs cursor-pointer hover:bg-blue-50 transition-colors",
-                      editingTagValue === tag.id.toString() && "bg-blue-100 text-blue-700"
+                      editingCategoryValue === category.id.toString() && "bg-blue-100 text-blue-700"
                     )}
                     onClick={() => {
-                      onSetEditingTagValue(tag.id.toString());
-                      onTagSave(task.id, tag.id);
-                      onSetEditingTagTaskId(null);
+                      onSetEditingCategoryValue(category.id.toString());
+                      onCategorySave(task.id, category.id);
+                      onSetEditingCategoryTaskId(null);
                     }}
                   >
-                    {tag.name}
+                    {category.name}
                   </div>
                 ))}
               </div>

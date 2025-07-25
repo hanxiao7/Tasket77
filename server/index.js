@@ -79,10 +79,10 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Get all tags
-app.get('/api/tags', authenticateToken, async (req, res) => {
+// Get all categories
+app.get('/api/categories', authenticateToken, async (req, res) => {
   const { include_hidden, workspace_id } = req.query;
-  let query = 'SELECT * FROM tags';
+  let query = 'SELECT * FROM categories';
   const conditions = [];
   const params = [];
   // Always filter by user_id for data isolation
@@ -107,11 +107,11 @@ app.get('/api/tags', authenticateToken, async (req, res) => {
   }
 });
 
-// Create new tag
-app.post('/api/tags', authenticateToken, async (req, res) => {
+// Create new category
+app.post('/api/categories', authenticateToken, async (req, res) => {
   const { name, workspace_id } = req.body;
   if (!name) {
-    res.status(400).json({ error: 'Tag name is required' });
+    res.status(400).json({ error: 'Category name is required' });
     return;
   }
   if (!workspace_id) {
@@ -121,7 +121,7 @@ app.post('/api/tags', authenticateToken, async (req, res) => {
   try {
     const now = moment().utc().format('YYYY-MM-DD HH:mm:ss');
     const result = await pool.query(
-      'INSERT INTO tags (name, workspace_id, user_id, hidden, created_at, updated_at) VALUES ($1, $2, $3, false, $4, $4) RETURNING *',
+      'INSERT INTO categories (name, workspace_id, user_id, hidden, created_at, updated_at) VALUES ($1, $2, $3, false, $4, $4) RETURNING *',
       [name, workspace_id, req.user.userId, now]
     );
     res.json(result.rows[0]);
@@ -130,22 +130,22 @@ app.post('/api/tags', authenticateToken, async (req, res) => {
   }
 });
 
-// Update tag
-app.put('/api/tags/:id', authenticateToken, async (req, res) => {
+// Update category
+app.put('/api/categories/:id', authenticateToken, async (req, res) => {
   const { id } = req.params;
   const { name } = req.body;
   if (!name) {
-    res.status(400).json({ error: 'Tag name is required' });
+    res.status(400).json({ error: 'Category name is required' });
     return;
   }
   try {
     const now = moment().utc().format('YYYY-MM-DD HH:mm:ss');
     const updateResult = await pool.query(
-      'UPDATE tags SET name = $1, updated_at = $2 WHERE id = $3 AND user_id = $4 RETURNING *',
+      'UPDATE categories SET name = $1, updated_at = $2 WHERE id = $3 AND user_id = $4 RETURNING *',
       [name, now, id, req.user.userId]
     );
     if (updateResult.rowCount === 0) {
-      res.status(404).json({ error: 'Tag not found' });
+      res.status(404).json({ error: 'Category not found' });
       return;
     }
     res.json(updateResult.rows[0]);
@@ -154,17 +154,17 @@ app.put('/api/tags/:id', authenticateToken, async (req, res) => {
   }
 });
 
-// Toggle tag hidden status
-app.patch('/api/tags/:id/toggle-hidden', authenticateToken, async (req, res) => {
+// Toggle category hidden status
+app.patch('/api/categories/:id/toggle-hidden', authenticateToken, async (req, res) => {
   const { id } = req.params;
   try {
     const now = moment().utc().format('YYYY-MM-DD HH:mm:ss');
     const updateResult = await pool.query(
-      'UPDATE tags SET hidden = NOT hidden, updated_at = $1 WHERE id = $2 AND user_id = $3 RETURNING *',
+      'UPDATE categories SET hidden = NOT hidden, updated_at = $1 WHERE id = $2 AND user_id = $3 RETURNING *',
       [now, id, req.user.userId]
     );
     if (updateResult.rowCount === 0) {
-      res.status(404).json({ error: 'Tag not found' });
+      res.status(404).json({ error: 'Category not found' });
       return;
     }
     res.json(updateResult.rows[0]);
@@ -173,14 +173,14 @@ app.patch('/api/tags/:id/toggle-hidden', authenticateToken, async (req, res) => 
   }
 });
 
-// Delete tag
-app.delete('/api/tags/:id', authenticateToken, async (req, res) => {
+// Delete category
+app.delete('/api/categories/:id', authenticateToken, async (req, res) => {
   const { id } = req.params;
   try {
-    await pool.query('UPDATE tasks SET tag_id = NULL WHERE tag_id = $1', [id]);
-    const deleteResult = await pool.query('DELETE FROM tags WHERE id = $1 RETURNING *', [id]);
+    await pool.query('UPDATE tasks SET category_id = NULL WHERE category_id = $1', [id]);
+    const deleteResult = await pool.query('DELETE FROM categories WHERE id = $1 RETURNING *', [id]);
     if (deleteResult.rowCount === 0) {
-      res.status(404).json({ error: 'Tag not found' });
+      res.status(404).json({ error: 'Category not found' });
       return;
     }
     res.json({ success: true });
@@ -191,11 +191,11 @@ app.delete('/api/tags/:id', authenticateToken, async (req, res) => {
 
 // Get tasks with optional filters
 app.get('/api/tasks', authenticateToken, async (req, res) => {
-  const { view, days, tag_id, status, priority, show_completed, workspace_id } = req.query;
+  const { view, days, category_id, status, priority, show_completed, workspace_id } = req.query;
   let query = `
-    SELECT t.*, tg.name as tag_name
+    SELECT t.*, c.name as category_name
     FROM tasks t
-    LEFT JOIN tags tg ON t.tag_id = tg.id
+    LEFT JOIN categories c ON t.category_id = c.id
     WHERE t.user_id = $1
   `;
   const params = [req.user.userId];
@@ -213,9 +213,9 @@ app.get('/api/tasks', authenticateToken, async (req, res) => {
     params.push(daysAgo);
     paramIndex++;
   }
-  if (tag_id) {
-    query += ` AND t.tag_id = $${paramIndex}`;
-    params.push(tag_id);
+  if (category_id) {
+    query += ` AND t.category_id = $${paramIndex}`;
+    params.push(category_id);
     paramIndex++;
   }
   if (status) {
@@ -233,7 +233,7 @@ app.get('/api/tasks', authenticateToken, async (req, res) => {
     query += ' CASE t.priority WHEN \'urgent\' THEN 1 WHEN \'high\' THEN 2 WHEN \'normal\' THEN 3 WHEN \'low\' THEN 4 END,';
     query += ' t.title ASC';
   } else if (view === 'tracker') {
-    query += ' ORDER BY tg.name, CASE t.status WHEN \'done\' THEN 1 WHEN \'in_progress\' THEN 2 WHEN \'paused\' THEN 3 WHEN \'todo\' THEN 4 END,';
+    query += ' ORDER BY c.name, CASE t.status WHEN \'done\' THEN 1 WHEN \'in_progress\' THEN 2 WHEN \'paused\' THEN 3 WHEN \'todo\' THEN 4 END,';
     query += ' t.title ASC';
   } else {
     query += ' ORDER BY t.title ASC';
@@ -272,7 +272,7 @@ app.get('/api/tasks', authenticateToken, async (req, res) => {
 
 // Create new task
 app.post('/api/tasks', authenticateToken, async (req, res) => {
-  const { title, description, tag_id, priority, due_date, workspace_id } = req.body;
+  const { title, description, category_id, priority, due_date, workspace_id } = req.body;
   
   if (!title) {
     res.status(400).json({ error: 'Task title is required' });
@@ -291,21 +291,21 @@ app.post('/api/tasks', authenticateToken, async (req, res) => {
     const now = moment().utc().format('YYYY-MM-DD HH:mm:ss');
     const result = await pool.query(
       `
-    INSERT INTO tasks (user_id, workspace_id, title, description, tag_id, priority, due_date, created_at, last_modified)
+    INSERT INTO tasks (user_id, workspace_id, title, description, category_id, priority, due_date, created_at, last_modified)
     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $8)
     RETURNING *
-  `, [req.user.userId, workspace_id, title, description, tag_id, priority || 'normal', parsedDueDate, now]
+  `, [req.user.userId, workspace_id, title, description, category_id, priority || 'normal', parsedDueDate, now]
     );
     
     const taskId = result.rows[0].id;
     await addTaskHistory(taskId, 'todo', 'Task created');
     
-    // Get the complete task information including tag details
+    // Get the complete task information including category details
     const fullRowResult = await pool.query(
       `
-      SELECT t.*, tg.name as tag_name
+      SELECT t.*, c.name as category_name
       FROM tasks t
-      LEFT JOIN tags tg ON t.tag_id = tg.id
+      LEFT JOIN categories c ON t.category_id = c.id
       WHERE t.id = $1
     `, [taskId]
     );
@@ -380,7 +380,7 @@ app.patch('/api/tasks/:id/status', authenticateToken, async (req, res) => {
 // Update task
 app.put('/api/tasks/:id', authenticateToken, async (req, res) => {
   const { id } = req.params;
-  const { title, description, tag_id, priority, status, start_date, due_date, completion_date } = req.body;
+  const { title, description, category_id, priority, status, start_date, due_date, completion_date } = req.body;
 
   try {
     const currentTaskResult = await pool.query('SELECT * FROM tasks WHERE id = $1', [id]);
@@ -405,9 +405,9 @@ app.put('/api/tasks/:id', authenticateToken, async (req, res) => {
       updateParams.push(description);
       paramIndex++;
     }
-    if (tag_id !== undefined) {
-      updateFields.push(`tag_id = $${paramIndex}`);
-      updateParams.push(tag_id);
+    if (category_id !== undefined) {
+      updateFields.push(`category_id = $${paramIndex}`);
+      updateParams.push(category_id);
       paramIndex++;
     }
     if (priority !== undefined) {
@@ -497,9 +497,9 @@ app.get('/api/tasks/:id', (req, res) => {
   const { id } = req.params;
   
   pool.query(`
-    SELECT t.*, tg.name as tag_name
+    SELECT t.*, c.name as category_name
     FROM tasks t
-    LEFT JOIN tags tg ON t.tag_id = tg.id
+    LEFT JOIN categories c ON t.category_id = c.id
     WHERE t.id = $1
   `, [id], (err, row) => {
     if (err) {
@@ -540,7 +540,7 @@ app.get('/api/export', authenticateToken, async (req, res) => {
     
     // Get all data
     const workspaces = await client.query('SELECT * FROM workspaces ORDER BY id');
-    const tags = await client.query('SELECT * FROM tags ORDER BY id');
+    const categories = await client.query('SELECT * FROM categories ORDER BY id');
     const tasks = await client.query('SELECT * FROM tasks ORDER BY id');
     const taskHistory = await client.query('SELECT * FROM task_history ORDER BY id');
     
@@ -548,7 +548,7 @@ app.get('/api/export', authenticateToken, async (req, res) => {
       exportDate: new Date().toISOString(),
       version: '2.0',
       workspaces: workspaces.rows,
-      tags: tags.rows,
+      categories: categories.rows,
       tasks: tasks.rows,
       taskHistory: taskHistory.rows
     };
@@ -586,7 +586,7 @@ app.post('/api/import', authenticateToken, async (req, res) => {
       // Clear existing data
       await client.query('DELETE FROM task_history');
       await client.query('DELETE FROM tasks');
-      await client.query('DELETE FROM tags');
+      await client.query('DELETE FROM categories');
       await client.query('DELETE FROM workspaces');
       
       // Import workspaces
@@ -611,11 +611,11 @@ app.post('/api/import', authenticateToken, async (req, res) => {
         }
       }
       
-      // Import tags
-      if (importData.tags && importData.tags.length > 0) {
-        for (const tag of importData.tags) {
+      // Import categories
+      if (importData.categories && importData.categories.length > 0) {
+        for (const category of importData.categories) {
           await client.query(`
-            INSERT INTO tags (id, name, workspace_id, hidden, created_at, updated_at)
+            INSERT INTO categories (id, name, workspace_id, hidden, created_at, updated_at)
             VALUES ($1, $2, $3, $4, $5, $6)
             ON CONFLICT (id) DO UPDATE SET
               name = EXCLUDED.name,
@@ -623,12 +623,12 @@ app.post('/api/import', authenticateToken, async (req, res) => {
               hidden = EXCLUDED.hidden,
               updated_at = EXCLUDED.updated_at
           `, [
-            tag.id,
-            tag.name,
-            tag.workspace_id,
-            tag.hidden,
-            tag.created_at,
-            tag.updated_at
+            category.id,
+            category.name,
+            category.workspace_id,
+            category.hidden,
+            category.created_at,
+            category.updated_at
           ]);
         }
       }
@@ -637,14 +637,14 @@ app.post('/api/import', authenticateToken, async (req, res) => {
       if (importData.tasks && importData.tasks.length > 0) {
         for (const task of importData.tasks) {
           await client.query(`
-            INSERT INTO tasks (id, user_id, workspace_id, title, description, tag_id, priority, status, due_date, start_date, completion_date, last_modified, created_at)
+            INSERT INTO tasks (id, user_id, workspace_id, title, description, category_id, priority, status, due_date, start_date, completion_date, last_modified, created_at)
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
             ON CONFLICT (id) DO UPDATE SET
               user_id = EXCLUDED.user_id,
               workspace_id = EXCLUDED.workspace_id,
               title = EXCLUDED.title,
               description = EXCLUDED.description,
-              tag_id = EXCLUDED.tag_id,
+              category_id = EXCLUDED.category_id,
               priority = EXCLUDED.priority,
               status = EXCLUDED.status,
               due_date = EXCLUDED.due_date,
@@ -657,7 +657,7 @@ app.post('/api/import', authenticateToken, async (req, res) => {
             task.workspace_id,
             task.title,
             task.description,
-            task.tag_id,
+            task.category_id,
             task.priority,
             task.status,
             task.due_date,
@@ -701,7 +701,7 @@ app.post('/api/import', authenticateToken, async (req, res) => {
         message: 'Import completed successfully',
         imported: {
           workspaces: importData.workspaces?.length || 0,
-          tags: importData.tags?.length || 0,
+          categories: importData.categories?.length || 0,
           tasks: importData.tasks?.length || 0,
           taskHistory: importData.taskHistory?.length || 0
         }
@@ -836,7 +836,7 @@ app.delete('/api/workspaces/:id', authenticateToken, async (req, res) => {
       return;
     }
     await pool.query('DELETE FROM tasks WHERE workspace_id = $1', [id]);
-    await pool.query('DELETE FROM tags WHERE workspace_id = $1', [id]);
+    await pool.query('DELETE FROM categories WHERE workspace_id = $1', [id]);
     const deleteResult = await pool.query('DELETE FROM workspaces WHERE id = $1 RETURNING *', [id]);
     if (deleteResult.rowCount === 0) {
       res.status(404).json({ error: 'Workspace not found' });
