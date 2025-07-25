@@ -586,7 +586,6 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
       setTasks(prevTasks => [...prevTasks, newTask]);
       setNewTaskTitle('');
       setNewTaskDueDate('');
-      setSelectedNewTaskCategory(prev => ({ ...prev, [selectedWorkspaceId]: '' }));
       setNewTaskPriority('normal');
       setTimeout(() => {
         newTaskInputRef.current?.focus();
@@ -1377,7 +1376,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
             }}
             title="Select category for new task"
           >
-            <span className="text-gray-400">
+            <span className={selectedNewTaskCategory[selectedWorkspaceId] ? "text-gray-900" : "text-gray-400"}>
               {selectedNewTaskCategory[selectedWorkspaceId] ? (categories.find(c => c.id.toString() === selectedNewTaskCategory[selectedWorkspaceId])?.name || 'Category') : 'Category'}
             </span>
           </div>
@@ -1448,7 +1447,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
                   }
                 }}
                 onBlur={() => setShowNewTaskDueDatePicker(false)}
-                className="text-xs border border-gray-300 rounded px-1 py-1 pr-5 focus:outline-none focus:ring-1 focus:ring-blue-500 w-full"
+                className="text-sm border border-gray-300 rounded px-1 py-1 pr-5 focus:outline-none focus:ring-1 focus:ring-blue-500 w-full"
                 title="Press Enter to save, Escape to cancel"
                 autoFocus
               />
@@ -1467,7 +1466,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
             </div>
           ) : (
             <div 
-              className="flex items-center justify-center text-xs text-gray-500 cursor-pointer hover:text-blue-600 hover:bg-blue-50 px-1 py-1.5 rounded min-h-[32px] border border-gray-300 bg-white hover:border-blue-300 transition-colors w-16"
+              className="flex items-center justify-center text-sm text-gray-500 cursor-pointer hover:text-blue-600 hover:bg-blue-50 px-1 py-1.5 rounded min-h-[32px] border border-gray-300 bg-white hover:border-blue-300 transition-colors w-16"
               onClick={(e) => {
                 e.stopPropagation();
                 setShowNewTaskDueDatePicker(true);
