@@ -369,7 +369,7 @@ const TaskRow: React.FC<TaskRowProps> = ({
 
       {/* Category */}
       {viewMode === 'planner' && (
-        <div className="hidden sm:flex flex-shrink-0 w-20 text-center relative">
+        <div className="hidden sm:flex flex-shrink-0 w-24 text-center relative">
           <div
             className={clsx(
               "text-xs rounded px-1 py-1 w-full transition-all cursor-pointer min-h-[20px] flex items-center justify-center",
@@ -435,7 +435,7 @@ const TaskRow: React.FC<TaskRowProps> = ({
       )}
 
       {/* Start date */}
-      <div className="hidden sm:flex flex-shrink-0 w-10 justify-center">
+      <div className="hidden sm:flex flex-shrink-0 w-12 justify-center">
         {editingDateTaskId === task.id && editingDateType === 'start_date' ? (
           <div className="relative w-full">
             <input
@@ -484,7 +484,7 @@ const TaskRow: React.FC<TaskRowProps> = ({
 
       {/* Completion date - only show in tracker view */}
       {viewMode === 'tracker' && (
-        <div className="hidden sm:flex flex-shrink-0 w-10 justify-center">
+        <div className="hidden sm:flex flex-shrink-0 w-12 justify-center">
           {editingDateTaskId === task.id && editingDateType === 'completion_date' ? (
             <div className="relative w-full">
               <input
@@ -533,7 +533,7 @@ const TaskRow: React.FC<TaskRowProps> = ({
       )}
 
       {/* Due date */}
-      <div className="hidden sm:flex flex-shrink-0 w-10 justify-center">
+      <div className="hidden sm:flex flex-shrink-0 w-12 justify-center">
         {editingDateTaskId === task.id && editingDateType === 'due_date' ? (
           <div className="relative w-full">
             <input
