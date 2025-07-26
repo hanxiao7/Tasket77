@@ -205,7 +205,7 @@ app.get('/api/tags', authenticateToken, async (req, res) => {
   if (conditions.length > 0) {
     query += ' WHERE ' + conditions.join(' AND ');
   }
-  query += ' ORDER BY name';
+  query += ' ORDER BY (SELECT COUNT(*) FROM tasks WHERE tag_id = tags.id) DESC, created_at DESC';
   try {
     const result = await pool.query(query, params);
     res.json(result.rows);

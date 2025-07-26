@@ -1334,14 +1334,25 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
 
   // Expose sort function to parent component
   useImperativeHandle(ref, () => ({
-    sortTasks: () => {
+    sortTasks: async () => {
       console.log('🔄 Manually sorting tasks...');
       const sortedTasks = sortTasks(tasks);
       setTasks(sortedTasks);
+      
+      // Also reload tags to update their order based on usage
+      console.log('🔄 Reloading tags to update order...');
+      try {
+        const tagsData = await apiService.getTags(selectedWorkspaceId);
+        setTags(tagsData);
+        console.log('✅ Tags reloaded successfully');
+      } catch (error) {
+        console.error('Error reloading tags:', error);
+      }
+      
       console.log('✅ Tasks sorted successfully');
     },
     getTasks: () => tasks
-  }), [tasks, sortTasks]);
+  }), [tasks, sortTasks, selectedWorkspaceId]);
 
   if (loading) {
     return <div className="flex justify-center items-center h-64">Loading...</div>;
