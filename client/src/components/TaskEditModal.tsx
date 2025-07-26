@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Task, Category, Tag } from '../types';
-import { X, Save, Calendar, Flag, Tag as TagIcon, MessageSquare } from 'lucide-react';
+import { X, Save, Calendar, Flag, Tag as TagIcon, MessageSquare, Circle, Play, Pause, CheckCircle } from 'lucide-react';
 import clsx from 'clsx';
 
 interface TaskEditModalProps {
@@ -67,15 +67,15 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, categories, tags, o
   const getStatusIcon = (status: Task['status']) => {
     switch (status) {
       case 'todo':
-        return <TagIcon className="w-5 h-5" />;
+        return <Circle className="w-5 h-5" />;
       case 'in_progress':
-        return <Calendar className="w-5 h-5" />;
+        return <Play className="w-5 h-5" />;
       case 'paused':
-        return <MessageSquare className="w-5 h-5" />;
+        return <Pause className="w-5 h-5" />;
       case 'done':
-        return <Flag className="w-5 h-5" />;
+        return <CheckCircle className="w-5 h-5" />;
       default:
-        return <TagIcon className="w-5 h-5" />;
+        return <Circle className="w-5 h-5" />;
     }
   };
 
@@ -442,43 +442,45 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, categories, tags, o
             </div>
           </div>
 
-          {/* Status - full width on mobile */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Status
-            </label>
-            <div className="flex items-center space-x-3">
-              <button
-                type="button"
-                onClick={async (e) => {
-                  e.stopPropagation();
-                  if (statusClickTimer.current) {
-                    clearTimeout(statusClickTimer.current);
-                  }
-                  statusClickTimer.current = setTimeout(async () => {
-                    await handleStatusClick();
-                    statusClickTimer.current = null;
-                  }, 250);
-                }}
-                onDoubleClick={async (e) => {
-                  e.stopPropagation();
-                  if (statusClickTimer.current) {
-                    clearTimeout(statusClickTimer.current);
-                    statusClickTimer.current = null;
-                  }
-                  // Set status to done directly
-                  await handleStatusAutoSave('done');
-                  setFormData((prev) => ({ ...prev, status: 'done' }));
-                }}
-                className={clsx(
-                  "px-3 py-2.5 rounded-md border border-gray-300 bg-white hover:bg-gray-200 transition-colors min-w-[48px] flex items-center justify-center",
-                  getStatusColor(formData.status)
-                )}
-                title="Click to cycle status"
-              >
-                {getStatusIcon(formData.status)}
-              </button>
-                              <select
+          {/* Status and Priority - same row on desktop, separate on mobile */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Status */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Status
+              </label>
+              <div className="flex items-center space-x-3">
+                <button
+                  type="button"
+                  onClick={async (e) => {
+                    e.stopPropagation();
+                    if (statusClickTimer.current) {
+                      clearTimeout(statusClickTimer.current);
+                    }
+                    statusClickTimer.current = setTimeout(async () => {
+                      await handleStatusClick();
+                      statusClickTimer.current = null;
+                    }, 250);
+                  }}
+                  onDoubleClick={async (e) => {
+                    e.stopPropagation();
+                    if (statusClickTimer.current) {
+                      clearTimeout(statusClickTimer.current);
+                      statusClickTimer.current = null;
+                    }
+                    // Set status to done directly
+                    await handleStatusAutoSave('done');
+                    setFormData((prev) => ({ ...prev, status: 'done' }));
+                  }}
+                  className={clsx(
+                    "px-3 py-2.5 rounded-md border border-gray-300 bg-white hover:bg-gray-200 transition-colors min-w-[48px] flex items-center justify-center",
+                    getStatusColor(formData.status)
+                  )}
+                  title="Click to cycle status"
+                >
+                  {getStatusIcon(formData.status)}
+                </button>
+                <select
                   value={formData.status}
                   onChange={async (e) => {
                     const newStatus = e.target.value as Task['status'];
@@ -488,29 +490,29 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, categories, tags, o
                   className="flex-1 px-3 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm appearance-none bg-white min-h-[40px]"
                   style={{ WebkitAppearance: 'none', MozAppearance: 'none' }}
                 >
-                <option value="todo">To Do</option>
-                <option value="in_progress">In Progress</option>
-                <option value="paused">Paused</option>
-                <option value="done">Done</option>
-              </select>
+                  <option value="todo">To Do</option>
+                  <option value="in_progress">In Progress</option>
+                  <option value="paused">Paused</option>
+                  <option value="done">Done</option>
+                </select>
+              </div>
             </div>
-          </div>
 
-          {/* Priority - full width on mobile */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Priority
-            </label>
-            <div className="flex items-center space-x-3">
-              <button
-                type="button"
-                onClick={handlePriorityClick}
-                className="px-3 py-2.5 rounded-md border border-gray-300 bg-white hover:bg-gray-200 transition-colors min-w-[48px] flex items-center justify-center"
-                title="Click to cycle priority"
-              >
-                {getPriorityIcon(formData.priority)}
-              </button>
-                              <select
+            {/* Priority */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Priority
+              </label>
+              <div className="flex items-center space-x-3">
+                <button
+                  type="button"
+                  onClick={handlePriorityClick}
+                  className="px-3 py-2.5 rounded-md border border-gray-300 bg-white hover:bg-gray-200 transition-colors min-w-[48px] flex items-center justify-center"
+                  title="Click to cycle priority"
+                >
+                  {getPriorityIcon(formData.priority)}
+                </button>
+                <select
                   value={formData.priority}
                   onChange={async (e) => {
                     const newPriority = e.target.value as Task['priority'];
@@ -520,11 +522,12 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, categories, tags, o
                   className="flex-1 px-3 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm appearance-none bg-white min-h-[40px]"
                   style={{ WebkitAppearance: 'none', MozAppearance: 'none' }}
                 >
-                <option value="low">Low</option>
-                <option value="normal">Normal</option>
-                <option value="high">High</option>
-                <option value="urgent">Urgent</option>
-              </select>
+                  <option value="low">Low</option>
+                  <option value="normal">Normal</option>
+                  <option value="high">High</option>
+                  <option value="urgent">Urgent</option>
+                </select>
+              </div>
             </div>
           </div>
 
