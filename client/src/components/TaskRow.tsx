@@ -80,6 +80,8 @@ interface TaskRowProps {
   getTitleEndPosition: (taskId: number) => "right" | "end-of-title" | "end-of-content";
   getTitleEndPositionStyle: (taskId: number) => React.CSSProperties;
   getMaxTooltipWidth: (taskId: number) => number;
+  selectedTagFilter: string | null;
+  setSelectedTagFilter: (tag: string | null) => void;
 }
 
 const TaskRow: React.FC<TaskRowProps> = ({
@@ -145,7 +147,9 @@ const TaskRow: React.FC<TaskRowProps> = ({
   checkTitleTruncation,
   getTitleEndPosition,
   getTitleEndPositionStyle,
-  getMaxTooltipWidth
+  getMaxTooltipWidth,
+  selectedTagFilter,
+  setSelectedTagFilter
 }) => {
   const setTitleRef = (taskId: number, ref: HTMLDivElement | null) => {
     titleRefs.current.set(taskId, ref);
@@ -281,11 +285,25 @@ const TaskRow: React.FC<TaskRowProps> = ({
                 onHideTooltip(task.id);
               }}
             >
-              {task.tag_name && (
-                <span className="inline-block px-1.5 py-0.5 text-xs rounded border border-gray-300 bg-gray-50 text-gray-600 mr-2">
-                  {task.tag_name}
-                </span>
-              )}
+                              {task.tag_name && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedTagFilter(selectedTagFilter === task.tag_name ? null : (task.tag_name || null));
+                    }}
+                    className={clsx(
+                      "inline-block px-1.5 py-0.5 text-xs rounded border mr-2 transition-colors focus:outline-none",
+                      selectedTagFilter === task.tag_name
+                        ? "bg-blue-100 border-blue-300 text-blue-700"
+                        : "bg-gray-50 border-gray-300 text-gray-600 hover:bg-gray-100"
+                    )}
+                    style={{ cursor: 'pointer' }}
+                    title={selectedTagFilter === task.tag_name ? 'Show all tasks' : `Show only tasks with tag: ${task.tag_name}`}
+                  >
+                    {task.tag_name}
+                  </button>
+                )}
               {task.title}
             </div>
             

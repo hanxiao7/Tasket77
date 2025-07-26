@@ -90,6 +90,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
   const categoryInputRef = useRef<HTMLSelectElement>(null);
   const statusClickTimers = useRef<{ [taskId: number]: NodeJS.Timeout }>({});
   const [newTaskPriority, setNewTaskPriority] = useState<Task['priority']>('normal');
+  const [selectedTagFilter, setSelectedTagFilter] = useState<string | null>(null);
 
   const checkTitleTruncation = (taskId: number) => {
     const titleRef = titleRefs.current.get(taskId);
@@ -1729,6 +1730,8 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
                     getTitleEndPosition={getTitleEndPosition}
                     getTitleEndPositionStyle={getTitleEndPositionStyle}
                     getMaxTooltipWidth={getMaxTooltipWidth}
+                    selectedTagFilter={selectedTagFilter}
+                    setSelectedTagFilter={setSelectedTagFilter}
                   />
                 ))}
               </div>
@@ -1818,6 +1821,8 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
                 getTitleEndPosition={getTitleEndPosition}
                 getTitleEndPositionStyle={getTitleEndPositionStyle}
                 getMaxTooltipWidth={getMaxTooltipWidth}
+                selectedTagFilter={selectedTagFilter}
+                setSelectedTagFilter={setSelectedTagFilter}
               />
             ))}
           </div>
