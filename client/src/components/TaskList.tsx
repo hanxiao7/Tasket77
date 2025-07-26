@@ -56,9 +56,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
   const [showCategoryInput, setShowCategoryInput] = useState(false);
   const [selectedNewTaskCategory, setSelectedNewTaskCategory] = useState<Record<number, string>>({});
   const [selectedNewTaskTag, setSelectedNewTaskTag] = useState<Record<number, number | null>>({});
-  const [editingDateTaskId, setEditingDateTaskId] = useState<number | null>(null);
-  const [editingDateType, setEditingDateType] = useState<'due_date' | 'start_date' | 'completion_date' | null>(null);
-  const [editingDateValue, setEditingDateValue] = useState('');
+
   const [editingCategoryTaskId, setEditingCategoryTaskId] = useState<number | null>(null);
   const [editingCategoryValue, setEditingCategoryValue] = useState('');
   const [editingPriorityTaskId, setEditingPriorityTaskId] = useState<number | null>(null);
@@ -86,7 +84,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
   const newTaskInputRef = useRef<HTMLInputElement>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
   const newCategoryInputRef = useRef<HTMLInputElement>(null);
-  const dateInputRef = useRef<HTMLInputElement>(null);
+
 
   const categoryInputRef = useRef<HTMLSelectElement>(null);
   const statusClickTimers = useRef<{ [taskId: number]: NodeJS.Timeout }>({});
@@ -1085,102 +1083,9 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
     }
   };
 
-  const formatDateForInput = (dateString: string | undefined) => {
-    if (!dateString) return '';
-    try {
-      // Handle ISO date strings (2025-07-12T04:00:00.000Z) and convert to YYYY-MM-DD
-      const date = new Date(dateString);
-      if (isNaN(date.getTime())) {
-        // If it's not a valid ISO date, try to parse as YYYY-MM-DD
-        const datePart = dateString.split(' ')[0]; // Get just the date part
-        return datePart;
-      }
-      return date.toISOString().split('T')[0]; // Convert to YYYY-MM-DD
-    } catch {
-      return '';
-    }
-  };
 
-  const handleDateClick = (task: Task, dateType: 'due_date' | 'start_date' | 'completion_date') => {
-    setEditingDateTaskId(task.id);
-    setEditingDateType(dateType);
-    setEditingDateValue(formatDateForInput(task[dateType]));
-    // Focus the input after a brief delay to ensure it's rendered
-    setTimeout(() => {
-      dateInputRef.current?.focus();
-      dateInputRef.current?.showPicker?.(); // Show native date picker immediately
-    }, 10);
-  };
 
-  // Handle mobile date picker reset functionality
-  const handleDateInputChange = (e: React.ChangeEvent<HTMLInputElement>, taskId: number) => {
-    const newValue = e.target.value;
-    setEditingDateValue(newValue);
-    
-    // For mobile, also handle the case where the date picker is closed without a selection
-    // This helps with the "Reset" button functionality
-    if (!newValue) {
-      // If the value is empty, it means the date was cleared (Reset button pressed)
-      setTimeout(() => {
-        handleDateSave(taskId);
-      }, 100); // Small delay to ensure the picker is fully closed
-    }
-  };
 
-  // Enhanced date change handler that works better with mobile date pickers
-  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>, taskId: number) => {
-    const newValue = e.target.value;
-    setEditingDateValue(newValue);
-    
-    // For mobile date pickers, handle the reset functionality
-    if (!newValue) {
-      // When the value is empty (Reset button pressed), save immediately
-      setTimeout(() => {
-        handleDateSave(taskId);
-      }, 150); // Slightly longer delay for mobile picker to fully close
-    }
-  };
-
-  const handleDateSave = async (taskId: number) => {
-    if (!editingDateType) return;
-    
-    try {
-      // Validate the date value before saving
-      let dateValue: string | null = editingDateValue;
-      if (dateValue && dateValue.trim() !== '') {
-        // Ensure the date is in YYYY-MM-DD format
-        const date = new Date(dateValue);
-        if (isNaN(date.getTime())) {
-          console.error('Invalid date value:', dateValue);
-          return;
-        }
-        dateValue = date.toISOString().split('T')[0]; // Convert to YYYY-MM-DD
-      } else {
-        dateValue = null;
-      }
-      
-      console.log(`📅 Updating task ${editingDateType}: "${dateValue}"`);
-      await apiService.updateTask(taskId, { [editingDateType]: dateValue });
-      
-      // Reload the task data from server to ensure correct format
-      const updatedTask = await apiService.getTask(taskId);
-      setTasks(prevTasks => {
-        const updatedTasks = prevTasks.map(t => {
-          if (t.id === taskId) {
-            return updatedTask;
-          }
-          return t;
-        });
-        return updatedTasks;
-      });
-    } catch (error) {
-      console.error('Error updating task date:', error);
-    } finally {
-      setEditingDateTaskId(null);
-      setEditingDateType(null);
-      setEditingDateValue('');
-    }
-  };
 
   // Direct date save function for DatePicker components
   const handleDirectDateSave = async (taskId: number, dateType: 'due_date' | 'start_date' | 'completion_date', dateValue: string | null) => {
@@ -1218,19 +1123,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
     }
   };
 
-  const handleDateCancel = () => {
-    setEditingDateTaskId(null);
-    setEditingDateType(null);
-    setEditingDateValue('');
-  };
 
-  const handleDateKeyPress = (e: React.KeyboardEvent, taskId: number) => {
-    if (e.key === 'Enter') {
-      handleDateSave(taskId);
-    } else if (e.key === 'Escape') {
-      handleDateCancel();
-    }
-  };
 
   const formatDate = (dateString: string | undefined) => {
     if (!dateString || dateString === '') return '';
@@ -1814,9 +1707,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
                     onContextMenu={handleContextMenu}
                     editingTitleTaskId={editingTitleTaskId}
                     editingPriorityTaskId={editingPriorityTaskId}
-                    editingDateTaskId={editingDateTaskId}
-                    editingDateType={editingDateType}
-                    editingDateValue={editingDateValue}
+
                     editingTitleValue={editingTitleValue}
                     editingPriorityValue={editingPriorityValue}
                     editingCategoryTaskId={editingCategoryTaskId}
@@ -1837,9 +1728,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
                     onTitleSave={handleTitleSave}
                     onTitleCancel={handleTitleCancel}
                     onTitleKeyPress={handleTitleKeyPress}
-                    onDateClick={handleDateClick}
-                    onDateSave={handleDateSave}
-                    onDateKeyPress={handleDateKeyPress}
+
                     onDirectDateSave={handleDirectDateSave}
                     onCategoryClick={(taskId: number) => setEditingCategoryTaskId(taskId)}
                     onCategorySave={handleCategorySave}
@@ -1852,19 +1741,16 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
                     onHideTooltip={hideTooltip}
                     onSetEditingTitleValue={setEditingTitleValue}
                     onSetEditingPriorityValue={setEditingPriorityValue}
-                    onSetEditingDateValue={setEditingDateValue}
                     onSetEditingCategoryValue={setEditingCategoryValue}
-                    onSetEditingDateType={setEditingDateType}
                     onSetEditingTitleTaskId={setEditingTitleTaskId}
                     onSetEditingPriorityTaskId={setEditingPriorityTaskId}
-                    onSetEditingDateTaskId={setEditingDateTaskId}
                     onSetEditingCategoryTaskId={setEditingCategoryTaskId}
                     onSetHoveredTask={setHoveredTask}
                     onSetEditingTooltips={setEditingTooltips}
                     onDrop={handleDrop}
                     titleInputRef={titleInputRef}
                     categoryInputRef={categoryInputRef}
-                    dateInputRef={dateInputRef}
+
                     formatDate={formatDate}
                     getStatusIcon={getStatusIcon}
                     getStatusColor={getStatusColor}
@@ -1906,9 +1792,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
                 onContextMenu={handleContextMenu}
                 editingTitleTaskId={editingTitleTaskId}
                 editingPriorityTaskId={editingPriorityTaskId}
-                editingDateTaskId={editingDateTaskId}
-                editingDateType={editingDateType}
-                editingDateValue={editingDateValue}
+
                 editingTitleValue={editingTitleValue}
                 editingPriorityValue={editingPriorityValue}
                 editingCategoryTaskId={editingCategoryTaskId}
@@ -1929,9 +1813,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
                 onTitleSave={handleTitleSave}
                 onTitleCancel={handleTitleCancel}
                 onTitleKeyPress={handleTitleKeyPress}
-                onDateClick={handleDateClick}
-                onDateSave={handleDateSave}
-                onDateKeyPress={handleDateKeyPress}
+
                 onDirectDateSave={handleDirectDateSave}
                 onCategoryClick={(taskId) => setEditingCategoryTaskId(taskId)}
                 onCategorySave={handleCategorySave}
@@ -1944,19 +1826,16 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
                 onHideTooltip={hideTooltip}
                 onSetEditingTitleValue={setEditingTitleValue}
                 onSetEditingPriorityValue={setEditingPriorityValue}
-                onSetEditingDateValue={setEditingDateValue}
                 onSetEditingCategoryValue={setEditingCategoryValue}
-                onSetEditingDateType={setEditingDateType}
                 onSetEditingTitleTaskId={setEditingTitleTaskId}
                 onSetEditingPriorityTaskId={setEditingPriorityTaskId}
-                onSetEditingDateTaskId={setEditingDateTaskId}
                 onSetEditingCategoryTaskId={setEditingCategoryTaskId}
                 onSetHoveredTask={setHoveredTask}
                 onSetEditingTooltips={setEditingTooltips}
                 onDrop={handleDrop}
                 titleInputRef={titleInputRef}
                 categoryInputRef={categoryInputRef}
-                dateInputRef={dateInputRef}
+
                 formatDate={formatDate}
                 getStatusIcon={getStatusIcon}
                 getStatusColor={getStatusColor}

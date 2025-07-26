@@ -23,9 +23,7 @@ interface TaskRowProps {
   onContextMenu: (e: React.MouseEvent, taskId: number) => void;
   editingTitleTaskId: number | null;
   editingPriorityTaskId: number | null;
-  editingDateTaskId: number | null;
-  editingDateType: 'due_date' | 'start_date' | 'completion_date' | null;
-  editingDateValue: string;
+
   editingTitleValue: string;
   editingPriorityValue: Task['priority'];
   editingCategoryTaskId: number | null;
@@ -46,9 +44,7 @@ interface TaskRowProps {
   onTitleSave: (taskId: number) => void;
   onTitleCancel: () => void;
   onTitleKeyPress: (e: React.KeyboardEvent, taskId: number) => void;
-  onDateClick: (task: Task, dateType: 'due_date' | 'start_date' | 'completion_date') => void;
-  onDateSave: (taskId: number) => void;
-  onDateKeyPress: (e: React.KeyboardEvent, taskId: number) => void;
+
   onDirectDateSave: (taskId: number, dateType: 'due_date' | 'start_date' | 'completion_date', dateValue: string | null) => Promise<void>;
   onCategoryClick: (taskId: number) => void;
   onCategorySave: (taskId: number, categoryId?: number) => void;
@@ -61,18 +57,15 @@ interface TaskRowProps {
   onHideTooltip: (taskId: number) => void;
   onSetEditingTitleValue: (value: string) => void;
   onSetEditingPriorityValue: (value: Task['priority']) => void;
-  onSetEditingDateValue: (value: string) => void;
   onSetEditingCategoryValue: (value: string) => void;
-  onSetEditingDateType: (value: 'due_date' | 'start_date' | 'completion_date' | null) => void;
   onSetEditingTitleTaskId: (value: number | null) => void;
   onSetEditingPriorityTaskId: (value: number | null) => void;
-  onSetEditingDateTaskId: (value: number | null) => void;
   onSetEditingCategoryTaskId: (value: number | null) => void;
   onSetHoveredTask: (value: number | null) => void;
   onSetEditingTooltips: (value: Set<number>) => void;
   onDrop: (e: React.DragEvent, taskId: number) => void;
   titleInputRef: React.RefObject<HTMLInputElement>;
-  dateInputRef: React.RefObject<HTMLInputElement>;
+
   categoryInputRef: React.RefObject<HTMLSelectElement>;
   formatDate: (dateString: string | undefined) => string;
   getStatusIcon: (status: Task['status']) => React.ReactNode;
@@ -92,9 +85,7 @@ const TaskRow: React.FC<TaskRowProps> = ({
   onContextMenu,
   editingTitleTaskId,
   editingPriorityTaskId,
-  editingDateTaskId,
-  editingDateType,
-  editingDateValue,
+
   editingTitleValue,
   editingPriorityValue,
   editingCategoryTaskId,
@@ -115,9 +106,7 @@ const TaskRow: React.FC<TaskRowProps> = ({
   onTitleSave,
   onTitleCancel,
   onTitleKeyPress,
-  onDateClick,
-  onDateSave,
-  onDateKeyPress,
+
   onDirectDateSave,
   onCategoryClick,
   onCategorySave,
@@ -130,18 +119,16 @@ const TaskRow: React.FC<TaskRowProps> = ({
   onHideTooltip,
   onSetEditingTitleValue,
   onSetEditingPriorityValue,
-  onSetEditingDateValue,
   onSetEditingCategoryValue,
-  onSetEditingDateType,
   onSetEditingTitleTaskId,
   onSetEditingPriorityTaskId,
-  onSetEditingDateTaskId,
+
   onSetEditingCategoryTaskId,
   onSetHoveredTask,
   onSetEditingTooltips,
   onDrop,
   titleInputRef,
-  dateInputRef,
+
   categoryInputRef,
   formatDate,
   getStatusIcon,
