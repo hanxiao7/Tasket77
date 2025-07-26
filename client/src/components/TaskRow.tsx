@@ -15,6 +15,7 @@ import {
 import clsx from 'clsx';
 import TaskTooltip from './TaskTooltip';
 import TitleTooltip from './TitleTooltip';
+import DatePicker from './DatePicker';
 
 interface TaskRowProps {
   task: Task;
@@ -436,41 +437,15 @@ const TaskRow: React.FC<TaskRowProps> = ({
 
       {/* Start date */}
       <div className="hidden sm:flex flex-shrink-0 w-12 justify-center">
-        {editingDateTaskId === task.id && editingDateType === 'start_date' ? (
-          <div className="relative w-full">
-            <input
-              ref={dateInputRef}
-              type="date"
-              value={editingDateValue}
-              onChange={(e) => {
-                onSetEditingDateValue(e.target.value);
-              }}
-              onKeyPress={(e) => onDateKeyPress(e, task.id)}
-              onBlur={() => onDateSave(task.id)}
-              className="text-xs border border-gray-300 rounded px-1 py-1 pr-5 focus:outline-none focus:ring-1 focus:ring-blue-500 w-full"
-              title="Press Enter to save, Escape to cancel"
-            />
-            {editingDateValue && (
-              <button
-                type="button"
-                onClick={() => {
-                  onSetEditingDateValue('');
-                  onDateSave(task.id);
-                }}
-                className="absolute right-1 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-red-500 text-xs font-bold"
-                title="Clear date"
-              >
-                ×
-              </button>
-            )}
-          </div>
-        ) : (
+        <DatePicker
+          value={task.start_date}
+          onChange={(date: string | null) => {
+            onSetEditingDateValue(date || '');
+            onDateSave(task.id);
+          }}
+        >
           <div 
             className="flex items-center justify-center text-xs text-gray-500 cursor-pointer hover:text-blue-600 hover:bg-blue-50 px-1 py-1 rounded min-h-[20px]"
-            onClick={(e) => {
-              e.stopPropagation();
-              onDateClick(task, 'start_date');
-            }}
             title="Click to set start date"
           >
             {task.start_date ? (
@@ -479,47 +454,21 @@ const TaskRow: React.FC<TaskRowProps> = ({
               <Calendar className="w-3 h-3" />
             )}
           </div>
-        )}
+        </DatePicker>
       </div>
 
       {/* Completion date - only show in tracker view */}
       {viewMode === 'tracker' && (
         <div className="hidden sm:flex flex-shrink-0 w-12 justify-center">
-          {editingDateTaskId === task.id && editingDateType === 'completion_date' ? (
-            <div className="relative w-full">
-              <input
-                ref={dateInputRef}
-                type="date"
-                value={editingDateValue}
-                onChange={(e) => {
-                  onSetEditingDateValue(e.target.value);
-                }}
-                onKeyPress={(e) => onDateKeyPress(e, task.id)}
-                onBlur={() => onDateSave(task.id)}
-                className="text-xs border border-gray-300 rounded px-1 py-1 pr-5 focus:outline-none focus:ring-1 focus:ring-blue-500 w-full"
-                title="Press Enter to save, Escape to cancel"
-              />
-              {editingDateValue && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    onSetEditingDateValue('');
-                    onDateSave(task.id);
-                  }}
-                  className="absolute right-1 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-red-500 text-xs font-bold"
-                  title="Clear date"
-                >
-                  ×
-                </button>
-              )}
-            </div>
-          ) : (
+          <DatePicker
+            value={task.completion_date}
+            onChange={(date: string | null) => {
+              onSetEditingDateValue(date || '');
+              onDateSave(task.id);
+            }}
+          >
             <div 
               className="flex items-center justify-center text-xs text-gray-500 cursor-pointer hover:text-blue-600 hover:bg-blue-50 px-1 py-1 rounded min-h-[20px]"
-              onClick={(e) => {
-                e.stopPropagation();
-                onDateClick(task, 'completion_date');
-              }}
               title="Click to set completion date"
             >
               {task.completion_date ? (
@@ -528,47 +477,21 @@ const TaskRow: React.FC<TaskRowProps> = ({
                 <Calendar className="w-3 h-3" />
               )}
             </div>
-          )}
+          </DatePicker>
         </div>
       )}
 
       {/* Due date */}
       <div className="hidden sm:flex flex-shrink-0 w-12 justify-center">
-        {editingDateTaskId === task.id && editingDateType === 'due_date' ? (
-          <div className="relative w-full">
-            <input
-              ref={dateInputRef}
-              type="date"
-              value={editingDateValue}
-              onChange={(e) => {
-                onSetEditingDateValue(e.target.value);
-              }}
-              onKeyPress={(e) => onDateKeyPress(e, task.id)}
-              onBlur={() => onDateSave(task.id)}
-              className="text-xs border border-gray-300 rounded px-1 py-1 pr-5 focus:outline-none focus:ring-1 focus:ring-blue-500 w-full"
-              title="Press Enter to save, Escape to cancel"
-            />
-            {editingDateValue && (
-              <button
-                type="button"
-                onClick={() => {
-                  onSetEditingDateValue('');
-                  onDateSave(task.id);
-                }}
-                className="absolute right-1 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-red-500 text-xs font-bold"
-                title="Clear date"
-              >
-                ×
-              </button>
-            )}
-          </div>
-        ) : (
+        <DatePicker
+          value={task.due_date}
+          onChange={(date: string | null) => {
+            onSetEditingDateValue(date || '');
+            onDateSave(task.id);
+          }}
+        >
           <div 
             className="flex items-center justify-center text-xs text-gray-500 cursor-pointer hover:text-blue-600 hover:bg-blue-50 px-1 py-1 rounded min-h-[20px]"
-            onClick={(e) => {
-              e.stopPropagation();
-              onDateClick(task, 'due_date');
-            }}
             title="Click to set due date"
           >
             {task.due_date ? (
@@ -577,7 +500,7 @@ const TaskRow: React.FC<TaskRowProps> = ({
               <Calendar className="w-3 h-3" />
             )}
           </div>
-        )}
+        </DatePicker>
       </div>
 
       {/* Three-dot menu */}

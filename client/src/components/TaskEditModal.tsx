@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Task, Category, Tag } from '../types';
 import { X, Save, Calendar, Flag, Tag as TagIcon, MessageSquare, Circle, Play, Pause, CheckCircle } from 'lucide-react';
 import clsx from 'clsx';
+import DatePicker from './DatePicker';
 
 interface TaskEditModalProps {
   task: Task;
@@ -409,33 +410,22 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, categories, tags, o
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Due Date
               </label>
-              <div className="relative">
-                <input
-                  type="date"
-                  value={formData.due_date}
-                  onChange={async (e) => {
-                    const onlyDate = e.target.value; // already in YYYY-MM-DD
-                    setFormData({ ...formData, due_date: onlyDate });
-                    await handleDateAutoSave('due_date', onlyDate);
-                  }}
-                  className="w-full px-3 py-2.5 pr-8 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm appearance-none bg-white min-h-[40px]"
-                  style={{ WebkitAppearance: 'none', MozAppearance: 'none' }}
-                  placeholder="mm/dd/yyyy"
-                />
-                {formData.due_date && (
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      setFormData({ ...formData, due_date: '' });
-                      await handleDateAutoSave('due_date', '');
-                    }}
-                    className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-red-500 text-sm font-bold"
-                    title="Clear date"
-                  >
-                    ×
-                  </button>
-                )}
-              </div>
+              <DatePicker
+                value={formData.due_date || ''}
+                onChange={async (date: string | null) => {
+                  const onlyDate = date || '';
+                  setFormData({ ...formData, due_date: onlyDate });
+                  await handleDateAutoSave('due_date', onlyDate);
+                }}
+              >
+                <div className="w-full px-3 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-white min-h-[40px] flex items-center">
+                  {formData.due_date ? (
+                    <span className="text-gray-900">{formData.due_date}</span>
+                  ) : (
+                    <span className="text-gray-400">mm/dd/yyyy</span>
+                  )}
+                </div>
+              </DatePicker>
             </div>
             <div>
               {/* Reserved space for future feature */}
@@ -537,66 +527,44 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, categories, tags, o
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Start Date
               </label>
-              <div className="relative">
-                <input
-                  type="date"
-                  value={formData.start_date}
-                  onChange={async (e) => {
-                    const onlyDate = e.target.value; // already in YYYY-MM-DD
-                    setFormData({ ...formData, start_date: onlyDate });
-                    await handleDateAutoSave('start_date', onlyDate);
-                  }}
-                  className="w-full px-3 py-2.5 pr-8 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm appearance-none bg-white min-h-[40px]"
-                  style={{ WebkitAppearance: 'none', MozAppearance: 'none' }}
-                  placeholder="mm/dd/yyyy"
-                />
-                {formData.start_date && (
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      setFormData({ ...formData, start_date: '' });
-                      await handleDateAutoSave('start_date', '');
-                    }}
-                    className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-red-500 text-sm font-bold"
-                    title="Clear date"
-                  >
-                    ×
-                  </button>
-                )}
-              </div>
+              <DatePicker
+                value={formData.start_date || ''}
+                onChange={async (date: string | null) => {
+                  const onlyDate = date || '';
+                  setFormData({ ...formData, start_date: onlyDate });
+                  await handleDateAutoSave('start_date', onlyDate);
+                }}
+              >
+                <div className="w-full px-3 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-white min-h-[40px] flex items-center">
+                  {formData.start_date ? (
+                    <span className="text-gray-900">{formData.start_date}</span>
+                  ) : (
+                    <span className="text-gray-400">mm/dd/yyyy</span>
+                  )}
+                </div>
+              </DatePicker>
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Completion Date
               </label>
-              <div className="relative">
-                <input
-                  type="date"
-                  value={formData.completion_date}
-                  onChange={async (e) => {
-                    const onlyDate = e.target.value; // already in YYYY-MM-DD
-                    setFormData({ ...formData, completion_date: onlyDate });
-                    await handleDateAutoSave('completion_date', onlyDate);
-                  }}
-                  className="w-full px-3 py-2.5 pr-8 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm appearance-none bg-white min-h-[40px]"
-                  style={{ WebkitAppearance: 'none', MozAppearance: 'none' }}
-                  placeholder="mm/dd/yyyy"
-                />
-                {formData.completion_date && (
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      setFormData({ ...formData, completion_date: '' });
-                      await handleDateAutoSave('completion_date', '');
-                    }}
-                    className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-red-500 text-sm font-bold"
-                    title="Clear date"
-                  >
-                    ×
-                  </button>
-                )}
-              </div>
+              <DatePicker
+                value={formData.completion_date || ''}
+                onChange={async (date: string | null) => {
+                  const onlyDate = date || '';
+                  setFormData({ ...formData, completion_date: onlyDate });
+                  await handleDateAutoSave('completion_date', onlyDate);
+                }}
+              >
+                <div className="w-full px-3 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-white min-h-[40px] flex items-center">
+                  {formData.completion_date ? (
+                    <span className="text-gray-900">{formData.completion_date}</span>
+                  ) : (
+                    <span className="text-gray-400">mm/dd/yyyy</span>
+                  )}
+                </div>
+              </DatePicker>
             </div>
           </div>
 
