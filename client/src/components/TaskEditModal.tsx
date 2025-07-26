@@ -1,18 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { Task, Category } from '../types';
+import { Task, Category, Tag } from '../types';
 import { X, Save, Calendar, Flag, Tag as TagIcon, MessageSquare } from 'lucide-react';
 import clsx from 'clsx';
 
 interface TaskEditModalProps {
   task: Task;
   categories: Category[];
+  tags: Tag[];
   onClose: () => void;
   onSave: (task: Task) => Promise<void>;
   onUpdate: (task: Task) => void;
   onCategorySave: (taskId: number, categoryId?: number) => Promise<void>;
+  onTagSave: (taskId: number, tagId?: number) => Promise<void>;
 }
 
-const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, categories, onClose, onSave, onUpdate, onCategorySave }) => {
+const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, categories, tags, onClose, onSave, onUpdate, onCategorySave, onTagSave }) => {
   const formatDateForInput = (dateString: string | undefined) => {
     if (!dateString) return '';
     
@@ -35,6 +37,7 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, categories, onClose
     title: task.title,
     description: task.description || '',
     category_id: task.category_id || '',
+    tag_id: task.tag_id || '',
     priority: task.priority,
     status: task.status,
     start_date: formatDateForInput(task.start_date),
@@ -52,6 +55,7 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, categories, onClose
       title: task.title,
       description: task.description || '',
       category_id: task.category_id || '',
+      tag_id: task.tag_id || '',
       priority: task.priority,
       status: task.status,
       start_date: formatDateForInput(task.start_date),
@@ -236,6 +240,28 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, categories, onClose
     }
   };
 
+  const handleTagAutoSave = async (newTagId: string) => {
+    const currentTagId = task.tag_id || '';
+    const finalTagId = newTagId ? Number(newTagId) : undefined;
+    
+    if (finalTagId === currentTagId) return;
+    
+    if (onTagSave) {
+      // Use the parent's tag save function if provided
+      await onTagSave(task.id, finalTagId);
+    } else {
+      // Fallback to local implementation if not provided
+      try {
+        const tagName = finalTagId ? tags.find(t => t.id === finalTagId)?.name || 'Unknown' : undefined;
+        console.log(`🏷️ Auto-saving task tag: "${tagName}"`);
+        await onSave({ ...task, tag_id: finalTagId, tag_name: tagName });
+        onUpdate({ ...task, tag_id: finalTagId, tag_name: tagName });
+      } catch (error) {
+        console.error('Error auto-saving task tag:', error);
+      }
+    }
+  };
+
   const handleStatusAutoSave = async (newStatus: Task['status']) => {
     if (newStatus === task.status) return;
     
@@ -327,8 +353,33 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, categories, onClose
         </div>
 
         <form className="space-y-6">
-          {/* Category and Due Date - always two columns */}
+          {/* Tag and Category - two columns */}
           <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Tag
+              </label>
+              <select
+                value={formData.tag_id}
+                onChange={async (e) => {
+                  setFormData({ ...formData, tag_id: e.target.value });
+                  await handleTagAutoSave(e.target.value);
+                }}
+                className="w-full px-3 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm appearance-none bg-white min-h-[40px]"
+                style={{ WebkitAppearance: 'none', MozAppearance: 'none' }}
+              >
+                <option value="" className="text-gray-500">Select a tag</option>
+                {tags
+                  .filter(tag => tag.hidden !== true)
+                  .sort((a, b) => a.name.localeCompare(b.name))
+                  .map((tag) => (
+                    <option key={tag.id} value={tag.id}>
+                      {tag.name}
+                    </option>
+                  ))}
+              </select>
+            </div>
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Category
@@ -342,7 +393,7 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, categories, onClose
                 className="w-full px-3 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm appearance-none bg-white min-h-[40px]"
                 style={{ WebkitAppearance: 'none', MozAppearance: 'none' }}
               >
-                <option value="">Select a category</option>
+                <option value="" className="text-gray-500">Select a category</option>
                 {categories.filter(category => category.hidden !== true).map((category) => (
                   <option key={category.id} value={category.id}>
                     {category.name}
@@ -350,7 +401,10 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, categories, onClose
                 ))}
               </select>
             </div>
+          </div>
 
+          {/* Due Date - left side only, space reserved on right */}
+          <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Due Date
@@ -382,6 +436,9 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, categories, onClose
                   </button>
                 )}
               </div>
+            </div>
+            <div>
+              {/* Reserved space for future feature */}
             </div>
           </div>
 

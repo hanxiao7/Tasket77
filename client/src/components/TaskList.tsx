@@ -1043,6 +1043,31 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
     }
   };
 
+  const handleTagSave = async (taskId: number, tagId?: number) => {
+    try {
+      const tagName = tagId ? tags.find(t => t.id === tagId)?.name || 'Unknown' : undefined;
+      console.log(`🏷️ Updating task tag: "${tagName}"`);
+      await apiService.updateTask(taskId, { tag_id: tagId });
+      
+      // Update local state instead of reloading
+      setTasks(prevTasks => {
+        const updatedTasks = prevTasks.map(t => {
+          if (t.id === taskId) {
+            return {
+              ...t,
+              tag_id: tagId,
+              tag_name: tagName
+            } as Task;
+          }
+          return t;
+        });
+        return updatedTasks;
+      });
+    } catch (error) {
+      console.error('Error updating task tag:', error);
+    }
+  };
+
   const handleCategoryCancel = () => {
     setEditingCategoryTaskId(null);
     setEditingCategoryValue('');
@@ -1834,6 +1859,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
         <TaskEditModal
           task={editingTask}
           categories={categories}
+          tags={tags}
           onClose={() => setEditingTask(null)}
           onSave={async (updatedTask) => {
             try {
@@ -1841,6 +1867,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
                 title: updatedTask.title,
                 description: updatedTask.description,
                 category_id: updatedTask.category_id,
+                tag_id: updatedTask.tag_id,
                 priority: updatedTask.priority,
                 status: updatedTask.status,
                 start_date: updatedTask.start_date,
@@ -1862,6 +1889,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
             setEditingTask(updatedTask);
           }}
           onCategorySave={handleCategorySave}
+          onTagSave={handleTagSave}
         />
       )}
 
