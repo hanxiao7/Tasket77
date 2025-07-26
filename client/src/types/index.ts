@@ -81,7 +81,7 @@ export interface TaskFilters {
   priority?: Task['priority'];
   show_completed?: boolean;
   workspace_id?: number;
-  grouping?: 'none' | 'status' | 'priority' | 'category';
+  grouping?: 'none' | 'status' | 'priority' | 'category' | 'tag';
 }
 
 export type ViewMode = 'planner' | 'tracker'; 

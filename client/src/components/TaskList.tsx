@@ -344,6 +344,10 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
         const allCategoryIds = new Set(categoriesData.map(category => category.id));
         allCategoryIds.add(-1); // Add unassigned category ID
         setExpandedCategories(allCategoryIds);
+      } else if (groupingMethod === 'tag') {
+        const allTagIds = new Set(tagsData.map(tag => tag.id));
+        allTagIds.add(-1); // Add untagged ID
+        setExpandedCategories(allTagIds);
       }
       
       // Clear title tooltips when data changes to force recalculation
@@ -720,6 +724,18 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
       return grouped;
     }
     
+    if (groupingMethod === 'tag') {
+      const grouped: { [key: string]: Task[] } = {};
+      tasks.forEach(task => {
+        const tagName = task.tag_name || 'Untagged';
+        if (!grouped[tagName]) {
+          grouped[tagName] = [];
+        }
+        grouped[tagName].push(task);
+      });
+      return grouped;
+    }
+    
     return null;
   }, [tasks, filters.grouping, viewMode]);
 
@@ -741,6 +757,14 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
       return Object.keys(groupedTasks).sort((a, b) => {
         if (a === 'Unassigned') return -1;
         if (b === 'Unassigned') return 1;
+        return a.localeCompare(b);
+      });
+    }
+    
+    if (groupingMethod === 'tag') {
+      return Object.keys(groupedTasks).sort((a, b) => {
+        if (a === 'Untagged') return -1;
+        if (b === 'Untagged') return 1;
         return a.localeCompare(b);
       });
     }
@@ -770,8 +794,13 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
       return categories.find(c => c.name === groupName)?.id || 0;
     }
     
+    if (groupingMethod === 'tag') {
+      if (groupName === 'Untagged') return -1;
+      return tags.find(t => t.name === groupName)?.id || 0;
+    }
+    
     return 0;
-  }, [filters.grouping, viewMode, categories]);
+  }, [filters.grouping, viewMode, categories, tags]);
 
   // Check if group is expanded
   const isGroupExpanded = useCallback((groupName: string) => {

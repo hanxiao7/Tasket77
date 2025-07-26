@@ -269,7 +269,7 @@ function MainApp() {
                 {/* Grouping selector */}
                 <select
                   value={filters.grouping || 'none'}
-                  onChange={(e) => setFilters({ ...filters, grouping: e.target.value as 'none' | 'status' | 'priority' | 'category' })}
+                  onChange={(e) => setFilters({ ...filters, grouping: e.target.value as 'none' | 'status' | 'priority' | 'category' | 'tag' })}
                   className="px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                   title="Group tasks by"
                 >
@@ -277,6 +277,7 @@ function MainApp() {
                   <option value="status">Status</option>
                   <option value="priority">Priority</option>
                   <option value="category">Category</option>
+                  <option value="tag">Tag</option>
                 </select>
                 {/* Show completed toggle for planner */}
                 {viewMode === 'planner' && (
