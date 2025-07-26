@@ -1523,7 +1523,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
             <TagIcon className="w-4 h-4 text-gray-500" />
           </div>
           <div className="flex flex-wrap gap-1">
-            {tags.map((tag) => (
+            {tags.filter(tag => tag.hidden !== true).map((tag) => (
               <button
                 key={tag.id}
                 onClick={() => {
@@ -1546,7 +1546,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
                 {tag.name}
               </button>
             ))}
-            {tags.length === 0 && (
+            {tags.filter(tag => tag.hidden !== true).length === 0 && (
               <span className="text-xs text-gray-400 italic">No tags available</span>
             )}
           </div>

@@ -11,18 +11,17 @@ async function runMigration() {
   const client = await pool.connect();
   
   try {
-    console.log('Running migration: Add tags table...');
+    console.log('Running migration: Add hidden column to tags table...');
     
     // Read the migration file
-    const migrationPath = path.join(__dirname, 'server', 'migrations', '003_add_tags_table.sql');
+    const migrationPath = path.join(__dirname, 'server', 'migrations', '004_add_hidden_to_tags.sql');
     const migrationSQL = fs.readFileSync(migrationPath, 'utf8');
     
     // Execute the migration
     await client.query(migrationSQL);
     
     console.log('Migration completed successfully!');
-    console.log('Tags table has been created');
-    console.log('tag_id column has been added to tasks table');
+    console.log('Hidden column has been added to tags table');
     
   } catch (error) {
     console.error('Migration failed:', error);

@@ -133,6 +133,12 @@ class ApiService {
     });
   }
 
+  async toggleTagHidden(id: number): Promise<Tag> {
+    return this.request<Tag>(`/tags/${id}/toggle-hidden`, {
+      method: 'PATCH',
+    });
+  }
+
   // Tasks
   async getTasks(filters?: TaskFilters): Promise<Task[]> {
     const params = new URLSearchParams();

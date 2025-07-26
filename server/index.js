@@ -228,7 +228,7 @@ app.post('/api/tags', authenticateToken, async (req, res) => {
   try {
     const now = moment().utc().format('YYYY-MM-DD HH:mm:ss');
     const result = await pool.query(
-      'INSERT INTO tags (name, workspace_id, user_id, created_at, updated_at) VALUES ($1, $2, $3, $4, $4) RETURNING *',
+      'INSERT INTO tags (name, workspace_id, user_id, hidden, created_at, updated_at) VALUES ($1, $2, $3, false, $4, $4) RETURNING *',
       [name, workspace_id, req.user.userId, now]
     );
     res.json(result.rows[0]);
@@ -250,6 +250,25 @@ app.put('/api/tags/:id', authenticateToken, async (req, res) => {
     const updateResult = await pool.query(
       'UPDATE tags SET name = $1, updated_at = $2 WHERE id = $3 AND user_id = $4 RETURNING *',
       [name, now, id, req.user.userId]
+    );
+    if (updateResult.rowCount === 0) {
+      res.status(404).json({ error: 'Tag not found' });
+      return;
+    }
+    res.json(updateResult.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Toggle tag hidden status
+app.patch('/api/tags/:id/toggle-hidden', authenticateToken, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const now = moment().utc().format('YYYY-MM-DD HH:mm:ss');
+    const updateResult = await pool.query(
+      'UPDATE tags SET hidden = NOT hidden, updated_at = $1 WHERE id = $2 AND user_id = $3 RETURNING *',
+      [now, id, req.user.userId]
     );
     if (updateResult.rowCount === 0) {
       res.status(404).json({ error: 'Tag not found' });

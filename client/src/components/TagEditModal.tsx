@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Tag } from '../types';
 import { apiService } from '../services/api';
-import { X, Plus, Edit3, Trash2 } from 'lucide-react';
+import { X, Plus, Edit3, Trash2, Eye, EyeOff } from 'lucide-react';
 
 interface TagEditModalProps {
   tags: Tag[];
@@ -17,6 +17,7 @@ const TagEditModal: React.FC<TagEditModalProps> = ({ tags, workspaceId, onClose,
   const [isUpdating, setIsUpdating] = useState(false);
   const [isDeleting, setIsDeleting] = useState<number | null>(null);
   const [isCreatingTag, setIsCreatingTag] = useState(false);
+  const [isTogglingHidden, setIsTogglingHidden] = useState<number | null>(null);
 
   const handleEditClick = (tag: Tag) => {
     setEditingTagId(tag.id);
@@ -72,6 +73,18 @@ const TagEditModal: React.FC<TagEditModalProps> = ({ tags, workspaceId, onClose,
       console.error('Error deleting tag:', error);
     } finally {
       setIsDeleting(null);
+    }
+  };
+
+  const handleToggleHidden = async (tag: Tag) => {
+    try {
+      setIsTogglingHidden(tag.id);
+      await apiService.toggleTagHidden(tag.id);
+      onTagsUpdate();
+    } catch (error) {
+      console.error('Error toggling tag hidden status:', error);
+    } finally {
+      setIsTogglingHidden(null);
     }
   };
 
@@ -134,10 +147,21 @@ const TagEditModal: React.FC<TagEditModalProps> = ({ tags, workspaceId, onClose,
             </div>
           ) : (
             <div className="space-y-2">
-              {tags.map((tag) => (
+              {tags
+                .sort((a, b) => {
+                  // First sort by hidden status (hidden tags at the end)
+                  if (a.hidden !== b.hidden) {
+                    return a.hidden ? 1 : -1;
+                  }
+                  // Then sort alphabetically by name
+                  return a.name.localeCompare(b.name);
+                })
+                .map((tag) => (
                 <div
                   key={tag.id}
-                  className="tag-item flex items-center justify-between p-3 rounded-lg border bg-white border-gray-300"
+                  className={`tag-item flex items-center justify-between p-3 rounded-lg border ${
+                    tag.hidden === true ? 'bg-gray-50 border-gray-200' : 'bg-white border-gray-300'
+                  }`}
                 >
                   {/* Tag name */}
                   <div className="flex-1 min-w-0">
@@ -151,8 +175,11 @@ const TagEditModal: React.FC<TagEditModalProps> = ({ tags, workspaceId, onClose,
                         autoFocus
                       />
                     ) : (
-                      <div className="text-sm font-medium text-gray-900">
+                      <div className={`text-sm font-medium ${tag.hidden === true ? 'text-gray-500 line-through' : 'text-gray-900'}`}>
                         {tag.name}
+                        {tag.hidden === true && (
+                          <span className="ml-2 text-xs text-gray-400">(hidden)</span>
+                        )}
                       </div>
                     )}
                   </div>
@@ -172,6 +199,18 @@ const TagEditModal: React.FC<TagEditModalProps> = ({ tags, workspaceId, onClose,
                           title="Edit tag name"
                         >
                           <Edit3 className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleToggleHidden(tag)}
+                          disabled={isTogglingHidden === tag.id}
+                          className="p-1 text-gray-600 hover:bg-gray-50 rounded transition-colors disabled:opacity-50"
+                          title={tag.hidden ? "Show tag" : "Hide tag"}
+                        >
+                          {tag.hidden ? (
+                            <EyeOff className="w-4 h-4" />
+                          ) : (
+                            <Eye className="w-4 h-4" />
+                          )}
                         </button>
                         <button
                           onClick={() => handleDelete(tag)}
