@@ -431,6 +431,7 @@ const TaskRow: React.FC<TaskRowProps> = ({
           onChange={(date: string | null) => {
             onDirectDateSave(task.id, 'start_date', date);
           }}
+          mobileOnly={true}
         >
           <div 
             className="flex items-center justify-center text-xs text-gray-500 cursor-pointer hover:text-blue-600 hover:bg-blue-50 px-1 py-1 rounded min-h-[20px]"
@@ -453,6 +454,7 @@ const TaskRow: React.FC<TaskRowProps> = ({
             onChange={(date: string | null) => {
               onDirectDateSave(task.id, 'completion_date', date);
             }}
+            mobileOnly={true}
           >
             <div 
               className="flex items-center justify-center text-xs text-gray-500 cursor-pointer hover:text-blue-600 hover:bg-blue-50 px-1 py-1 rounded min-h-[20px]"
@@ -475,6 +477,7 @@ const TaskRow: React.FC<TaskRowProps> = ({
           onChange={(date: string | null) => {
             onDirectDateSave(task.id, 'due_date', date);
           }}
+          mobileOnly={true}
         >
           <div 
             className="flex items-center justify-center text-xs text-gray-500 cursor-pointer hover:text-blue-600 hover:bg-blue-50 px-1 py-1 rounded min-h-[20px]"

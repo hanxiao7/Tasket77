@@ -1,4 +1,5 @@
 import React, { useRef, useEffect } from 'react';
+import { X } from 'lucide-react';
 
 interface DatePickerProps {
   value: string | undefined;
@@ -8,6 +9,8 @@ interface DatePickerProps {
   className?: string;
   onFocus?: () => void;
   onBlur?: () => void;
+  showClearButton?: boolean; // New prop to control clear button visibility
+  mobileOnly?: boolean; // New prop to show clear button only on mobile
 }
 
 const DatePicker: React.FC<DatePickerProps> = ({
@@ -18,6 +21,8 @@ const DatePicker: React.FC<DatePickerProps> = ({
   className = '',
   onFocus,
   onBlur,
+  showClearButton = true, // Default to showing clear button
+  mobileOnly = false, // Default to showing on all devices
 }) => {
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -39,32 +44,11 @@ const DatePicker: React.FC<DatePickerProps> = ({
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value;
-    alert(`📅 DatePicker onChange: "${newValue}"`);
     onChange(newValue || null);
   };
 
-  // Enhanced mobile reset handling
-  const handleInput = (e: React.FormEvent<HTMLInputElement>) => {
-    const target = e.target as HTMLInputElement;
-    alert(`📅 DatePicker onInput: "${target.value}"`);
-    
-    // On mobile, when Reset is pressed, the value becomes empty
-    if (!target.value) {
-      alert('📅 Mobile Reset detected - clearing date');
-      onChange(null);
-    }
-  };
-
-  // Handle blur event to catch mobile reset
+  // Handle blur event
   const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
-    alert(`📅 DatePicker onBlur: "${e.target.value}"`);
-    
-    // If the value is empty on blur, it might be from a mobile reset
-    if (!e.target.value && value) {
-      alert('📅 Mobile Reset detected on blur - clearing date');
-      onChange(null);
-    }
-    
     if (onBlur) {
       onBlur();
     }
@@ -83,6 +67,12 @@ const DatePicker: React.FC<DatePickerProps> = ({
     }
   };
 
+  // Clear button handler
+  const handleClear = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent triggering the date picker
+    onChange(null);
+  };
+
   const formattedValue = formatDateForInput(value);
 
   return (
@@ -97,7 +87,6 @@ const DatePicker: React.FC<DatePickerProps> = ({
         type="date"
         value={formattedValue}
         onChange={handleChange}
-        onInput={handleInput}
         onFocus={onFocus}
         onBlur={handleBlur}
         disabled={disabled}
@@ -110,6 +99,20 @@ const DatePicker: React.FC<DatePickerProps> = ({
       
       {/* The existing styled field - no changes to its appearance */}
       {children}
+      
+      {/* Clear button - only show when there's a value and showClearButton is true */}
+      {showClearButton && value && !disabled && (
+        <button
+          type="button"
+          onClick={handleClear}
+          className={`absolute right-0 top-1/2 transform -translate-y-1/2 z-10 p-1 text-gray-400 hover:text-gray-600 transition-colors ${
+            mobileOnly ? 'md:hidden' : ''
+          }`}
+          title="Clear date"
+        >
+          <X className="w-3 h-3" />
+        </button>
+      )}
     </div>
   );
 };
