@@ -1504,7 +1504,13 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
         
         {/* Tag selection row */}
         <div className="flex items-center gap-2">
-          <TagIcon className="w-4 h-4 text-gray-500" />
+          <div 
+            className="p-0.5 cursor-pointer hover:text-blue-600 transition-colors" 
+            onClick={() => setShowTagEditModal(true)}
+            title="Edit tags"
+          >
+            <TagIcon className="w-4 h-4 text-gray-500" />
+          </div>
           <div className="flex flex-wrap gap-1">
             {tags.map((tag) => (
               <button
@@ -1533,12 +1539,6 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
               <span className="text-xs text-gray-400 italic">No tags available</span>
             )}
           </div>
-          <button
-            onClick={() => setShowTagEditModal(true)}
-            className="text-xs text-blue-600 hover:text-blue-800 hover:underline"
-          >
-            Edit tags
-          </button>
         </div>
       </div>
 
