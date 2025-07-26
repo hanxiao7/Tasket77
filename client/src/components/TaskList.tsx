@@ -1395,6 +1395,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
           <DatePicker
             value={newTaskDueDate}
             onChange={(date: string | null) => setNewTaskDueDate(date || '')}
+            showClearButton={false}
           >
             <div 
               className="flex items-center justify-center text-sm text-gray-500 cursor-pointer hover:text-blue-600 hover:bg-blue-50 px-1 py-1.5 rounded min-h-[32px] border border-gray-300 bg-white hover:border-blue-300 transition-colors w-16"
@@ -1509,29 +1510,30 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
               >
                 {getPriorityIcon(newTaskPriority)}
               </button>
-              {/* New task due date */}
-              <DatePicker
-                value={newTaskDueDate}
-                onChange={(date: string | null) => setNewTaskDueDate(date || '')}
-              >
-                <div 
-                  className="flex items-center justify-center text-sm text-gray-500 cursor-pointer hover:text-blue-600 hover:bg-blue-50 px-1 py-1.5 rounded min-h-[32px] border border-gray-300 bg-white hover:border-blue-300 transition-colors flex-1"
-                  title="Click to set due date"
+              {/* Due date and category as grid */}
+              <div className="grid grid-cols-4 gap-2 flex-1">
+                <DatePicker
+                  value={newTaskDueDate}
+                  onChange={(date: string | null) => setNewTaskDueDate(date || '')}
+                  mobileOnly={true}
                 >
-                  {newTaskDueDate ? (
-                    <span>{formatDate(newTaskDueDate)}</span>
-                  ) : (
-                    <span className="flex items-center gap-1 text-gray-400">
-                      <span>Due</span>
-                      <Calendar className="w-3 h-3" />
-                    </span>
-                  )}
-                </div>
-              </DatePicker>
-              {/* Category for mobile */}
-              <div className="relative flex-1">
-                <div
-                  className="text-sm rounded-md px-3 py-1.5 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer bg-white hover:bg-gray-50 transition-colors min-h-[32px] flex items-center"
+                  <div 
+                    className="col-span-1 w-full flex items-center justify-center text-sm text-gray-500 cursor-pointer hover:text-blue-600 hover:bg-blue-50 px-1 py-1.5 rounded min-h-[32px] border border-gray-300 bg-white hover:border-blue-300 transition-colors"
+                    title="Click to set due date"
+                  >
+                    {newTaskDueDate ? (
+                      <span>{formatDate(newTaskDueDate)}</span>
+                    ) : (
+                      <span className="flex items-center gap-1 text-gray-400">
+                        <span>Due</span>
+                        <Calendar className="w-3 h-3" />
+                      </span>
+                    )}
+                  </div>
+                </DatePicker>
+                                <div className="relative col-span-3 w-full">
+                  <div
+                    className="w-full text-sm rounded-md px-3 py-1.5 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer bg-white hover:bg-gray-50 transition-colors min-h-[32px] flex items-center"
                   onClick={(e) => {
                     e.stopPropagation();
                     setShowNewTaskCategoryDropdown(!showNewTaskCategoryDropdown);
@@ -1590,6 +1592,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
                 )}
               </div>
             </div>
+          </div>
             
             {/* Second row: title input */}
             <div className="flex">
