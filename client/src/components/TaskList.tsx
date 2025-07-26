@@ -817,6 +817,35 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
   const handleDrop = async (e: React.DragEvent, targetId: number) => {
     e.preventDefault();
     e.currentTarget.classList.remove('bg-blue-50', 'border-blue-200');
+    
+    // Check if we're dropping a tag
+    const draggedTagId = e.dataTransfer.getData('tagId');
+    if (draggedTagId) {
+      try {
+        const tagId = parseInt(draggedTagId);
+        const tag = tags.find(t => t.id === tagId);
+        
+        if (!tag) {
+          return;
+        }
+
+        console.log(`🏷️ Adding tag "${tag.name}" to task ID: ${targetId}`);
+        await apiService.updateTask(targetId, { tag_id: tagId });
+        
+        // Update local state instead of reloading
+        setTasks(prevTasks => {
+          const updatedTasks = prevTasks.map(t => 
+            t.id === targetId ? { ...t, tag_id: tagId, tag_name: tag.name } as Task : t
+          );
+          return updatedTasks;
+        });
+      } catch (error) {
+        console.error('Error updating task tag:', error);
+      }
+      return;
+    }
+    
+    // Handle task drop (existing functionality)
     const taskId = parseInt(e.dataTransfer.getData('text/plain'));
     
     // Don't update if targetId is 0 (invalid)
@@ -1526,6 +1555,11 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
             {tags.filter(tag => tag.hidden !== true).map((tag) => (
               <button
                 key={tag.id}
+                draggable
+                onDragStart={(e) => {
+                  e.dataTransfer.setData('tagId', tag.id.toString());
+                  e.dataTransfer.effectAllowed = 'copy';
+                }}
                 onClick={() => {
                   const currentTagId = selectedNewTaskTag[selectedWorkspaceId];
                   if (currentTagId === tag.id) {
@@ -1537,11 +1571,12 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
                   }
                 }}
                 className={clsx(
-                  "px-2 py-0.5 text-xs rounded border transition-colors",
+                  "px-2 py-0.5 text-xs rounded border transition-colors cursor-grab active:cursor-grabbing",
                   selectedNewTaskTag[selectedWorkspaceId] === tag.id
                     ? "bg-blue-100 border-blue-300 text-blue-700"
                     : "bg-white border-gray-300 text-gray-600 hover:bg-gray-50"
                 )}
+                title={`Click to select, drag to apply to a task`}
               >
                 {tag.name}
               </button>
@@ -1605,7 +1640,6 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
                     task={task}
                     viewMode={viewMode}
                     onContextMenu={handleContextMenu}
-                    onDragStart={handleDragStart}
                     editingTitleTaskId={editingTitleTaskId}
                     editingPriorityTaskId={editingPriorityTaskId}
                     editingDateTaskId={editingDateTaskId}
@@ -1654,6 +1688,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
                     onSetEditingCategoryTaskId={setEditingCategoryTaskId}
                     onSetHoveredTask={setHoveredTask}
                     onSetEditingTooltips={setEditingTooltips}
+                    onDrop={handleDrop}
                     titleInputRef={titleInputRef}
                     categoryInputRef={categoryInputRef}
                     dateInputRef={dateInputRef}
@@ -1694,7 +1729,6 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
                 task={task}
                 viewMode={viewMode}
                 onContextMenu={handleContextMenu}
-                onDragStart={handleDragStart}
                 editingTitleTaskId={editingTitleTaskId}
                 editingPriorityTaskId={editingPriorityTaskId}
                 editingDateTaskId={editingDateTaskId}
@@ -1743,6 +1777,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
                 onSetEditingCategoryTaskId={setEditingCategoryTaskId}
                 onSetHoveredTask={setHoveredTask}
                 onSetEditingTooltips={setEditingTooltips}
+                onDrop={handleDrop}
                 titleInputRef={titleInputRef}
                 categoryInputRef={categoryInputRef}
                 dateInputRef={dateInputRef}

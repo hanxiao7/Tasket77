@@ -20,7 +20,6 @@ interface TaskRowProps {
   task: Task;
   viewMode: 'planner' | 'tracker';
   onContextMenu: (e: React.MouseEvent, taskId: number) => void;
-  onDragStart: (e: React.DragEvent, task: Task) => void;
   editingTitleTaskId: number | null;
   editingPriorityTaskId: number | null;
   editingDateTaskId: number | null;
@@ -69,6 +68,7 @@ interface TaskRowProps {
   onSetEditingCategoryTaskId: (value: number | null) => void;
   onSetHoveredTask: (value: number | null) => void;
   onSetEditingTooltips: (value: Set<number>) => void;
+  onDrop: (e: React.DragEvent, taskId: number) => void;
   titleInputRef: React.RefObject<HTMLInputElement>;
   dateInputRef: React.RefObject<HTMLInputElement>;
   categoryInputRef: React.RefObject<HTMLSelectElement>;
@@ -86,7 +86,6 @@ const TaskRow: React.FC<TaskRowProps> = ({
   task,
   viewMode,
   onContextMenu,
-  onDragStart,
   editingTitleTaskId,
   editingPriorityTaskId,
   editingDateTaskId,
@@ -135,6 +134,7 @@ const TaskRow: React.FC<TaskRowProps> = ({
   onSetEditingCategoryTaskId,
   onSetHoveredTask,
   onSetEditingTooltips,
+  onDrop,
   titleInputRef,
   dateInputRef,
   categoryInputRef,
@@ -155,8 +155,18 @@ const TaskRow: React.FC<TaskRowProps> = ({
     <div
       className="flex items-center space-x-3 p-3 hover:bg-gray-50 relative"
       onContextMenu={(e) => onContextMenu(e, task.id)}
-      draggable={editingTitleTaskId !== task.id}
-      onDragStart={(e) => onDragStart(e, task)}
+      onDragOver={(e) => {
+        e.preventDefault();
+        e.currentTarget.classList.add('bg-blue-50', 'border-blue-200');
+      }}
+      onDragLeave={(e) => {
+        e.currentTarget.classList.remove('bg-blue-50', 'border-blue-200');
+      }}
+      onDrop={(e) => {
+        e.preventDefault();
+        e.currentTarget.classList.remove('bg-blue-50', 'border-blue-200');
+        onDrop(e, task.id);
+      }}
     >
       {/* Status button */}
       <div className="w-4 flex justify-center">
