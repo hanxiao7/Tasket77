@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useEffect } from 'react';
 
 interface DatePickerProps {
   value: string | undefined;
@@ -39,7 +39,35 @@ const DatePicker: React.FC<DatePickerProps> = ({
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value;
+    alert(`📅 DatePicker onChange: "${newValue}"`);
     onChange(newValue || null);
+  };
+
+  // Enhanced mobile reset handling
+  const handleInput = (e: React.FormEvent<HTMLInputElement>) => {
+    const target = e.target as HTMLInputElement;
+    alert(`📅 DatePicker onInput: "${target.value}"`);
+    
+    // On mobile, when Reset is pressed, the value becomes empty
+    if (!target.value) {
+      alert('📅 Mobile Reset detected - clearing date');
+      onChange(null);
+    }
+  };
+
+  // Handle blur event to catch mobile reset
+  const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    alert(`📅 DatePicker onBlur: "${e.target.value}"`);
+    
+    // If the value is empty on blur, it might be from a mobile reset
+    if (!e.target.value && value) {
+      alert('📅 Mobile Reset detected on blur - clearing date');
+      onChange(null);
+    }
+    
+    if (onBlur) {
+      onBlur();
+    }
   };
 
   const handleContainerClick = () => {
@@ -69,8 +97,9 @@ const DatePicker: React.FC<DatePickerProps> = ({
         type="date"
         value={formattedValue}
         onChange={handleChange}
+        onInput={handleInput}
         onFocus={onFocus}
-        onBlur={onBlur}
+        onBlur={handleBlur}
         disabled={disabled}
         className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
         style={{
