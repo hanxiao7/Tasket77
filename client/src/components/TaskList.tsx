@@ -1446,155 +1446,284 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
     <div className="space-y-2">
       {/* New task input */}
       <div className="p-2 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200 shadow-sm space-y-2">
-        {/* Main input row */}
+        {/* Main input row - desktop has everything on one row */}
         <div className="flex items-center gap-3">
-        <div title="Add new task" className="p-0">
-          <Plus 
-            className="w-5 h-5 text-blue-500 cursor-pointer hover:text-blue-700 transition-colors" 
-            onClick={handleCreateTask}
-          />
-        </div>
-        {/* Priority flag for new task */}
-        <button
-          type="button"
-          className="flex items-center justify-center w-5 h-5 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-400 hover:bg-blue-100 transition-colors"
-          onClick={handleNewTaskPriorityClick}
-          title={`Click to cycle priority (${newTaskPriority})`}
-          tabIndex={0}
-        >
-          {getPriorityIcon(newTaskPriority)}
-        </button>
-        <input
-          ref={newTaskInputRef}
-          type="text"
-          placeholder="Add new task..."
-          value={newTaskTitle}
-          onChange={(e) => setNewTaskTitle(e.target.value)}
-          onKeyPress={handleKeyPress}
-          disabled={isCreatingTask}
-          className="flex-1 bg-white border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder-gray-400"
-        />
-        <div className="relative">
-          <div
-            className="text-sm rounded-md px-3 py-1.5 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-32 md:w-44 cursor-pointer bg-white hover:bg-gray-50 transition-colors min-h-[32px] flex items-center"
-            onClick={(e) => {
-              e.stopPropagation();
-              setShowNewTaskCategoryDropdown(!showNewTaskCategoryDropdown);
-            }}
-            title="Select category for new task"
-          >
-            <span className={selectedNewTaskCategory[selectedWorkspaceId] ? "text-gray-900" : "text-gray-400"}>
-              {selectedNewTaskCategory[selectedWorkspaceId] ? (categories.find(c => c.id.toString() === selectedNewTaskCategory[selectedWorkspaceId])?.name || 'Category') : 'Category'}
-            </span>
+          <div title="Add new task" className="p-0">
+            <Plus 
+              className="w-5 h-5 text-blue-500 cursor-pointer hover:text-blue-700 transition-colors" 
+              onClick={handleCreateTask}
+            />
           </div>
-          
-          {/* New task category dropdown menu */}
-          {showNewTaskCategoryDropdown && (
-            <div 
-              className="absolute top-full left-0 right-0 bg-white border border-gray-200 rounded-lg shadow-lg z-50 mt-1"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="max-h-60 overflow-y-auto">
+          {/* Priority flag for new task */}
+          <button
+            type="button"
+            className="flex items-center justify-center w-5 h-5 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-400 hover:bg-blue-100 transition-colors"
+            onClick={handleNewTaskPriorityClick}
+            title={`Click to cycle priority (${newTaskPriority})`}
+            tabIndex={0}
+          >
+            {getPriorityIcon(newTaskPriority)}
+          </button>
+          <input
+            ref={newTaskInputRef}
+            type="text"
+            placeholder="Add new task..."
+            value={newTaskTitle}
+            onChange={(e) => setNewTaskTitle(e.target.value)}
+            onKeyPress={handleKeyPress}
+            disabled={isCreatingTask}
+            className="flex-1 bg-white border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder-gray-400"
+          />
+          {/* Category and Due Date for desktop - hidden on mobile */}
+          <div className="hidden md:flex items-center gap-3">
+            <div className="relative">
+              <div
+                className="text-sm rounded-md px-3 py-1.5 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-32 md:w-44 cursor-pointer bg-white hover:bg-gray-50 transition-colors min-h-[32px] flex items-center"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowNewTaskCategoryDropdown(!showNewTaskCategoryDropdown);
+                }}
+                title="Select category for new task"
+              >
+                <span className={selectedNewTaskCategory[selectedWorkspaceId] ? "text-gray-900" : "text-gray-400"}>
+                  {selectedNewTaskCategory[selectedWorkspaceId] ? (categories.find(c => c.id.toString() === selectedNewTaskCategory[selectedWorkspaceId])?.name || 'Category') : 'Category'}
+                </span>
+              </div>
+              
+              {/* New task category dropdown menu */}
+              {showNewTaskCategoryDropdown && (
                 <div 
-                  className="px-3 py-1.5 text-sm text-gray-500 hover:bg-gray-50 cursor-pointer border-b"
-                  onClick={() => {
-                    setSelectedNewTaskCategory(prev => ({ ...prev, [selectedWorkspaceId]: '' }));
-                    setShowNewTaskCategoryDropdown(false);
-                  }}
+                  className="absolute top-full left-0 right-0 bg-white border border-gray-200 rounded-lg shadow-lg z-50 mt-1"
+                  onClick={(e) => e.stopPropagation()}
                 >
-                  No category
-                </div>
-                {categories.filter(category => category.hidden !== true).map((category) => (
-                  <div
-                    key={category.id}
-                    className={clsx(
-                      "px-3 py-1.5 text-sm cursor-pointer hover:bg-blue-50 transition-colors",
-                      selectedNewTaskCategory[selectedWorkspaceId] === category.id.toString() && "bg-blue-100 text-blue-700"
-                    )}
-                    onClick={() => {
-                      setSelectedNewTaskCategory(prev => ({ ...prev, [selectedWorkspaceId]: category.id.toString() }));
-                      setShowNewTaskCategoryDropdown(false);
-                    }}
-                  >
-                    {category.name}
+                  <div className="max-h-60 overflow-y-auto">
+                    <div 
+                      className="px-3 py-1.5 text-sm text-gray-500 hover:bg-gray-50 cursor-pointer border-b"
+                      onClick={() => {
+                        setSelectedNewTaskCategory(prev => ({ ...prev, [selectedWorkspaceId]: '' }));
+                        setShowNewTaskCategoryDropdown(false);
+                      }}
+                    >
+                      No category
+                    </div>
+                    {categories.filter(category => category.hidden !== true).map((category) => (
+                      <div
+                        key={category.id}
+                        className={clsx(
+                          "px-3 py-1.5 text-sm cursor-pointer hover:bg-blue-50 transition-colors",
+                          selectedNewTaskCategory[selectedWorkspaceId] === category.id.toString() && "bg-blue-100 text-blue-700"
+                        )}
+                        onClick={() => {
+                          setSelectedNewTaskCategory(prev => ({ ...prev, [selectedWorkspaceId]: category.id.toString() }));
+                          setShowNewTaskCategoryDropdown(false);
+                        }}
+                      >
+                        {category.name}
+                      </div>
+                    ))}
+                    <div className="border-t border-gray-200">
+                      <div 
+                        className="px-3 py-1.5 text-sm text-blue-600 hover:bg-blue-50 cursor-pointer transition-colors"
+                        onClick={() => {
+                          setShowCategoryEditModal(true);
+                          setShowNewTaskCategoryDropdown(false);
+                        }}
+                      >
+                        Edit categories
+                      </div>
+                    </div>
                   </div>
-                ))}
-                <div className="border-t border-gray-200">
+                </div>
+              )}
+            </div>
+            
+            {/* New task due date */}
+            <div className="relative">
+              {showNewTaskDueDatePicker ? (
+                <div className="relative w-full">
+                  <input
+                    ref={dateInputRef}
+                    type="date"
+                    value={newTaskDueDate}
+                    onChange={(e) => {
+                      setNewTaskDueDate(e.target.value);
+                    }}
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter') {
+                        setShowNewTaskDueDatePicker(false);
+                      } else if (e.key === 'Escape') {
+                        setShowNewTaskDueDatePicker(false);
+                      }
+                    }}
+                    onBlur={() => setShowNewTaskDueDatePicker(false)}
+                    className="text-sm border border-gray-300 rounded px-1 py-1 pr-5 focus:outline-none focus:ring-1 focus:ring-blue-500 w-full"
+                    title="Press Enter to save, Escape to cancel"
+                    autoFocus
+                  />
+                  {newTaskDueDate && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setNewTaskDueDate('');
+                      }}
+                      className="absolute right-1 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-red-500 text-xs font-bold"
+                      title="Clear date"
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div 
+                  className="flex items-center justify-center text-sm text-gray-500 cursor-pointer hover:text-blue-600 hover:bg-blue-50 px-1 py-1.5 rounded min-h-[32px] border border-gray-300 bg-white hover:border-blue-300 transition-colors w-16"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowNewTaskDueDatePicker(true);
+                    // Show native date picker immediately
+                    setTimeout(() => {
+                      dateInputRef.current?.showPicker?.();
+                    }, 10);
+                  }}
+                  title="Click to set due date"
+                >
+                  {newTaskDueDate ? (
+                    <span>{formatDate(newTaskDueDate)}</span>
+                  ) : (
+                    <span className="flex items-center gap-1">
+                      <span>Due</span>
+                      <Calendar className="w-3 h-3" />
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+        
+        {/* Mobile Category and Due Date row */}
+        <div className="flex md:hidden items-center gap-3">
+          <div className="w-10"></div> {/* Spacer to align with task input */}
+          <div className="relative flex-1">
+            <div
+              className="text-sm rounded-md px-3 py-1.5 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer bg-white hover:bg-gray-50 transition-colors min-h-[32px] flex items-center"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowNewTaskCategoryDropdown(!showNewTaskCategoryDropdown);
+              }}
+              title="Select category for new task"
+            >
+              <span className={selectedNewTaskCategory[selectedWorkspaceId] ? "text-gray-900" : "text-gray-400"}>
+                {selectedNewTaskCategory[selectedWorkspaceId] ? (categories.find(c => c.id.toString() === selectedNewTaskCategory[selectedWorkspaceId])?.name || 'Category') : 'Category'}
+              </span>
+            </div>
+            
+            {/* New task category dropdown menu */}
+            {showNewTaskCategoryDropdown && (
+              <div 
+                className="absolute top-full left-0 right-0 bg-white border border-gray-200 rounded-lg shadow-lg z-50 mt-1"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="max-h-60 overflow-y-auto">
                   <div 
-                    className="px-3 py-1.5 text-sm text-blue-600 hover:bg-blue-50 cursor-pointer transition-colors"
+                    className="px-3 py-1.5 text-sm text-gray-500 hover:bg-gray-50 cursor-pointer border-b"
                     onClick={() => {
-                      setShowCategoryEditModal(true);
+                      setSelectedNewTaskCategory(prev => ({ ...prev, [selectedWorkspaceId]: '' }));
                       setShowNewTaskCategoryDropdown(false);
                     }}
                   >
-                    Edit categories
+                    No category
+                  </div>
+                  {categories.filter(category => category.hidden !== true).map((category) => (
+                    <div
+                      key={category.id}
+                      className={clsx(
+                        "px-3 py-1.5 text-sm cursor-pointer hover:bg-blue-50 transition-colors",
+                        selectedNewTaskCategory[selectedWorkspaceId] === category.id.toString() && "bg-blue-100 text-blue-700"
+                      )}
+                      onClick={() => {
+                        setSelectedNewTaskCategory(prev => ({ ...prev, [selectedWorkspaceId]: category.id.toString() }));
+                        setShowNewTaskCategoryDropdown(false);
+                      }}
+                    >
+                      {category.name}
+                    </div>
+                  ))}
+                  <div className="border-t border-gray-200">
+                    <div 
+                      className="px-3 py-1.5 text-sm text-blue-600 hover:bg-blue-50 cursor-pointer transition-colors"
+                      onClick={() => {
+                        setShowCategoryEditModal(true);
+                        setShowNewTaskCategoryDropdown(false);
+                      }}
+                    >
+                      Edit categories
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          )}
-        </div>
-        
-        {/* New task due date */}
-        <div className="relative">
-          {showNewTaskDueDatePicker ? (
-            <div className="relative w-full">
-              <input
-                ref={dateInputRef}
-                type="date"
-                value={newTaskDueDate}
-                onChange={(e) => {
-                  setNewTaskDueDate(e.target.value);
-                }}
-                onKeyPress={(e) => {
-                  if (e.key === 'Enter') {
-                    setShowNewTaskDueDatePicker(false);
-                  } else if (e.key === 'Escape') {
-                    setShowNewTaskDueDatePicker(false);
-                  }
-                }}
-                onBlur={() => setShowNewTaskDueDatePicker(false)}
-                className="text-sm border border-gray-300 rounded px-1 py-1 pr-5 focus:outline-none focus:ring-1 focus:ring-blue-500 w-full"
-                title="Press Enter to save, Escape to cancel"
-                autoFocus
-              />
-              {newTaskDueDate && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setNewTaskDueDate('');
+            )}
+          </div>
+          
+          {/* New task due date */}
+          <div className="relative">
+            {showNewTaskDueDatePicker ? (
+              <div className="relative w-full">
+                <input
+                  ref={dateInputRef}
+                  type="date"
+                  value={newTaskDueDate}
+                  onChange={(e) => {
+                    setNewTaskDueDate(e.target.value);
                   }}
-                  className="absolute right-1 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-red-500 text-xs font-bold"
-                  title="Clear date"
-                >
-                  ×
-                </button>
-              )}
-            </div>
-          ) : (
-            <div 
-              className="flex items-center justify-center text-sm text-gray-500 cursor-pointer hover:text-blue-600 hover:bg-blue-50 px-1 py-1.5 rounded min-h-[32px] border border-gray-300 bg-white hover:border-blue-300 transition-colors w-16"
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowNewTaskDueDatePicker(true);
-                // Show native date picker immediately
-                setTimeout(() => {
-                  dateInputRef.current?.showPicker?.();
-                }, 10);
-              }}
-              title="Click to set due date"
-            >
-              {newTaskDueDate ? (
-                <span>{formatDate(newTaskDueDate)}</span>
-              ) : (
-                <span className="flex items-center gap-1">
-                  <span>Due</span>
-                  <Calendar className="w-3 h-3" />
-                </span>
-              )}
-            </div>
-          )}
-        </div>
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter') {
+                      setShowNewTaskDueDatePicker(false);
+                    } else if (e.key === 'Escape') {
+                      setShowNewTaskDueDatePicker(false);
+                    }
+                  }}
+                  onBlur={() => setShowNewTaskDueDatePicker(false)}
+                  className="text-sm border border-gray-300 rounded px-1 py-1 pr-5 focus:outline-none focus:ring-1 focus:ring-blue-500 w-full"
+                  title="Press Enter to save, Escape to cancel"
+                  autoFocus
+                />
+                {newTaskDueDate && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNewTaskDueDate('');
+                    }}
+                    className="absolute right-1 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-red-500 text-xs font-bold"
+                    title="Clear date"
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div 
+                className="flex items-center justify-center text-sm text-gray-500 cursor-pointer hover:text-blue-600 hover:bg-blue-50 px-1 py-1.5 rounded min-h-[32px] border border-gray-300 bg-white hover:border-blue-300 transition-colors w-16"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowNewTaskDueDatePicker(true);
+                  // Show native date picker immediately
+                  setTimeout(() => {
+                    dateInputRef.current?.showPicker?.();
+                  }, 10);
+                }}
+                title="Click to set due date"
+              >
+                {newTaskDueDate ? (
+                  <span>{formatDate(newTaskDueDate)}</span>
+                ) : (
+                  <span className="flex items-center gap-1">
+                    <span>Due</span>
+                    <Calendar className="w-3 h-3" />
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
         </div>
         
         {/* Tag selection row */}
