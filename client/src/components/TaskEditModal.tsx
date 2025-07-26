@@ -417,6 +417,7 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, categories, tags, o
                   setFormData({ ...formData, due_date: onlyDate });
                   await handleDateAutoSave('due_date', onlyDate);
                 }}
+                className="w-full"
               >
                 <div className="w-full px-3 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-white min-h-[40px] flex items-center">
                   {formData.due_date ? (
@@ -534,6 +535,7 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, categories, tags, o
                   setFormData({ ...formData, start_date: onlyDate });
                   await handleDateAutoSave('start_date', onlyDate);
                 }}
+                className="w-full"
               >
                 <div className="w-full px-3 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-white min-h-[40px] flex items-center">
                   {formData.start_date ? (
@@ -556,6 +558,7 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, categories, tags, o
                   setFormData({ ...formData, completion_date: onlyDate });
                   await handleDateAutoSave('completion_date', onlyDate);
                 }}
+                className="w-full"
               >
                 <div className="w-full px-3 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-white min-h-[40px] flex items-center">
                   {formData.completion_date ? (

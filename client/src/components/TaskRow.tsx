@@ -49,6 +49,7 @@ interface TaskRowProps {
   onDateClick: (task: Task, dateType: 'due_date' | 'start_date' | 'completion_date') => void;
   onDateSave: (taskId: number) => void;
   onDateKeyPress: (e: React.KeyboardEvent, taskId: number) => void;
+  onDirectDateSave: (taskId: number, dateType: 'due_date' | 'start_date' | 'completion_date', dateValue: string | null) => Promise<void>;
   onCategoryClick: (taskId: number) => void;
   onCategorySave: (taskId: number, categoryId?: number) => void;
   onCategoryCancel: () => void;
@@ -117,6 +118,7 @@ const TaskRow: React.FC<TaskRowProps> = ({
   onDateClick,
   onDateSave,
   onDateKeyPress,
+  onDirectDateSave,
   onCategoryClick,
   onCategorySave,
   onCategoryCancel,
@@ -440,8 +442,7 @@ const TaskRow: React.FC<TaskRowProps> = ({
         <DatePicker
           value={task.start_date}
           onChange={(date: string | null) => {
-            onSetEditingDateValue(date || '');
-            onDateSave(task.id);
+            onDirectDateSave(task.id, 'start_date', date);
           }}
         >
           <div 
@@ -463,8 +464,7 @@ const TaskRow: React.FC<TaskRowProps> = ({
           <DatePicker
             value={task.completion_date}
             onChange={(date: string | null) => {
-              onSetEditingDateValue(date || '');
-              onDateSave(task.id);
+              onDirectDateSave(task.id, 'completion_date', date);
             }}
           >
             <div 
@@ -486,8 +486,7 @@ const TaskRow: React.FC<TaskRowProps> = ({
         <DatePicker
           value={task.due_date}
           onChange={(date: string | null) => {
-            onSetEditingDateValue(date || '');
-            onDateSave(task.id);
+            onDirectDateSave(task.id, 'due_date', date);
           }}
         >
           <div 

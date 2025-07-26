@@ -1182,6 +1182,42 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
     }
   };
 
+  // Direct date save function for DatePicker components
+  const handleDirectDateSave = async (taskId: number, dateType: 'due_date' | 'start_date' | 'completion_date', dateValue: string | null) => {
+    try {
+      // Validate the date value before saving
+      let validatedDateValue: string | null = dateValue;
+      if (dateValue && dateValue.trim() !== '') {
+        // Ensure the date is in YYYY-MM-DD format
+        const date = new Date(dateValue);
+        if (isNaN(date.getTime())) {
+          console.error('Invalid date value:', dateValue);
+          return;
+        }
+        validatedDateValue = date.toISOString().split('T')[0]; // Convert to YYYY-MM-DD
+      } else {
+        validatedDateValue = null;
+      }
+      
+      console.log(`📅 Direct update task ${dateType}: "${validatedDateValue}"`);
+      await apiService.updateTask(taskId, { [dateType]: validatedDateValue });
+      
+      // Reload the task data from server to ensure correct format
+      const updatedTask = await apiService.getTask(taskId);
+      setTasks(prevTasks => {
+        const updatedTasks = prevTasks.map(t => {
+          if (t.id === taskId) {
+            return updatedTask;
+          }
+          return t;
+        });
+        return updatedTasks;
+      });
+    } catch (error) {
+      console.error('Error updating task date:', error);
+    }
+  };
+
   const handleDateCancel = () => {
     setEditingDateTaskId(null);
     setEditingDateType(null);
@@ -1804,6 +1840,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
                     onDateClick={handleDateClick}
                     onDateSave={handleDateSave}
                     onDateKeyPress={handleDateKeyPress}
+                    onDirectDateSave={handleDirectDateSave}
                     onCategoryClick={(taskId: number) => setEditingCategoryTaskId(taskId)}
                     onCategorySave={handleCategorySave}
                     onCategoryCancel={handleCategoryCancel}
@@ -1895,6 +1932,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
                 onDateClick={handleDateClick}
                 onDateSave={handleDateSave}
                 onDateKeyPress={handleDateKeyPress}
+                onDirectDateSave={handleDirectDateSave}
                 onCategoryClick={(taskId) => setEditingCategoryTaskId(taskId)}
                 onCategorySave={handleCategorySave}
                 onCategoryCancel={handleCategoryCancel}

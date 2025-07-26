@@ -5,6 +5,7 @@ interface DatePickerProps {
   onChange: (date: string | null) => void;
   children: React.ReactNode; // The existing styled field
   disabled?: boolean;
+  className?: string;
   onFocus?: () => void;
   onBlur?: () => void;
 }
@@ -14,6 +15,7 @@ const DatePicker: React.FC<DatePickerProps> = ({
   onChange,
   children,
   disabled,
+  className = '',
   onFocus,
   onBlur,
 }) => {
@@ -58,7 +60,7 @@ const DatePicker: React.FC<DatePickerProps> = ({
   return (
     <div 
       ref={containerRef}
-      className="relative inline-block"
+      className={`relative inline-block ${className}`}
       onClick={handleContainerClick}
     >
       {/* Hidden native date input for functionality */}
