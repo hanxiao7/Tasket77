@@ -1520,7 +1520,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
                   }
                 }}
                 className={clsx(
-                  "px-2 py-1 text-xs rounded-full border transition-colors",
+                  "px-2 py-0.5 text-xs rounded border transition-colors",
                   selectedNewTaskTag[selectedWorkspaceId] === tag.id
                     ? "bg-blue-100 border-blue-300 text-blue-700"
                     : "bg-white border-gray-300 text-gray-600 hover:bg-gray-50"
