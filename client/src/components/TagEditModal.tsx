@@ -7,7 +7,7 @@ interface TagEditModalProps {
   tags: Tag[];
   workspaceId: number;
   onClose: () => void;
-  onTagsUpdate: () => void;
+  onTagsUpdate: (updatedTags?: Tag[]) => void;
 }
 
 const TagEditModal: React.FC<TagEditModalProps> = ({ tags, workspaceId, onClose, onTagsUpdate }) => {
@@ -27,14 +27,27 @@ const TagEditModal: React.FC<TagEditModalProps> = ({ tags, workspaceId, onClose,
   const handleSave = async () => {
     if (!editingTagId || !editingTagName.trim()) return;
 
+    const originalTags = tags;
+    const updatedTags = tags.map(tag => 
+      tag.id === editingTagId 
+        ? { ...tag, name: editingTagName.trim() }
+        : tag
+    );
+
+    // Optimistic update - update local state immediately
+    onTagsUpdate(updatedTags);
+    setEditingTagId(null);
+    setEditingTagName('');
+
     try {
       setIsUpdating(true);
       await apiService.updateTag(editingTagId, editingTagName.trim());
-      setEditingTagId(null);
-      setEditingTagName('');
-      onTagsUpdate();
     } catch (error) {
       console.error('Error updating tag:', error);
+      // Revert on error
+      onTagsUpdate(originalTags);
+      setEditingTagId(editingTagId);
+      setEditingTagName(editingTagName);
     } finally {
       setIsUpdating(false);
     }
@@ -48,13 +61,29 @@ const TagEditModal: React.FC<TagEditModalProps> = ({ tags, workspaceId, onClose,
   const handleCreateTag = async () => {
     if (!newTagName.trim()) return;
 
+    const newTag = {
+      id: Date.now(), // Temporary ID for optimistic update
+      name: newTagName.trim(),
+      workspace_id: workspaceId,
+      hidden: false,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
+    const updatedTags = [...tags, newTag];
+
+    // Optimistic update - update local state immediately
+    onTagsUpdate(updatedTags);
+    setNewTagName('');
+
     try {
       setIsCreatingTag(true);
       await apiService.createTag(newTagName.trim(), workspaceId);
-      setNewTagName('');
-      onTagsUpdate();
     } catch (error) {
       console.error('Error creating tag:', error);
+      // Revert on error
+      onTagsUpdate(tags);
+      setNewTagName(newTagName);
     } finally {
       setIsCreatingTag(false);
     }
@@ -65,24 +94,42 @@ const TagEditModal: React.FC<TagEditModalProps> = ({ tags, workspaceId, onClose,
       return;
     }
 
+    const originalTags = tags;
+    const updatedTags = tags.filter(t => t.id !== tag.id);
+
+    // Optimistic update - update local state immediately
+    onTagsUpdate(updatedTags);
+    setIsDeleting(tag.id);
+
     try {
-      setIsDeleting(tag.id);
       await apiService.deleteTag(tag.id);
-      onTagsUpdate();
     } catch (error) {
       console.error('Error deleting tag:', error);
+      // Revert on error
+      onTagsUpdate(originalTags);
     } finally {
       setIsDeleting(null);
     }
   };
 
   const handleToggleHidden = async (tag: Tag) => {
+    const originalTags = tags;
+    const updatedTags = tags.map(t => 
+      t.id === tag.id 
+        ? { ...t, hidden: !t.hidden }
+        : t
+    );
+
+    // Optimistic update - update local state immediately
+    onTagsUpdate(updatedTags);
+    setIsTogglingHidden(tag.id);
+
     try {
-      setIsTogglingHidden(tag.id);
       await apiService.toggleTagHidden(tag.id);
-      onTagsUpdate();
     } catch (error) {
       console.error('Error toggling tag hidden status:', error);
+      // Revert on error
+      onTagsUpdate(originalTags);
     } finally {
       setIsTogglingHidden(null);
     }

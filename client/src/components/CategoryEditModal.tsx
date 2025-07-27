@@ -7,7 +7,7 @@ interface CategoryEditModalProps {
   categories: Category[];
   workspaceId: number;
   onClose: () => void;
-  onCategoriesUpdate: () => void;
+  onCategoriesUpdate: (updatedCategories?: Category[]) => void;
 }
 
 const CategoryEditModal: React.FC<CategoryEditModalProps> = ({ categories, workspaceId, onClose, onCategoriesUpdate }) => {
@@ -27,14 +27,27 @@ const CategoryEditModal: React.FC<CategoryEditModalProps> = ({ categories, works
   const handleSave = async () => {
     if (!editingCategoryId || !editingCategoryName.trim()) return;
 
+    const originalCategories = categories;
+    const updatedCategories = categories.map(cat => 
+      cat.id === editingCategoryId 
+        ? { ...cat, name: editingCategoryName.trim() }
+        : cat
+    );
+
+    // Optimistic update - update local state immediately
+    onCategoriesUpdate(updatedCategories);
+    setEditingCategoryId(null);
+    setEditingCategoryName('');
+
     try {
       setIsUpdating(true);
       await apiService.updateCategory(editingCategoryId, editingCategoryName.trim());
-      setEditingCategoryId(null);
-      setEditingCategoryName('');
-      onCategoriesUpdate();
     } catch (error) {
       console.error('Error updating category:', error);
+      // Revert on error
+      onCategoriesUpdate(originalCategories);
+      setEditingCategoryId(editingCategoryId);
+      setEditingCategoryName(editingCategoryName);
     } finally {
       setIsUpdating(false);
     }
@@ -48,25 +61,52 @@ const CategoryEditModal: React.FC<CategoryEditModalProps> = ({ categories, works
   const handleCreateCategory = async () => {
     if (!newCategoryName.trim()) return;
 
+    const newCategory = {
+      id: Date.now(), // Temporary ID for optimistic update
+      name: newCategoryName.trim(),
+      workspace_id: workspaceId,
+      hidden: false,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
+    const updatedCategories = [...categories, newCategory];
+
+    // Optimistic update - update local state immediately
+    onCategoriesUpdate(updatedCategories);
+    setNewCategoryName('');
+
     try {
       setIsCreatingCategory(true);
       await apiService.createCategory(newCategoryName.trim(), workspaceId);
-      setNewCategoryName('');
-      onCategoriesUpdate();
     } catch (error) {
       console.error('Error creating category:', error);
+      // Revert on error
+      onCategoriesUpdate(categories);
+      setNewCategoryName(newCategoryName);
     } finally {
       setIsCreatingCategory(false);
     }
   };
 
   const handleToggleHidden = async (category: Category) => {
+    const originalCategories = categories;
+    const updatedCategories = categories.map(cat => 
+      cat.id === category.id 
+        ? { ...cat, hidden: !cat.hidden }
+        : cat
+    );
+
+    // Optimistic update - update local state immediately
+    onCategoriesUpdate(updatedCategories);
+    setIsToggling(category.id);
+
     try {
-      setIsToggling(category.id);
       await apiService.toggleCategoryHidden(category.id);
-      onCategoriesUpdate();
     } catch (error) {
       console.error('Error toggling category hidden status:', error);
+      // Revert on error
+      onCategoriesUpdate(originalCategories);
     } finally {
       setIsToggling(null);
     }
@@ -77,12 +117,19 @@ const CategoryEditModal: React.FC<CategoryEditModalProps> = ({ categories, works
       return;
     }
 
+    const originalCategories = categories;
+    const updatedCategories = categories.filter(cat => cat.id !== category.id);
+
+    // Optimistic update - update local state immediately
+    onCategoriesUpdate(updatedCategories);
+    setIsDeleting(category.id);
+
     try {
-      setIsDeleting(category.id);
       await apiService.deleteCategory(category.id);
-      onCategoriesUpdate();
     } catch (error) {
       console.error('Error deleting category:', error);
+      // Revert on error
+      onCategoriesUpdate(originalCategories);
     } finally {
       setIsDeleting(null);
     }

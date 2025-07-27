@@ -195,12 +195,20 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, categories, tags, o
   const handleTitleAutoSave = async (newTitle: string) => {
     if (!newTitle.trim() || newTitle.trim() === task.title) return;
     
+    const updatedTask = { 
+      ...task, 
+      title: newTitle.trim(),
+      category_id: formData.category_id ? Number(formData.category_id) : undefined,
+      tag_id: formData.tag_id ? Number(formData.tag_id) : undefined
+    };
+    onUpdate(updatedTask); // Optimistic update - immediate UI change
+    
     try {
       console.log(`✏️ Auto-saving task title: "${newTitle.trim()}"`);
-      await onSave({ ...task, title: newTitle.trim() });
-      onUpdate({ ...task, title: newTitle.trim() });
+      await onSave(updatedTask);
     } catch (error) {
       console.error('Error auto-saving task title:', error);
+      onUpdate(task); // Revert on error
     }
   };
 
@@ -210,12 +218,20 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, categories, tags, o
     
     if (finalDescription === currentDescription) return;
     
+    const updatedTask = { 
+      ...task, 
+      description: finalDescription,
+      category_id: formData.category_id ? Number(formData.category_id) : undefined,
+      tag_id: formData.tag_id ? Number(formData.tag_id) : undefined
+    };
+    onUpdate(updatedTask); // Optimistic update - immediate UI change
+    
     try {
       console.log(`📝 Auto-saving task description: "${finalDescription}"`);
-      await onSave({ ...task, description: finalDescription });
-      onUpdate({ ...task, description: finalDescription });
+      await onSave(updatedTask);
     } catch (error) {
       console.error('Error auto-saving task description:', error);
+      onUpdate(task); // Revert on error
     }
   };
 
@@ -266,24 +282,40 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, categories, tags, o
   const handleStatusAutoSave = async (newStatus: Task['status']) => {
     if (newStatus === task.status) return;
     
+    const updatedTask = { 
+      ...task, 
+      status: newStatus,
+      category_id: formData.category_id ? Number(formData.category_id) : undefined,
+      tag_id: formData.tag_id ? Number(formData.tag_id) : undefined
+    };
+    onUpdate(updatedTask); // Optimistic update - immediate UI change
+    
     try {
       console.log(`🔄 Auto-saving task status: ${task.status} → ${newStatus}`);
-      await onSave({ ...task, status: newStatus });
-      onUpdate({ ...task, status: newStatus });
+      await onSave(updatedTask);
     } catch (error) {
       console.error('Error auto-saving task status:', error);
+      onUpdate(task); // Revert on error
     }
   };
 
   const handlePriorityAutoSave = async (newPriority: Task['priority']) => {
     if (newPriority === task.priority) return;
     
+    const updatedTask = { 
+      ...task, 
+      priority: newPriority,
+      category_id: formData.category_id ? Number(formData.category_id) : undefined,
+      tag_id: formData.tag_id ? Number(formData.tag_id) : undefined
+    };
+    onUpdate(updatedTask); // Optimistic update - immediate UI change
+    
     try {
       console.log(`🚩 Auto-saving task priority: ${task.priority} → ${newPriority}`);
-      await onSave({ ...task, priority: newPriority });
-      onUpdate({ ...task, priority: newPriority });
+      await onSave(updatedTask);
     } catch (error) {
       console.error('Error auto-saving task priority:', error);
+      onUpdate(task); // Revert on error
     }
   };
 
@@ -293,12 +325,20 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, categories, tags, o
     
     if (finalDate === currentDate) return;
     
+    const updatedTask = { 
+      ...task, 
+      [dateType]: finalDate,
+      category_id: formData.category_id ? Number(formData.category_id) : undefined,
+      tag_id: formData.tag_id ? Number(formData.tag_id) : undefined
+    };
+    onUpdate(updatedTask); // Optimistic update - immediate UI change
+    
     try {
       console.log(`📅 Auto-saving task ${dateType}: "${finalDate}"`);
-      await onSave({ ...task, [dateType]: finalDate });
-      onUpdate({ ...task, [dateType]: finalDate });
+      await onSave(updatedTask);
     } catch (error) {
       console.error(`Error auto-saving task ${dateType}:`, error);
+      onUpdate(task); // Revert on error
     }
   };
 
@@ -589,6 +629,8 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, categories, tags, o
             />
           </div>
         </form>
+
+
       </div>
     </div>
   );

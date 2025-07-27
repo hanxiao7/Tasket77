@@ -1876,8 +1876,8 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
                 due_date: updatedTask.due_date,
                 completion_date: updatedTask.completion_date
               });
-              await loadData();
-              setEditingTask(null);
+              // Don't call loadData() or close modal for auto-save operations
+              // The modal will handle its own state updates
             } catch (error) {
               console.error('Error updating task:', error);
             }
@@ -1901,7 +1901,13 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
           categories={categories}
           workspaceId={selectedWorkspaceId}
           onClose={() => setShowCategoryEditModal(false)}
-          onCategoriesUpdate={loadData}
+          onCategoriesUpdate={(updatedCategories) => {
+            if (updatedCategories) {
+              setCategories(updatedCategories);
+            } else {
+              loadData();
+            }
+          }}
         />
       )}
 
@@ -1911,7 +1917,13 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
           tags={tags}
           workspaceId={selectedWorkspaceId}
           onClose={() => setShowTagEditModal(false)}
-          onTagsUpdate={loadData}
+          onTagsUpdate={(updatedTags) => {
+            if (updatedTags) {
+              setTags(updatedTags);
+            } else {
+              loadData();
+            }
+          }}
         />
       )}
 
