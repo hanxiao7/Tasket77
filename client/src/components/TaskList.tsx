@@ -242,9 +242,10 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
   const sortTasks = useCallback((tasksToSort: Task[]) => {
     if (viewMode === 'planner') {
       return [...tasksToSort].sort((a, b) => {
-        // First sort by status: in_progress/paused first, then todo, then done
+        // First sort by status: in_progress first, then paused, then todo, then done
         const getStatusOrder = (status: Task['status']) => {
-          if (status === 'in_progress' || status === 'paused') return 1;
+          if (status === 'in_progress') return 1;
+          if (status === 'paused') return 2;
           if (status === 'todo') return 3;
           if (status === 'done') return 4;
           return 5;

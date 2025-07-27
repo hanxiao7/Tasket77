@@ -337,7 +337,7 @@ app.get('/api/tasks', authenticateToken, async (req, res) => {
     paramIndex++;
   }
   if (view === 'planner') {
-    query += ' ORDER BY CASE t.status WHEN \'in_progress\' THEN 1 WHEN \'paused\' THEN 1 WHEN \'todo\' THEN 3 WHEN \'done\' THEN 4 END,';
+    query += ' ORDER BY CASE t.status WHEN \'in_progress\' THEN 1 WHEN \'paused\' THEN 2 WHEN \'todo\' THEN 3 WHEN \'done\' THEN 4 END,';
     query += ' CASE t.priority WHEN \'urgent\' THEN 1 WHEN \'high\' THEN 2 WHEN \'normal\' THEN 3 WHEN \'low\' THEN 4 END,';
     query += ' t.title ASC';
   } else if (view === 'tracker') {
