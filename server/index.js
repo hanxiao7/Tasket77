@@ -33,18 +33,41 @@ async function initializeServer() {
     await initializeDatabase();
     console.log('Database initialized successfully');
     
-    // Perform automatic backup with change detection
+    // Check if backup is needed (only if more than 12 hours since last backup)
     const backupManager = new PostgreSQLBackupManager();
-    const backupResult = await backupManager.performAutomaticBackup();
+    const lastMetadata = backupManager.getLastBackupMetadata();
     
-    if (backupResult.success) {
-      if (backupResult.skipped) {
-        console.log(`Backup skipped: ${backupResult.reason}`);
+    let shouldBackup = true;
+    let backupReason = 'No previous backup found';
+    
+    if (lastMetadata && lastMetadata.lastBackup) {
+      const lastBackupTime = new Date(lastMetadata.lastBackup);
+      const now = new Date();
+      const hoursSinceLastBackup = (now - lastBackupTime) / (1000 * 60 * 60);
+      
+      if (hoursSinceLastBackup < 12) {
+        shouldBackup = false;
+        backupReason = `Recent backup exists (${Math.round(hoursSinceLastBackup)} hours ago)`;
       } else {
-        console.log(`Backup completed: ${backupResult.reason}`);
+        backupReason = `Last backup was ${Math.round(hoursSinceLastBackup)} hours ago`;
+      }
+    }
+    
+    if (shouldBackup) {
+      // Perform automatic backup with change detection
+      const backupResult = await backupManager.performAutomaticBackup();
+      
+      if (backupResult.success) {
+        if (backupResult.skipped) {
+          console.log(`Backup skipped: ${backupResult.reason}`);
+        } else {
+          console.log(`Backup completed: ${backupResult.reason}`);
+        }
+      } else {
+        console.error('Backup failed:', backupResult.error);
       }
     } else {
-      console.error('Backup failed:', backupResult.error);
+      console.log(`Backup skipped: ${backupReason}`);
     }
     
   } catch (err) {
