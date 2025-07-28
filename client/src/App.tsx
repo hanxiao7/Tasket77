@@ -7,6 +7,7 @@ import Register from './pages/Register';
 import TaskList from './components/TaskList';
 import TaskSummary from './components/TaskSummary';
 import WorkspaceSelector from './components/WorkspaceSelector';
+import UserMenu from './components/UserMenu';
 import { Download, ArrowUpDown, CheckCircle } from 'lucide-react';
 import { TaskFilters, ViewMode, Task } from './types';
 
@@ -21,7 +22,7 @@ function MainApp() {
   });
   const [currentTasks, setCurrentTasks] = useState<Task[]>([]);
   const taskListRef = useRef<{ sortTasks: () => void; getTasks: () => Task[] }>(null);
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
 
   const handleFiltersChange = (newFilters: TaskFilters) => setFilters(newFilters);
   const handleWorkspaceChange = (workspaceId: number) => {
@@ -61,18 +62,10 @@ function MainApp() {
         <div className="mb-6">
           {/* Mobile Layout: Stack vertically */}
           <div className="sm:hidden">
-            {/* Top row: App name and logout */}
+            {/* Top row: App name and user menu */}
             <div className="flex items-center justify-between mb-3">
               <h1 className="text-2xl font-bold text-gray-900">Tasket77</h1>
-              {user && (
-                <button
-                  onClick={logout}
-                  className="px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-white rounded-md border border-gray-300 transition-colors"
-                  title="Logout"
-                >
-                  Logout
-                </button>
-              )}
+              <UserMenu />
             </div>
             {/* Second row: Workspace selector */}
             <div className="mb-3">
@@ -96,15 +89,7 @@ function MainApp() {
                     selectedWorkspaceId={selectedWorkspaceId}
                     onWorkspaceChange={handleWorkspaceChange}
                   />
-                  {user && (
-                    <button
-                      onClick={logout}
-                      className="px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-white rounded-md border border-gray-300 transition-colors"
-                      title="Logout"
-                    >
-                      Logout
-                    </button>
-                  )}
+                  <UserMenu />
                 </div>
                 {/* Task Summary - hidden on mobile */}
                 <TaskSummary tasks={currentTasks} />
