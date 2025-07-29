@@ -61,8 +61,9 @@ const TagEditModal: React.FC<TagEditModalProps> = ({ tags, workspaceId, onClose,
   const handleCreateTag = async () => {
     if (!newTagName.trim()) return;
 
+    const tempId = Date.now(); // Temporary ID for optimistic update
     const newTag = {
-      id: Date.now(), // Temporary ID for optimistic update
+      id: tempId,
       name: newTagName.trim(),
       workspace_id: workspaceId,
       hidden: false,
@@ -78,7 +79,13 @@ const TagEditModal: React.FC<TagEditModalProps> = ({ tags, workspaceId, onClose,
 
     try {
       setIsCreatingTag(true);
-      await apiService.createTag(newTagName.trim(), workspaceId);
+      const createdTag = await apiService.createTag(newTagName.trim(), workspaceId);
+      
+      // Replace the temporary tag with the real one from the database
+      const finalTags = updatedTags.map(tag => 
+        tag.id === tempId ? createdTag : tag
+      );
+      onTagsUpdate(finalTags);
     } catch (error) {
       console.error('Error creating tag:', error);
       // Revert on error

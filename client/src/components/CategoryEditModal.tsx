@@ -61,8 +61,9 @@ const CategoryEditModal: React.FC<CategoryEditModalProps> = ({ categories, works
   const handleCreateCategory = async () => {
     if (!newCategoryName.trim()) return;
 
+    const tempId = Date.now(); // Temporary ID for optimistic update
     const newCategory = {
-      id: Date.now(), // Temporary ID for optimistic update
+      id: tempId,
       name: newCategoryName.trim(),
       workspace_id: workspaceId,
       hidden: false,
@@ -78,7 +79,13 @@ const CategoryEditModal: React.FC<CategoryEditModalProps> = ({ categories, works
 
     try {
       setIsCreatingCategory(true);
-      await apiService.createCategory(newCategoryName.trim(), workspaceId);
+      const createdCategory = await apiService.createCategory(newCategoryName.trim(), workspaceId);
+      
+      // Replace the temporary category with the real one from the database
+      const finalCategories = updatedCategories.map(cat => 
+        cat.id === tempId ? createdCategory : cat
+      );
+      onCategoriesUpdate(finalCategories);
     } catch (error) {
       console.error('Error creating category:', error);
       // Revert on error
