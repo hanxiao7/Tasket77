@@ -38,7 +38,7 @@ router.get('/workspaces/:workspaceId/permissions', authenticateToken, async (req
   const client = await pool.connect();
   try {
     const { workspaceId } = req.params;
-    const userId = req.user.id;
+    const userId = req.user.userId;
 
     // Check if user has access to this workspace
     const userAccess = await getUserAccessLevel(userId, workspaceId);
@@ -82,7 +82,7 @@ router.post('/workspaces/:workspaceId/permissions', authenticateToken, async (re
   try {
     const { workspaceId } = req.params;
     const { email, access_level } = req.body;
-    const userId = req.user.id;
+    const userId = req.user.userId;
 
     // Validate input
     if (!email || !access_level || !['edit', 'view'].includes(access_level)) {
@@ -150,7 +150,7 @@ router.put('/workspaces/:workspaceId/permissions/:permissionId', authenticateTok
   try {
     const { workspaceId, permissionId } = req.params;
     const { access_level } = req.body;
-    const userId = req.user.id;
+    const userId = req.user.userId;
 
     // Validate input
     if (!access_level || !['owner', 'edit', 'view'].includes(access_level)) {
@@ -257,7 +257,7 @@ router.post('/workspaces/:workspaceId/permissions/:permissionId/transfer-ownersh
   const client = await pool.connect();
   try {
     const { workspaceId, permissionId } = req.params;
-    const userId = req.user.id;
+    const userId = req.user.userId;
 
     // Check if user is owner
     if (!(await isOwner(userId, workspaceId))) {
@@ -308,7 +308,7 @@ router.post('/workspaces/:workspaceId/leave', authenticateToken, async (req, res
   const client = await pool.connect();
   try {
     const { workspaceId } = req.params;
-    const userId = req.user.id;
+    const userId = req.user.userId;
 
     // Get user's permission
     const permissionResult = await client.query(
