@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -24,6 +24,32 @@ function MainApp() {
   const [workspaces, setWorkspaces] = useState<Array<{ id: number; name: string; access_level?: 'owner' | 'edit' | 'view' }>>([]);
   const taskListRef = useRef<{ sortTasks: () => void; getTasks: () => Task[] }>(null);
   const { user } = useAuth();
+
+  // Load workspaces on component mount
+  useEffect(() => {
+    const loadWorkspaces = async () => {
+      try {
+        const response = await fetch('http://localhost:3001/api/workspaces', {
+          credentials: 'include'
+        });
+        if (response.ok) {
+          const workspacesData = await response.json();
+          setWorkspaces(workspacesData);
+          
+          // Set the first workspace as selected if none is selected
+          if (workspacesData.length > 0 && !workspacesData.find((w: { id: number }) => w.id === selectedWorkspaceId)) {
+            setSelectedWorkspaceId(workspacesData[0].id);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading workspaces:', error);
+      }
+    };
+
+    if (user) {
+      loadWorkspaces();
+    }
+  }, [user, selectedWorkspaceId]);
 
   const handleFiltersChange = (newFilters: TaskFilters) => setFilters(newFilters);
   const handleWorkspaceChange = (workspaceId: number) => {
