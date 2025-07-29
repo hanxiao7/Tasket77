@@ -269,6 +269,9 @@ const ManageAccessModal: React.FC<ManageAccessModalProps> = ({
   };
 
   const isOwner = currentUserAccess === 'owner';
+  
+  // Helper function to check if a permission belongs to the current user
+  const isCurrentUser = (permission: Permission) => permission.user_id === user?.id;
 
   if (!isOpen) return null;
 
@@ -385,7 +388,17 @@ const ManageAccessModal: React.FC<ManageAccessModalProps> = ({
               </div>
             ) : (
               <div className="space-y-3">
-                {permissions.map((permission) => (
+                {permissions
+                  .sort((a, b) => {
+                    // Owner first
+                    if (a.access_level === 'owner' && b.access_level !== 'owner') return -1;
+                    if (a.access_level !== 'owner' && b.access_level === 'owner') return 1;
+                    // Then sort by user name (or email if no name)
+                    const aName = a.user_name || a.email;
+                    const bName = b.user_name || b.email;
+                    return aName.localeCompare(bName);
+                  })
+                  .map((permission) => (
                   <div
                     key={permission.id}
                     className="flex items-center justify-between p-3 border border-gray-200 rounded-md"
@@ -410,13 +423,12 @@ const ManageAccessModal: React.FC<ManageAccessModalProps> = ({
                       {isOwner && permission.access_level !== 'owner' && (
                         <select
                           value={permission.access_level}
-                          onChange={(e) => handleUpdateAccessLevel(permission.id, e.target.value as 'owner' | 'edit' | 'view')}
+                          onChange={(e) => handleUpdateAccessLevel(permission.id, e.target.value as 'edit' | 'view')}
                           disabled={loading}
                           className="px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
                         >
                           <option value="edit">Edit</option>
                           <option value="view">View</option>
-                          <option value="owner">Owner</option>
                         </select>
                       )}
                       
@@ -433,7 +445,7 @@ const ManageAccessModal: React.FC<ManageAccessModalProps> = ({
                       )}
                       
                       {/* Remove User */}
-                      {isOwner && (
+                      {isOwner && permission.access_level !== 'owner' && !isCurrentUser(permission) && (
                         <button
                           onClick={() => handleRemoveUser(permission.id)}
                           disabled={loading}
