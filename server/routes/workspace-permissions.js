@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { Pool } = require('pg');
 const { authenticateToken } = require('../middleware/auth');
+const moment = require('moment');
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL || 'postgresql://postgres:password@localhost:5432/taskmanagement'
@@ -83,6 +84,8 @@ router.post('/workspaces/:workspaceId/permissions', authenticateToken, async (re
     const { workspaceId } = req.params;
     const { email, access_level } = req.body;
     const userId = req.user.userId;
+    
+    console.log(`🔗 Adding user ${email} to workspace ${workspaceId} with ${access_level} access by user ${userId}`);
 
     // Validate input
     if (!email || !access_level || !['edit', 'view'].includes(access_level)) {
@@ -127,6 +130,8 @@ router.post('/workspaces/:workspaceId/permissions', authenticateToken, async (re
       'INSERT INTO workspace_permissions (workspace_id, user_id, email, access_level) VALUES ($1, $2, $3, $4)',
       [workspaceId, user_id, email, access_level]
     );
+
+    console.log(`✅ Successfully added user ${email} (user_id: ${user_id}) to workspace ${workspaceId}`);
 
     // Send email
     await sendWorkspaceAccessEmail(email, workspaceName, access_level);
@@ -309,6 +314,8 @@ router.post('/workspaces/:workspaceId/leave', authenticateToken, async (req, res
   try {
     const { workspaceId } = req.params;
     const userId = req.user.userId;
+    
+    console.log(`🚪 User ${userId} attempting to leave workspace ${workspaceId}`);
 
     // Get user's permission
     const permissionResult = await client.query(
@@ -345,25 +352,41 @@ router.post('/workspaces/:workspaceId/leave', authenticateToken, async (req, res
       [workspaceId]
     );
 
+    console.log(`🏠 Workspace ${workspaceId} is_default: ${workspaceResult.rows[0]?.is_default}`);
+
     if (workspaceResult.rows[0]?.is_default) {
-      // Find another workspace to make default
+      console.log(`⚠️ User ${userId} is leaving their default workspace ${workspaceId}, will reassign default`);
+      // Find another owned workspace to make default
       const otherWorkspaceResult = await client.query(
-        'SELECT w.id FROM workspaces w INNER JOIN workspace_permissions wp ON w.id = wp.workspace_id WHERE wp.user_id = $1 ORDER BY w.id LIMIT 1',
-        [userId]
+        'SELECT w.id FROM workspaces w INNER JOIN workspace_permissions wp ON w.id = wp.workspace_id WHERE wp.user_id = $1 AND wp.access_level = $2 ORDER BY w.id LIMIT 1',
+        [userId, 'owner']
       );
 
       if (otherWorkspaceResult.rows.length > 0) {
-        // Set another workspace as default
+        // Set another owned workspace as default
         await client.query(
           'UPDATE workspaces SET is_default = true WHERE id = $1',
           [otherWorkspaceResult.rows[0].id]
         );
       } else {
         // Create a new default workspace
-        await client.query(
-          'INSERT INTO workspaces (name, user_id, is_default) VALUES ($1, $2, $3)',
-          ['My Workspace', userId, true]
+        const newWorkspaceResult = await client.query(
+          'INSERT INTO workspaces (name, description, user_id, is_default, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $5) RETURNING id',
+          ['My Workspace', 'Default workspace for your tasks', userId, true, moment().utc().format('YYYY-MM-DD HH:mm:ss')]
         );
+        
+        // Add owner permission for the new workspace
+        const userResult = await client.query(
+          'SELECT email FROM users WHERE id = $1',
+          [userId]
+        );
+        
+        if (userResult.rows.length > 0) {
+          await client.query(
+            'INSERT INTO workspace_permissions (workspace_id, user_id, email, access_level) VALUES ($1, $2, $3, $4)',
+            [newWorkspaceResult.rows[0].id, userId, userResult.rows[0].email, 'owner']
+          );
+        }
       }
 
       // Remove default flag from current workspace

@@ -106,23 +106,27 @@ app.get('/api/health', (req, res) => {
 // Get all categories
 app.get('/api/categories', authenticateToken, async (req, res) => {
   const { include_hidden, workspace_id } = req.query;
-  let query = 'SELECT * FROM categories';
-  const conditions = [];
-  const params = [];
-  // Always filter by user_id for data isolation
-  conditions.push('user_id = $1');
-  params.push(req.user.userId);
+  console.log(`🔍 Fetching categories for user ${req.user.userId}, workspace_id: ${workspace_id}, include_hidden: ${include_hidden}`);
+  
+  let query = `
+    SELECT c.* 
+    FROM categories c
+    INNER JOIN workspace_permissions wp ON c.workspace_id = wp.workspace_id
+    WHERE wp.user_id = $1
+  `;
+  const params = [req.user.userId];
+  let paramIndex = 2;
+  
   if (include_hidden !== 'true') {
-    conditions.push('hidden = false');
+    query += ` AND c.hidden = false`;
   }
   if (workspace_id) {
-    conditions.push('workspace_id = $2');
+    query += ` AND c.workspace_id = $${paramIndex}`;
     params.push(workspace_id);
+    paramIndex++;
   }
-  if (conditions.length > 0) {
-    query += ' WHERE ' + conditions.join(' AND ');
-  }
-  query += ' ORDER BY name';
+  
+  query += ' ORDER BY c.name';
   try {
     const result = await pool.query(query, params);
     res.json(result.rows);
@@ -216,20 +220,24 @@ app.delete('/api/categories/:id', authenticateToken, async (req, res) => {
 // Get all tags
 app.get('/api/tags', authenticateToken, async (req, res) => {
   const { workspace_id } = req.query;
-  let query = 'SELECT * FROM tags';
-  const conditions = [];
-  const params = [];
-  // Always filter by user_id for data isolation
-  conditions.push('user_id = $1');
-  params.push(req.user.userId);
+  console.log(`🔍 Fetching tags for user ${req.user.userId}, workspace_id: ${workspace_id}`);
+  
+  let query = `
+    SELECT t.* 
+    FROM tags t
+    INNER JOIN workspace_permissions wp ON t.workspace_id = wp.workspace_id
+    WHERE wp.user_id = $1
+  `;
+  const params = [req.user.userId];
+  let paramIndex = 2;
+  
   if (workspace_id) {
-    conditions.push('workspace_id = $2');
+    query += ` AND t.workspace_id = $${paramIndex}`;
     params.push(workspace_id);
+    paramIndex++;
   }
-  if (conditions.length > 0) {
-    query += ' WHERE ' + conditions.join(' AND ');
-  }
-  query += ' ORDER BY (SELECT COUNT(*) FROM tasks WHERE tag_id = tags.id) DESC, created_at DESC';
+  
+  query += ' ORDER BY (SELECT COUNT(*) FROM tasks WHERE tag_id = t.id) DESC, t.created_at DESC';
   try {
     const result = await pool.query(query, params);
     res.json(result.rows);
@@ -328,7 +336,8 @@ app.get('/api/tasks', authenticateToken, async (req, res) => {
     FROM tasks t
     LEFT JOIN categories c ON t.category_id = c.id
     LEFT JOIN tags tg ON t.tag_id = tg.id
-    WHERE t.user_id = $1
+    INNER JOIN workspace_permissions wp ON t.workspace_id = wp.workspace_id
+    WHERE wp.user_id = $1
   `;
   const params = [req.user.userId];
   let paramIndex = 2;
@@ -915,13 +924,15 @@ app.post('/api/backup/restore/:prefix', authenticateToken, async (req, res) => {
 // Get all workspaces (including shared ones)
 app.get('/api/workspaces', authenticateToken, async (req, res) => {
   try {
+    console.log(`🔍 Fetching workspaces for user ${req.user.userId}`);
     const result = await pool.query(`
       SELECT DISTINCT w.*, wp.access_level
       FROM workspaces w
       INNER JOIN workspace_permissions wp ON w.id = wp.workspace_id
       WHERE wp.user_id = $1
-      ORDER BY w.name
+      ORDER BY w.is_default DESC, w.name
     `, [req.user.userId]);
+    console.log(`📋 Found ${result.rows.length} workspaces for user ${req.user.userId}`);
     res.json(result.rows);
   } catch (err) {
     console.error('Workspaces query error:', err);
