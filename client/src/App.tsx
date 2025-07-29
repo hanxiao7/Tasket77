@@ -28,16 +28,19 @@ function MainApp() {
   // Load workspaces on component mount
   useEffect(() => {
     const loadWorkspaces = async () => {
+      console.log(`🔄 Loading workspaces for user ${user?.id} (${user?.email})`);
       try {
         const response = await fetch('http://localhost:3001/api/workspaces', {
           credentials: 'include'
         });
         if (response.ok) {
           const workspacesData = await response.json();
+                      console.log(`📋 Loaded ${workspacesData.length} workspaces:`, workspacesData.map((w: { id: number; name: string; is_default: boolean; access_level?: string }) => ({ id: w.id, name: w.name, is_default: w.is_default, access_level: w.access_level })));
           setWorkspaces(workspacesData);
           
           // Set the first workspace as selected if none is selected
           if (workspacesData.length > 0 && !workspacesData.find((w: { id: number }) => w.id === selectedWorkspaceId)) {
+            console.log(`🎯 Setting selected workspace to ${workspacesData[0].id} (${workspacesData[0].name})`);
             setSelectedWorkspaceId(workspacesData[0].id);
           }
         }
@@ -49,7 +52,7 @@ function MainApp() {
     if (user) {
       loadWorkspaces();
     }
-  }, [user, selectedWorkspaceId]);
+  }, [user]); // Removed selectedWorkspaceId from dependencies to prevent infinite loops
 
   const handleFiltersChange = (newFilters: TaskFilters) => setFilters(newFilters);
   const handleWorkspaceChange = (workspaceId: number) => {

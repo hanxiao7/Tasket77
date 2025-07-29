@@ -1095,16 +1095,34 @@ app.delete('/api/workspaces/:id', authenticateToken, async (req, res) => {
 app.patch('/api/workspaces/:id/set-default', authenticateToken, async (req, res) => {
   const { id } = req.params;
   const now = moment().utc().format('YYYY-MM-DD HH:mm:ss');
+  const client = await pool.connect();
   try {
-    await pool.query('UPDATE workspaces SET is_default = false, updated_at = $1', [now]);
-    const updateResult = await pool.query('UPDATE workspaces SET is_default = true, updated_at = $1 WHERE id = $2 RETURNING *', [now, id]);
+    console.log(`🔧 Setting workspace ${id} as default for user ${req.user.userId}`);
+    
+    // First, unset all default workspaces for the current user
+    await client.query(
+      'UPDATE workspaces SET is_default = false, updated_at = $1 WHERE user_id = $2',
+      [now, req.user.userId]
+    );
+    
+    // Then set the target workspace as default (only if user owns it)
+    const updateResult = await client.query(
+      'UPDATE workspaces SET is_default = true, updated_at = $1 WHERE id = $2 AND user_id = $3 RETURNING *',
+      [now, id, req.user.userId]
+    );
+    
     if (updateResult.rowCount === 0) {
-      res.status(404).json({ error: 'Workspace not found' });
+      res.status(404).json({ error: 'Workspace not found or you do not own it' });
       return;
     }
+    
+    console.log(`✅ Successfully set workspace ${id} as default for user ${req.user.userId}`);
     res.json(updateResult.rows[0]);
   } catch (err) {
+    console.error('Error setting default workspace:', err);
     res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
   }
 });
 
