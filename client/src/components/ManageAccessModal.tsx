@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Plus, Edit3, Trash2, Crown, Users, Eye, EyeOff, LogOut } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 
 interface Workspace {
   id: number;
@@ -32,6 +33,7 @@ const ManageAccessModal: React.FC<ManageAccessModalProps> = ({
   workspaces,
   onWorkspaceChange
 }) => {
+  const { user } = useAuth();
   const [permissions, setPermissions] = useState<Permission[]>([]);
   const [loading, setLoading] = useState(false);
   const [newEmail, setNewEmail] = useState('');
@@ -48,6 +50,14 @@ const ManageAccessModal: React.FC<ManageAccessModalProps> = ({
     }
   }, [isOpen, selectedWorkspaceId]);
 
+  // Clear success message when modal closes
+  useEffect(() => {
+    if (!isOpen) {
+      setSuccess(null);
+      setError(null);
+    }
+  }, [isOpen]);
+
   const fetchPermissions = async () => {
     setLoading(true);
     setError(null);
@@ -63,8 +73,8 @@ const ManageAccessModal: React.FC<ManageAccessModalProps> = ({
       const data = await response.json();
       setPermissions(data);
       
-      // Find current user's access level
-      const currentUser = data.find((p: Permission) => p.status === 'active');
+      // Find current user's access level by matching user ID
+      const currentUser = data.find((p: Permission) => p.user_id === user?.id);
       setCurrentUserAccess(currentUser?.access_level || null);
     } catch (err) {
       setError('Failed to load permissions');
