@@ -9,6 +9,7 @@ const { pool, initializeDatabase, updateTaskModified, addTaskHistory } = require
 const PostgreSQLBackupManager = require('./backup-pg');
 const { authenticateToken } = require('./middleware/auth');
 const authRoutes = require('./routes/auth');
+const workspacePermissionsRoutes = require('./routes/workspace-permissions');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -911,10 +912,16 @@ app.post('/api/backup/restore/:prefix', authenticateToken, async (req, res) => {
 
 // Workspace management endpoints
 
-// Get all workspaces
+// Get all workspaces (including shared ones)
 app.get('/api/workspaces', authenticateToken, async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM workspaces WHERE user_id = $1 ORDER BY name', [req.user.userId]);
+    const result = await pool.query(`
+      SELECT DISTINCT w.*, wp.access_level
+      FROM workspaces w
+      INNER JOIN workspace_permissions wp ON w.id = wp.workspace_id
+      WHERE wp.user_id = $1
+      ORDER BY w.name
+    `, [req.user.userId]);
     res.json(result.rows);
   } catch (err) {
     console.error('Workspaces query error:', err);
@@ -930,14 +937,39 @@ app.post('/api/workspaces', authenticateToken, async (req, res) => {
     return;
   }
   const now = moment().utc().format('YYYY-MM-DD HH:mm:ss');
+  const client = await pool.connect();
   try {
-    const result = await pool.query(
+    await client.query('BEGIN');
+    
+    // Create workspace
+    const result = await client.query(
       'INSERT INTO workspaces (name, description, is_default, user_id, created_at, updated_at) VALUES ($1, $2, false, $3, $4, $4) RETURNING *',
       [name, description || '', req.user.userId, now]
     );
+    
+    // Get user email for the permission record
+    const userResult = await client.query(
+      'SELECT email FROM users WHERE id = $1',
+      [req.user.userId]
+    );
+    
+    if (userResult.rows.length === 0) {
+      throw new Error('User not found');
+    }
+    
+    // Add owner permission
+    await client.query(
+      'INSERT INTO workspace_permissions (workspace_id, user_id, email, access_level) VALUES ($1, $2, $3, $4)',
+      [result.rows[0].id, req.user.userId, userResult.rows[0].email, 'owner']
+    );
+    
+    await client.query('COMMIT');
     res.json(result.rows[0]);
   } catch (err) {
+    await client.query('ROLLBACK');
     res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
   }
 });
 
@@ -949,9 +981,27 @@ app.put('/api/workspaces/:id', authenticateToken, async (req, res) => {
     res.status(400).json({ error: 'Workspace name is required' });
     return;
   }
-  const now = moment().utc().format('YYYY-MM-DD HH:mm:ss');
+  
+  const client = await pool.connect();
   try {
-    const updateResult = await pool.query(
+    // Check if user has owner access to this workspace
+    const permissionResult = await client.query(
+      'SELECT access_level FROM workspace_permissions WHERE workspace_id = $1 AND user_id = $2',
+      [id, req.user.userId]
+    );
+    
+    if (permissionResult.rowCount === 0) {
+      res.status(404).json({ error: 'Workspace not found' });
+      return;
+    }
+    
+    if (permissionResult.rows[0].access_level !== 'owner') {
+      res.status(403).json({ error: 'Only owners can update workspaces' });
+      return;
+    }
+    
+    const now = moment().utc().format('YYYY-MM-DD HH:mm:ss');
+    const updateResult = await client.query(
       'UPDATE workspaces SET name = $1, description = $2, updated_at = $3 WHERE id = $4 RETURNING *',
       [name, description || '', now, id]
     );
@@ -962,33 +1012,71 @@ app.put('/api/workspaces/:id', authenticateToken, async (req, res) => {
     res.json(updateResult.rows[0]);
   } catch (err) {
     res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
   }
 });
 
 // Delete workspace
 app.delete('/api/workspaces/:id', authenticateToken, async (req, res) => {
   const { id } = req.params;
+  const client = await pool.connect();
   try {
-    // Check if this workspace is the default for the current user
-    const checkResult = await pool.query('SELECT is_default FROM workspaces WHERE id = $1 AND user_id = $2', [id, req.user.userId]);
-    if (checkResult.rowCount === 0) {
+    // Check if user has owner access to this workspace
+    const permissionResult = await client.query(
+      'SELECT access_level FROM workspace_permissions WHERE workspace_id = $1 AND user_id = $2',
+      [id, req.user.userId]
+    );
+    
+    if (permissionResult.rowCount === 0) {
       res.status(404).json({ error: 'Workspace not found' });
       return;
     }
+    
+    if (permissionResult.rows[0].access_level !== 'owner') {
+      res.status(403).json({ error: 'Only owners can delete workspaces' });
+      return;
+    }
+    
+    // Check if this workspace is the default for the current user
+    const checkResult = await client.query('SELECT is_default FROM workspaces WHERE id = $1 AND user_id = $2', [id, req.user.userId]);
     if (checkResult.rows[0].is_default) {
       res.status(400).json({ error: 'Cannot delete the default workspace' });
       return;
     }
-    await pool.query('DELETE FROM tasks WHERE workspace_id = $1', [id]);
-    await pool.query('DELETE FROM categories WHERE workspace_id = $1', [id]);
-    const deleteResult = await pool.query('DELETE FROM workspaces WHERE id = $1 RETURNING *', [id]);
+    
+    // Check if other users have access to this workspace
+    const otherUsersResult = await client.query(
+      'SELECT COUNT(*) FROM workspace_permissions WHERE workspace_id = $1 AND user_id != $2',
+      [id, req.user.userId]
+    );
+    
+    if (otherUsersResult.rows[0].count > 0) {
+      res.status(400).json({ error: 'Cannot delete workspace when other users have access' });
+      return;
+    }
+    
+    await client.query('BEGIN');
+    
+    // Delete all related data
+    await client.query('DELETE FROM tasks WHERE workspace_id = $1', [id]);
+    await client.query('DELETE FROM categories WHERE workspace_id = $1', [id]);
+    await client.query('DELETE FROM tags WHERE workspace_id = $1', [id]);
+    await client.query('DELETE FROM workspace_permissions WHERE workspace_id = $1', [id]);
+    const deleteResult = await client.query('DELETE FROM workspaces WHERE id = $1 RETURNING *', [id]);
+    
+    await client.query('COMMIT');
+    
     if (deleteResult.rowCount === 0) {
       res.status(404).json({ error: 'Workspace not found' });
       return;
     }
     res.json({ success: true });
   } catch (err) {
+    await client.query('ROLLBACK');
     res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
   }
 });
 
@@ -1011,6 +1099,9 @@ app.patch('/api/workspaces/:id/set-default', authenticateToken, async (req, res)
 
 // Authentication routes (no auth required)
 app.use('/api/auth', authRoutes);
+
+// Workspace permissions routes
+app.use('/api', workspacePermissionsRoutes);
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });

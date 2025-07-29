@@ -21,6 +21,7 @@ function MainApp() {
     grouping: 'none' // Default to no grouping for planner
   });
   const [currentTasks, setCurrentTasks] = useState<Task[]>([]);
+  const [workspaces, setWorkspaces] = useState<Array<{ id: number; name: string; access_level?: 'owner' | 'edit' | 'view' }>>([]);
   const taskListRef = useRef<{ sortTasks: () => void; getTasks: () => Task[] }>(null);
   const { user } = useAuth();
 
@@ -65,7 +66,11 @@ function MainApp() {
             {/* Top row: App name and user menu */}
             <div className="flex items-center justify-between mb-3">
               <h1 className="text-2xl font-bold text-gray-900">Tasket77</h1>
-              <UserMenu />
+              <UserMenu 
+                selectedWorkspaceId={selectedWorkspaceId}
+                workspaces={workspaces}
+                onWorkspaceChange={handleWorkspaceChange}
+              />
             </div>
             {/* Second row: Workspace selector */}
             <div className="mb-3">
@@ -89,7 +94,11 @@ function MainApp() {
                     selectedWorkspaceId={selectedWorkspaceId}
                     onWorkspaceChange={handleWorkspaceChange}
                   />
-                  <UserMenu />
+                  <UserMenu 
+                    selectedWorkspaceId={selectedWorkspaceId}
+                    workspaces={workspaces}
+                    onWorkspaceChange={handleWorkspaceChange}
+                  />
                 </div>
                 {/* Task Summary - hidden on mobile */}
                 <TaskSummary tasks={currentTasks} />

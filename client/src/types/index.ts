@@ -3,6 +3,7 @@ export interface Workspace {
   name: string;
   description?: string;
   is_default?: boolean;
+  access_level?: 'owner' | 'edit' | 'view';
   created_at: string;
   updated_at: string;
 }

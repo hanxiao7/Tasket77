@@ -76,6 +76,26 @@ router.post('/register', async (req, res) => {
         ]
       );
 
+      // Add owner permission for the default workspace
+      await client.query(
+        'INSERT INTO workspace_permissions (workspace_id, user_id, email, access_level) VALUES ($1, $2, $3, $4)',
+        [workspaceResult.rows[0].id, user.id, user.email, 'owner']
+      );
+
+      // Check for pending workspace invitations
+      const pendingPermissions = await client.query(
+        'SELECT * FROM workspace_permissions WHERE email = $1 AND user_id IS NULL',
+        [user.email]
+      );
+
+      // Update pending permissions with user_id
+      for (const permission of pendingPermissions.rows) {
+        await client.query(
+          'UPDATE workspace_permissions SET user_id = $1 WHERE id = $2',
+          [user.id, permission.id]
+        );
+      }
+
 
       // Generate JWT token
       const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '7d' });

@@ -1,13 +1,23 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Menu, User, Settings, LogOut } from 'lucide-react';
+import { Menu, User, Settings, LogOut, Users } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import ManageAccessModal from './ManageAccessModal';
 
 interface UserMenuProps {
   className?: string;
+  selectedWorkspaceId?: number;
+  workspaces?: Array<{ id: number; name: string; access_level?: 'owner' | 'edit' | 'view' }>;
+  onWorkspaceChange?: (workspaceId: number) => void;
 }
 
-const UserMenu: React.FC<UserMenuProps> = ({ className = '' }) => {
+const UserMenu: React.FC<UserMenuProps> = ({ 
+  className = '', 
+  selectedWorkspaceId = 1, 
+  workspaces = [], 
+  onWorkspaceChange = () => {} 
+}) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [isManageAccessOpen, setIsManageAccessOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const { user, logout } = useAuth();
 
@@ -38,6 +48,11 @@ const UserMenu: React.FC<UserMenuProps> = ({ className = '' }) => {
     setIsOpen(false);
     // TODO: Implement settings functionality
     console.log('Settings clicked - functionality to be implemented');
+  };
+
+  const handleManageAccess = () => {
+    setIsOpen(false);
+    setIsManageAccessOpen(true);
   };
 
   if (!user) return null;
@@ -79,6 +94,14 @@ const UserMenu: React.FC<UserMenuProps> = ({ className = '' }) => {
             Settings
           </button>
 
+          <button
+            onClick={handleManageAccess}
+            className="w-full flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+          >
+            <Users className="w-4 h-4 mr-3 text-gray-500" />
+            Manage Access
+          </button>
+
           {/* Divider */}
           <div className="border-t border-gray-100 my-1"></div>
 
@@ -92,6 +115,15 @@ const UserMenu: React.FC<UserMenuProps> = ({ className = '' }) => {
           </button>
         </div>
       )}
+
+      {/* Manage Access Modal */}
+      <ManageAccessModal
+        isOpen={isManageAccessOpen}
+        onClose={() => setIsManageAccessOpen(false)}
+        selectedWorkspaceId={selectedWorkspaceId}
+        workspaces={workspaces}
+        onWorkspaceChange={onWorkspaceChange}
+      />
     </div>
   );
 };

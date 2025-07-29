@@ -1,0 +1,386 @@
+const express = require('express');
+const router = express.Router();
+const { Pool } = require('pg');
+const { authenticateToken } = require('../middleware/auth');
+
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL || 'postgresql://postgres:password@localhost:5432/taskmanagement'
+});
+
+// Helper function to send email (placeholder for now)
+async function sendWorkspaceAccessEmail(email, workspaceName, accessLevel) {
+  // TODO: Implement actual email sending
+  console.log(`Email sent to ${email}: You've been invited to join workspace "${workspaceName}" with ${accessLevel} access`);
+}
+
+// Helper function to get user access level for a workspace
+async function getUserAccessLevel(userId, workspaceId) {
+  const client = await pool.connect();
+  try {
+    const result = await client.query(
+      'SELECT access_level FROM workspace_permissions WHERE user_id = $1 AND workspace_id = $2',
+      [userId, workspaceId]
+    );
+    return result.rows[0]?.access_level || null;
+  } finally {
+    client.release();
+  }
+}
+
+// Helper function to check if user is owner
+async function isOwner(userId, workspaceId) {
+  const accessLevel = await getUserAccessLevel(userId, workspaceId);
+  return accessLevel === 'owner';
+}
+
+// Get all users and their access levels for a workspace
+router.get('/workspaces/:workspaceId/permissions', authenticateToken, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { workspaceId } = req.params;
+    const userId = req.user.id;
+
+    // Check if user has access to this workspace
+    const userAccess = await getUserAccessLevel(userId, workspaceId);
+    if (!userAccess) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    // Get all permissions for this workspace
+    const result = await client.query(`
+      SELECT wp.id, wp.email, wp.access_level, wp.created_at,
+             u.name as user_name, u.id as user_id
+      FROM workspace_permissions wp
+      LEFT JOIN users u ON wp.user_id = u.id
+      WHERE wp.workspace_id = $1
+      ORDER BY wp.created_at DESC
+    `, [workspaceId]);
+
+    // Transform the data
+    const permissions = result.rows.map(row => ({
+      id: row.id,
+      email: row.email,
+      user_name: row.user_name,
+      user_id: row.user_id,
+      access_level: row.access_level,
+      status: row.user_id ? 'active' : 'pending',
+      created_at: row.created_at
+    }));
+
+    res.json(permissions);
+  } catch (error) {
+    console.error('Error fetching workspace permissions:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  } finally {
+    client.release();
+  }
+});
+
+// Add user to workspace
+router.post('/workspaces/:workspaceId/permissions', authenticateToken, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { workspaceId } = req.params;
+    const { email, access_level } = req.body;
+    const userId = req.user.id;
+
+    // Validate input
+    if (!email || !access_level || !['edit', 'view'].includes(access_level)) {
+      return res.status(400).json({ error: 'Invalid input' });
+    }
+
+    // Check if user is owner
+    if (!(await isOwner(userId, workspaceId))) {
+      return res.status(403).json({ error: 'Only owners can add users' });
+    }
+
+    // Check if user already has access
+    const existingPermission = await client.query(
+      'SELECT * FROM workspace_permissions WHERE workspace_id = $1 AND email = $2',
+      [workspaceId, email]
+    );
+
+    if (existingPermission.rows.length > 0) {
+      return res.status(400).json({ error: 'User already has access to this workspace' });
+    }
+
+    // Get workspace name for email
+    const workspaceResult = await client.query(
+      'SELECT name FROM workspaces WHERE id = $1',
+      [workspaceId]
+    );
+    const workspaceName = workspaceResult.rows[0]?.name || 'Unknown Workspace';
+
+    // Check if user exists
+    const userResult = await client.query(
+      'SELECT id, name FROM users WHERE email = $1',
+      [email]
+    );
+
+    let user_id = null;
+    if (userResult.rows.length > 0) {
+      user_id = userResult.rows[0].id;
+    }
+
+    // Add permission
+    await client.query(
+      'INSERT INTO workspace_permissions (workspace_id, user_id, email, access_level) VALUES ($1, $2, $3, $4)',
+      [workspaceId, user_id, email, access_level]
+    );
+
+    // Send email
+    await sendWorkspaceAccessEmail(email, workspaceName, access_level);
+
+    res.json({ 
+      success: true, 
+      message: user_id ? 'User added successfully' : 'Invitation sent successfully' 
+    });
+
+  } catch (error) {
+    console.error('Error adding user to workspace:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  } finally {
+    client.release();
+  }
+});
+
+// Update user's access level
+router.put('/workspaces/:workspaceId/permissions/:permissionId', authenticateToken, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { workspaceId, permissionId } = req.params;
+    const { access_level } = req.body;
+    const userId = req.user.id;
+
+    // Validate input
+    if (!access_level || !['owner', 'edit', 'view'].includes(access_level)) {
+      return res.status(400).json({ error: 'Invalid access level' });
+    }
+
+    // Check if user is owner
+    if (!(await isOwner(userId, workspaceId))) {
+      return res.status(403).json({ error: 'Only owners can change access levels' });
+    }
+
+    // Get the permission to update
+    const permissionResult = await client.query(
+      'SELECT * FROM workspace_permissions WHERE id = $1 AND workspace_id = $2',
+      [permissionId, workspaceId]
+    );
+
+    if (permissionResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Permission not found' });
+    }
+
+    const permission = permissionResult.rows[0];
+
+    // Prevent changing owner's access level if they're the only owner
+    if (permission.access_level === 'owner' && access_level !== 'owner') {
+      const ownerCount = await client.query(
+        'SELECT COUNT(*) FROM workspace_permissions WHERE workspace_id = $1 AND access_level = $2',
+        [workspaceId, 'owner']
+      );
+      if (ownerCount.rows[0].count <= 1) {
+        return res.status(400).json({ error: 'Cannot remove the only owner' });
+      }
+    }
+
+    // Update access level
+    await client.query(
+      'UPDATE workspace_permissions SET access_level = $1 WHERE id = $2',
+      [access_level, permissionId]
+    );
+
+    res.json({ success: true, message: 'Access level updated successfully' });
+
+  } catch (error) {
+    console.error('Error updating access level:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  } finally {
+    client.release();
+  }
+});
+
+// Remove user from workspace
+router.delete('/workspaces/:workspaceId/permissions/:permissionId', authenticateToken, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { workspaceId, permissionId } = req.params;
+    const userId = req.user.id;
+
+    // Check if user is owner
+    if (!(await isOwner(userId, workspaceId))) {
+      return res.status(403).json({ error: 'Only owners can remove users' });
+    }
+
+    // Get the permission to remove
+    const permissionResult = await client.query(
+      'SELECT * FROM workspace_permissions WHERE id = $1 AND workspace_id = $2',
+      [permissionId, workspaceId]
+    );
+
+    if (permissionResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Permission not found' });
+    }
+
+    const permission = permissionResult.rows[0];
+
+    // Prevent removing the only owner
+    if (permission.access_level === 'owner') {
+      const ownerCount = await client.query(
+        'SELECT COUNT(*) FROM workspace_permissions WHERE workspace_id = $1 AND access_level = $2',
+        [workspaceId, 'owner']
+      );
+      if (ownerCount.rows[0].count <= 1) {
+        return res.status(400).json({ error: 'Cannot remove the only owner' });
+      }
+    }
+
+    // Remove permission
+    await client.query(
+      'DELETE FROM workspace_permissions WHERE id = $1',
+      [permissionId]
+    );
+
+    res.json({ success: true, message: 'User removed successfully' });
+
+  } catch (error) {
+    console.error('Error removing user from workspace:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  } finally {
+    client.release();
+  }
+});
+
+// Transfer ownership
+router.post('/workspaces/:workspaceId/permissions/:permissionId/transfer-ownership', authenticateToken, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { workspaceId, permissionId } = req.params;
+    const userId = req.user.id;
+
+    // Check if user is owner
+    if (!(await isOwner(userId, workspaceId))) {
+      return res.status(403).json({ error: 'Only owners can transfer ownership' });
+    }
+
+    // Get the permission to transfer ownership to
+    const permissionResult = await client.query(
+      'SELECT * FROM workspace_permissions WHERE id = $1 AND workspace_id = $2',
+      [permissionId, workspaceId]
+    );
+
+    if (permissionResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Permission not found' });
+    }
+
+    const permission = permissionResult.rows[0];
+
+    // Ensure the target user is active (not pending)
+    if (!permission.user_id) {
+      return res.status(400).json({ error: 'Cannot transfer ownership to pending user' });
+    }
+
+    // Transfer ownership
+    await client.query(
+      'UPDATE workspace_permissions SET access_level = $1 WHERE id = $2',
+      ['owner', permissionId]
+    );
+
+    // Change current owner to edit access
+    await client.query(
+      'UPDATE workspace_permissions SET access_level = $1 WHERE user_id = $2 AND workspace_id = $3',
+      ['edit', userId, workspaceId]
+    );
+
+    res.json({ success: true, message: 'Ownership transferred successfully' });
+
+  } catch (error) {
+    console.error('Error transferring ownership:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  } finally {
+    client.release();
+  }
+});
+
+// Leave workspace
+router.post('/workspaces/:workspaceId/leave', authenticateToken, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { workspaceId } = req.params;
+    const userId = req.user.id;
+
+    // Get user's permission
+    const permissionResult = await client.query(
+      'SELECT * FROM workspace_permissions WHERE user_id = $1 AND workspace_id = $2',
+      [userId, workspaceId]
+    );
+
+    if (permissionResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Permission not found' });
+    }
+
+    const permission = permissionResult.rows[0];
+
+    // Prevent owner from leaving if they're the only owner
+    if (permission.access_level === 'owner') {
+      const ownerCount = await client.query(
+        'SELECT COUNT(*) FROM workspace_permissions WHERE workspace_id = $1 AND access_level = $2',
+        [workspaceId, 'owner']
+      );
+      if (ownerCount.rows[0].count <= 1) {
+        return res.status(400).json({ error: 'Cannot leave workspace as the only owner' });
+      }
+    }
+
+    // Remove permission
+    await client.query(
+      'DELETE FROM workspace_permissions WHERE user_id = $1 AND workspace_id = $2',
+      [userId, workspaceId]
+    );
+
+    // Check if this was the user's default workspace
+    const workspaceResult = await client.query(
+      'SELECT is_default FROM workspaces WHERE id = $1',
+      [workspaceId]
+    );
+
+    if (workspaceResult.rows[0]?.is_default) {
+      // Find another workspace to make default
+      const otherWorkspaceResult = await client.query(
+        'SELECT w.id FROM workspaces w INNER JOIN workspace_permissions wp ON w.id = wp.workspace_id WHERE wp.user_id = $1 ORDER BY w.id LIMIT 1',
+        [userId]
+      );
+
+      if (otherWorkspaceResult.rows.length > 0) {
+        // Set another workspace as default
+        await client.query(
+          'UPDATE workspaces SET is_default = true WHERE id = $1',
+          [otherWorkspaceResult.rows[0].id]
+        );
+      } else {
+        // Create a new default workspace
+        await client.query(
+          'INSERT INTO workspaces (name, user_id, is_default) VALUES ($1, $2, $3)',
+          ['My Workspace', userId, true]
+        );
+      }
+
+      // Remove default flag from current workspace
+      await client.query(
+        'UPDATE workspaces SET is_default = false WHERE id = $1',
+        [workspaceId]
+      );
+    }
+
+    res.json({ success: true, message: 'Left workspace successfully' });
+
+  } catch (error) {
+    console.error('Error leaving workspace:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  } finally {
+    client.release();
+  }
+});
+
+module.exports = router; 

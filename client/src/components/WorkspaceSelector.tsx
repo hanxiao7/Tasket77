@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Workspace } from '../types';
 import { apiService } from '../services/api';
-import { ChevronDown, Plus, Edit, Trash2, FolderOpen, Star } from 'lucide-react';
+import { ChevronDown, Plus, Edit, Trash2, FolderOpen, Star, Users } from 'lucide-react';
 
 interface WorkspaceSelectorProps {
   selectedWorkspaceId: number;
@@ -134,7 +134,11 @@ const WorkspaceSelector: React.FC<WorkspaceSelectorProps> = ({
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 w-full"
       >
-        <FolderOpen className="w-4 h-4 text-gray-500 flex-shrink-0" />
+        {selectedWorkspace?.access_level && selectedWorkspace.access_level !== 'owner' ? (
+          <Users className="w-4 h-4 text-blue-500 flex-shrink-0" />
+        ) : (
+          <FolderOpen className="w-4 h-4 text-gray-500 flex-shrink-0" />
+        )}
         <span className="font-medium text-gray-900 truncate flex-1 mx-2">
           {selectedWorkspace?.name || 'Select Workspace'}
         </span>
@@ -199,11 +203,15 @@ const WorkspaceSelector: React.FC<WorkspaceSelectorProps> = ({
                         }}
                       >
                         <div className="font-medium text-gray-900 flex items-center">
+                          {workspace.access_level && workspace.access_level !== 'owner' ? (
+                            <Users className="w-3 h-3 text-blue-500 mr-1" />
+                          ) : (
+                            <FolderOpen className="w-3 h-3 text-gray-500 mr-1" />
+                          )}
                           {workspace.name}
-                          {/* Remove the star icon after the workspace name in the dropdown list */}
-                          {/* {workspace.is_default && (
-                            <Star className="w-3 h-3 text-yellow-500 fill-current ml-1" />
-                          )} */}
+                          {workspace.access_level && workspace.access_level !== 'owner' && (
+                            <span className="ml-1 text-xs text-gray-500">({workspace.access_level})</span>
+                          )}
                         </div>
                         {workspace.description && (
                           <div className="text-sm text-gray-500 mt-1">{workspace.description}</div>
