@@ -8,6 +8,7 @@ const path = require('path');
 const { pool, initializeDatabase, updateTaskModified, addTaskHistory } = require('./database-pg');
 const PostgreSQLBackupManager = require('./backup-pg');
 const { authenticateToken } = require('./middleware/auth');
+const { testEmailConfig } = require('./services/emailService');
 const authRoutes = require('./routes/auth');
 const workspacePermissionsRoutes = require('./routes/workspace-permissions');
 
@@ -33,6 +34,9 @@ async function initializeServer() {
     // Initialize database first
     await initializeDatabase();
     console.log('Database initialized successfully');
+    
+    // Test email configuration
+    await testEmailConfig();
     
     // Check if backup is needed (only if more than 12 hours since last backup)
     const backupManager = new PostgreSQLBackupManager();

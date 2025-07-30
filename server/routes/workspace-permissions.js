@@ -3,16 +3,11 @@ const router = express.Router();
 const { Pool } = require('pg');
 const { authenticateToken } = require('../middleware/auth');
 const moment = require('moment');
+const { sendWorkspaceAccessEmail } = require('../services/emailService');
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL || 'postgresql://postgres:password@localhost:5432/taskmanagement'
 });
-
-// Helper function to send email (placeholder for now)
-async function sendWorkspaceAccessEmail(email, workspaceName, accessLevel) {
-  // TODO: Implement actual email sending
-  console.log(`Email sent to ${email}: You've been invited to join workspace "${workspaceName}" with ${accessLevel} access`);
-}
 
 // Helper function to get user access level for a workspace
 async function getUserAccessLevel(userId, workspaceId) {
@@ -134,11 +129,16 @@ router.post('/workspaces/:workspaceId/permissions', authenticateToken, async (re
     console.log(`✅ Successfully added user ${email} (user_id: ${user_id}) to workspace ${workspaceId}`);
 
     // Send email
-    await sendWorkspaceAccessEmail(email, workspaceName, access_level);
+    const emailResult = await sendWorkspaceAccessEmail(email, workspaceName, access_level);
+    
+    if (!emailResult.success) {
+      console.log(`⚠️ Email notification failed: ${emailResult.reason || emailResult.error}`);
+    }
 
     res.json({ 
       success: true, 
-      message: user_id ? 'User added successfully' : 'Invitation sent successfully' 
+      message: user_id ? 'User added successfully' : 'Invitation sent successfully',
+      emailSent: emailResult.success
     });
 
   } catch (error) {
