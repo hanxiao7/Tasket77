@@ -747,18 +747,16 @@ app.post('/api/import', authenticateToken, async (req, res) => {
       if (importData.workspaces && importData.workspaces.length > 0) {
         for (const workspace of importData.workspaces) {
           await client.query(`
-            INSERT INTO workspaces (id, name, description, is_default, created_at, updated_at)
-            VALUES ($1, $2, $3, $4, $5, $6)
+            INSERT INTO workspaces (id, name, description, created_at, updated_at)
+            VALUES ($1, $2, $3, $4, $5)
             ON CONFLICT (id) DO UPDATE SET
               name = EXCLUDED.name,
               description = EXCLUDED.description,
-              is_default = EXCLUDED.is_default,
               updated_at = EXCLUDED.updated_at
           `, [
             workspace.id,
             workspace.name,
             workspace.description,
-            workspace.is_default,
             workspace.created_at,
             workspace.updated_at
           ]);
@@ -926,11 +924,18 @@ app.get('/api/workspaces', authenticateToken, async (req, res) => {
   try {
     console.log(`🔍 Fetching workspaces for user ${req.user.userId}`);
     const result = await pool.query(`
-      SELECT DISTINCT w.*, wp.access_level
-      FROM workspaces w
-      INNER JOIN workspace_permissions wp ON w.id = wp.workspace_id
+      SELECT 
+        wp.workspace_id as id,
+        w.name,
+        w.description,
+        wp.access_level,
+        wp.is_default,
+        w.created_at,
+        w.updated_at
+      FROM workspace_permissions wp
+      INNER JOIN workspaces w ON wp.workspace_id = w.id
       WHERE wp.user_id = $1
-      ORDER BY w.is_default DESC, w.name
+      ORDER BY wp.is_default DESC, w.name
     `, [req.user.userId]);
     console.log(`📋 Found ${result.rows.length} workspaces for user ${req.user.userId}`);
     res.json(result.rows);
@@ -954,7 +959,7 @@ app.post('/api/workspaces', authenticateToken, async (req, res) => {
     
     // Create workspace
     const result = await client.query(
-      'INSERT INTO workspaces (name, description, is_default, user_id, created_at, updated_at) VALUES ($1, $2, false, $3, $4, $4) RETURNING *',
+      'INSERT INTO workspaces (name, description, user_id, created_at, updated_at) VALUES ($1, $2, $3, $4, $4) RETURNING *',
       [name, description || '', req.user.userId, now]
     );
     
@@ -968,10 +973,17 @@ app.post('/api/workspaces', authenticateToken, async (req, res) => {
       throw new Error('User not found');
     }
     
-    // Add owner permission
+    // Add owner permission with is_default = true for the first workspace
+    const existingWorkspacesResult = await client.query(
+      'SELECT COUNT(*) FROM workspace_permissions WHERE user_id = $1',
+      [req.user.userId]
+    );
+    
+    const isFirstWorkspace = parseInt(existingWorkspacesResult.rows[0].count) === 0;
+    
     await client.query(
-      'INSERT INTO workspace_permissions (workspace_id, user_id, email, access_level) VALUES ($1, $2, $3, $4)',
-      [result.rows[0].id, req.user.userId, userResult.rows[0].email, 'owner']
+      'INSERT INTO workspace_permissions (workspace_id, user_id, email, access_level, is_default) VALUES ($1, $2, $3, $4, $5)',
+      [result.rows[0].id, req.user.userId, userResult.rows[0].email, 'owner', isFirstWorkspace]
     );
     
     await client.query('COMMIT');
@@ -1050,7 +1062,7 @@ app.delete('/api/workspaces/:id', authenticateToken, async (req, res) => {
     }
     
     // Check if this workspace is the default for the current user
-    const checkResult = await client.query('SELECT is_default FROM workspaces WHERE id = $1 AND user_id = $2', [id, req.user.userId]);
+    const checkResult = await client.query('SELECT is_default FROM workspace_permissions WHERE workspace_id = $1 AND user_id = $2', [id, req.user.userId]);
     if (checkResult.rows[0].is_default) {
       res.status(400).json({ error: 'Cannot delete the default workspace' });
       return;
@@ -1094,30 +1106,35 @@ app.delete('/api/workspaces/:id', authenticateToken, async (req, res) => {
 // Set workspace as default
 app.patch('/api/workspaces/:id/set-default', authenticateToken, async (req, res) => {
   const { id } = req.params;
-  const now = moment().utc().format('YYYY-MM-DD HH:mm:ss');
   const client = await pool.connect();
   try {
     console.log(`🔧 Setting workspace ${id} as default for user ${req.user.userId}`);
     
-    // First, unset all default workspaces for the current user
-    await client.query(
-      'UPDATE workspaces SET is_default = false, updated_at = $1 WHERE user_id = $2',
-      [now, req.user.userId]
+    // Check if user has access to this workspace
+    const accessResult = await client.query(
+      'SELECT access_level FROM workspace_permissions WHERE workspace_id = $1 AND user_id = $2',
+      [id, req.user.userId]
     );
     
-    // Then set the target workspace as default (only if user owns it)
-    const updateResult = await client.query(
-      'UPDATE workspaces SET is_default = true, updated_at = $1 WHERE id = $2 AND user_id = $3 RETURNING *',
-      [now, id, req.user.userId]
-    );
-    
-    if (updateResult.rowCount === 0) {
-      res.status(404).json({ error: 'Workspace not found or you do not own it' });
+    if (accessResult.rowCount === 0) {
+      res.status(404).json({ error: 'Workspace not found or you do not have access' });
       return;
     }
     
+    // First, unset all default workspaces for the current user
+    await client.query(
+      'UPDATE workspace_permissions SET is_default = false WHERE user_id = $1',
+      [req.user.userId]
+    );
+    
+    // Then set the target workspace as default
+    const updateResult = await client.query(
+      'UPDATE workspace_permissions SET is_default = true WHERE workspace_id = $1 AND user_id = $2 RETURNING *',
+      [id, req.user.userId]
+    );
+    
     console.log(`✅ Successfully set workspace ${id} as default for user ${req.user.userId}`);
-    res.json(updateResult.rows[0]);
+    res.json({ success: true, workspace_id: id });
   } catch (err) {
     console.error('Error setting default workspace:', err);
     res.status(500).json({ error: err.message });

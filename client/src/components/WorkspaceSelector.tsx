@@ -82,7 +82,15 @@ const WorkspaceSelector: React.FC<WorkspaceSelectorProps> = ({
 
   const handleDeleteWorkspace = async (id: number) => {
     const workspace = workspaces.find(w => w.id === id);
-    if (workspace?.is_default) {
+    if (!workspace) return;
+    
+    // Check if user is owner
+    if (workspace.access_level !== 'owner') {
+      alert('Only owners can delete workspaces');
+      return;
+    }
+    
+    if (workspace.is_default) {
       alert('Cannot delete the default workspace');
       return;
     }
@@ -103,6 +111,10 @@ const WorkspaceSelector: React.FC<WorkspaceSelectorProps> = ({
   };
 
   const startEditing = (workspace: Workspace) => {
+    // Only allow editing if user is owner
+    if (workspace.access_level !== 'owner') {
+      return;
+    }
     setIsEditing(workspace.id);
     setEditWorkspaceName(workspace.name);
     setEditWorkspaceDescription(workspace.description || '');
@@ -220,17 +232,27 @@ const WorkspaceSelector: React.FC<WorkspaceSelectorProps> = ({
                       <div className="flex space-x-1 ml-2">
                         <button
                           onClick={() => startEditing(workspace)}
-                          className="p-1 text-gray-400 hover:text-gray-600"
-                          title="Edit workspace"
+                          disabled={workspace.access_level !== 'owner'}
+                          className={`p-1 ${
+                            workspace.access_level === 'owner' 
+                              ? 'text-gray-400 hover:text-gray-600' 
+                              : 'text-gray-200 cursor-not-allowed'
+                          }`}
+                          title={workspace.access_level === 'owner' ? 'Edit workspace' : 'Only owners can edit workspace'}
                         >
                           <Edit className="w-3 h-3" />
                         </button>
-                        {/* Show delete button for all except the default workspace */}
+                        {/* Show delete button for all except the default workspace, but disable for non-owners */}
                         {!workspace.is_default && (
                           <button
                             onClick={() => handleDeleteWorkspace(workspace.id)}
-                            className="p-1 text-gray-400 hover:text-red-600"
-                            title="Delete workspace"
+                            disabled={workspace.access_level !== 'owner'}
+                            className={`p-1 ${
+                              workspace.access_level === 'owner' 
+                                ? 'text-gray-400 hover:text-red-600' 
+                                : 'text-gray-200 cursor-not-allowed'
+                            }`}
+                            title={workspace.access_level === 'owner' ? 'Delete workspace' : 'Only owners can delete workspace'}
                           >
                             <Trash2 className="w-3 h-3" />
                           </button>
