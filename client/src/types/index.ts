@@ -41,6 +41,8 @@ export interface Task {
   due_date?: string;
   start_date?: string;
   completion_date?: string;
+  assignee_names?: string[];
+  assignee_emails?: string[];
   last_modified: string;
   created_at: string;
 }
