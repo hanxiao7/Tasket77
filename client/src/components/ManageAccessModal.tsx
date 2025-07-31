@@ -306,7 +306,7 @@ const ManageAccessModal: React.FC<ManageAccessModalProps> = ({
             >
               {workspaces.map((workspace) => (
                 <option key={workspace.id} value={workspace.id}>
-                  {workspace.name} {workspace.access_level && `(${getAccessLevelLabel(workspace.access_level)})`}
+                  {workspace.name}
                 </option>
               ))}
             </select>
