@@ -198,9 +198,9 @@ const WorkspaceSelector: React.FC<WorkspaceSelectorProps> = ({
                       >
                         <div className="font-medium text-gray-900 flex items-center">
                           {workspace.other_users_count && workspace.other_users_count > 0 ? (
-                            <Users className="w-3 h-3 text-blue-500 mr-1" />
+                            <Users className="w-4 h-4 text-blue-500 mr-1 flex-shrink-0" />
                           ) : (
-                            <FolderOpen className="w-3 h-3 text-gray-500 mr-1" />
+                            <FolderOpen className="w-4 h-4 text-gray-500 mr-1 flex-shrink-0" />
                           )}
                           {workspace.name}
                           {workspace.access_level && workspace.access_level !== 'owner' && (
@@ -222,7 +222,7 @@ const WorkspaceSelector: React.FC<WorkspaceSelectorProps> = ({
                           }`}
                           title={workspace.access_level === 'owner' ? 'Edit workspace' : 'Only owners can edit workspace'}
                         >
-                          <Edit className="w-3 h-3" />
+                          <Edit className="w-4 h-4" />
                         </button>
                         {/* Show delete button for all except the default workspace, but disable for non-owners */}
                         {!workspace.is_default && (
@@ -236,7 +236,7 @@ const WorkspaceSelector: React.FC<WorkspaceSelectorProps> = ({
                             }`}
                             title={workspace.access_level === 'owner' ? 'Delete workspace' : 'Only owners can delete workspace'}
                           >
-                            <Trash2 className="w-3 h-3" />
+                            <Trash2 className="w-4 h-4" />
                           </button>
                         )}
                         <button
@@ -244,7 +244,7 @@ const WorkspaceSelector: React.FC<WorkspaceSelectorProps> = ({
                           className={`p-1 ${workspace.is_default ? 'text-yellow-500' : 'text-gray-400 hover:text-yellow-500'}`}
                           title={workspace.is_default ? 'Default workspace' : 'Set as default'}
                         >
-                          <Star className={`w-3 h-3 ${workspace.is_default ? 'fill-current' : ''}`} />
+                          <Star className={`w-4 h-4 ${workspace.is_default ? 'fill-current' : ''}`} />
                         </button>
                       </div>
                     </div>
