@@ -350,6 +350,10 @@ router.post('/workspaces/:workspaceId/leave', authenticateToken, async (req, res
       }
     }
 
+    // Check if this was the user's default workspace BEFORE deleting
+    const wasDefault = permission.is_default;
+    console.log(`🏠 Workspace ${workspaceId} is_default: ${wasDefault}`);
+
     // Remove permission
     await client.query(
       'DELETE FROM workspace_permissions WHERE user_id = $1 AND workspace_id = $2',
@@ -371,31 +375,25 @@ router.post('/workspaces/:workspaceId/leave', authenticateToken, async (req, res
       }
     }
 
-    // Check if this was the user's default workspace
-    const permissionResult2 = await client.query(
-      'SELECT is_default FROM workspace_permissions WHERE user_id = $1 AND workspace_id = $2',
-      [userId, workspaceId]
-    );
-
-    console.log(`🏠 Workspace ${workspaceId} is_default: ${permissionResult2.rows[0]?.is_default}`);
-
-    if (permissionResult2.rows[0]?.is_default) {
+    // Handle default workspace reassignment if this was the user's default
+    if (wasDefault) {
       console.log(`⚠️ User ${userId} is leaving their default workspace ${workspaceId}, will reassign default`);
       
-      // Find another owned workspace to make default
+      // Find any other accessible workspace to make default (owner, edit, or view access)
       const otherWorkspaceResult = await client.query(
-        'SELECT wp.workspace_id FROM workspace_permissions wp WHERE wp.user_id = $1 AND wp.access_level = $2 ORDER BY wp.workspace_id LIMIT 1',
-        [userId, 'owner']
+        'SELECT wp.workspace_id FROM workspace_permissions wp WHERE wp.user_id = $1 AND wp.workspace_id != $2 ORDER BY wp.workspace_id LIMIT 1',
+        [userId, workspaceId]
       );
 
       if (otherWorkspaceResult.rows.length > 0) {
-        // Set another owned workspace as default
+        // Set another accessible workspace as default
         await client.query(
           'UPDATE workspace_permissions SET is_default = true WHERE user_id = $1 AND workspace_id = $2',
           [userId, otherWorkspaceResult.rows[0].workspace_id]
         );
+        console.log(`✅ Set workspace ${otherWorkspaceResult.rows[0].workspace_id} as new default for user ${userId}`);
       } else {
-        // Create a new default workspace
+        // Create a new default workspace if user has no other accessible workspaces
         const newWorkspaceResult = await client.query(
           'INSERT INTO workspaces (name, description, user_id, created_at, updated_at) VALUES ($1, $2, $3, $4, $4) RETURNING id',
           ['My Workspace', 'Default workspace for your tasks', userId, moment().utc().format('YYYY-MM-DD HH:mm:ss')]
@@ -412,14 +410,9 @@ router.post('/workspaces/:workspaceId/leave', authenticateToken, async (req, res
             'INSERT INTO workspace_permissions (workspace_id, user_id, email, access_level, is_default) VALUES ($1, $2, $3, $4, $5)',
             [newWorkspaceResult.rows[0].id, userId, userResult.rows[0].email, 'owner', true]
           );
+          console.log(`✅ Created new workspace ${newWorkspaceResult.rows[0].id} as default for user ${userId}`);
         }
       }
-
-      // Remove default flag from current workspace permission
-      await client.query(
-        'UPDATE workspace_permissions SET is_default = false WHERE user_id = $1 AND workspace_id = $2',
-        [userId, workspaceId]
-      );
     }
 
     res.json({ success: true, message: 'Left workspace successfully' });
