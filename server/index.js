@@ -938,7 +938,13 @@ app.get('/api/workspaces', authenticateToken, async (req, res) => {
         wp.access_level,
         wp.is_default,
         w.created_at,
-        w.updated_at
+        w.updated_at,
+        (
+          SELECT COUNT(*) 
+          FROM workspace_permissions wp2 
+          WHERE wp2.workspace_id = wp.workspace_id 
+          AND wp2.user_id != $1
+        ) as other_users_count
       FROM workspace_permissions wp
       INNER JOIN workspaces w ON wp.workspace_id = w.id
       WHERE wp.user_id = $1

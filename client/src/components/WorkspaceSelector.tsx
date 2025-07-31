@@ -6,7 +6,7 @@ import { ChevronDown, Plus, Edit, Trash2, FolderOpen, Star, Users } from 'lucide
 interface WorkspaceSelectorProps {
   selectedWorkspaceId: number | undefined;
   onWorkspaceChange: (workspaceId: number) => void;
-  workspaces?: Array<{ id: number; name: string; description?: string; access_level?: 'owner' | 'edit' | 'view'; is_default?: boolean; created_at?: string; updated_at?: string }>;
+  workspaces?: Array<{ id: number; name: string; description?: string; access_level?: 'owner' | 'edit' | 'view'; is_default?: boolean; created_at?: string; updated_at?: string; other_users_count?: number }>;
   refreshWorkspaces?: () => void;
 }
 
@@ -128,7 +128,7 @@ const WorkspaceSelector: React.FC<WorkspaceSelectorProps> = ({
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 w-full"
       >
-        {selectedWorkspace?.access_level && selectedWorkspace.access_level !== 'owner' ? (
+        {selectedWorkspace?.other_users_count && selectedWorkspace.other_users_count > 0 ? (
           <Users className="w-4 h-4 text-blue-500 flex-shrink-0" />
         ) : (
           <FolderOpen className="w-4 h-4 text-gray-500 flex-shrink-0" />
@@ -197,7 +197,7 @@ const WorkspaceSelector: React.FC<WorkspaceSelectorProps> = ({
                         }}
                       >
                         <div className="font-medium text-gray-900 flex items-center">
-                          {workspace.access_level && workspace.access_level !== 'owner' ? (
+                          {workspace.other_users_count && workspace.other_users_count > 0 ? (
                             <Users className="w-3 h-3 text-blue-500 mr-1" />
                           ) : (
                             <FolderOpen className="w-3 h-3 text-gray-500 mr-1" />

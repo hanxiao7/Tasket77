@@ -6,6 +6,7 @@ export interface Workspace {
   access_level?: 'owner' | 'edit' | 'view';
   created_at?: string;
   updated_at?: string;
+  other_users_count?: number;
 }
 
 export interface Category {

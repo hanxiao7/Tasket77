@@ -6,7 +6,7 @@ import ManageAccessModal from './ManageAccessModal';
 interface UserMenuProps {
   className?: string;
   selectedWorkspaceId?: number;
-  workspaces?: Array<{ id: number; name: string; access_level?: 'owner' | 'edit' | 'view' }>;
+  workspaces?: Array<{ id: number; name: string; access_level?: 'owner' | 'edit' | 'view'; other_users_count?: number }>;
   onWorkspaceChange?: (workspaceId: number) => void;
   refreshWorkspaces?: () => void;
 }

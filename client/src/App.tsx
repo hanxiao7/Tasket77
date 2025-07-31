@@ -21,7 +21,7 @@ function MainApp() {
     grouping: 'none' // Default to no grouping for planner
   });
   const [currentTasks, setCurrentTasks] = useState<Task[]>([]);
-  const [workspaces, setWorkspaces] = useState<Array<{ id: number; name: string; access_level?: 'owner' | 'edit' | 'view' }>>([]);
+  const [workspaces, setWorkspaces] = useState<Array<{ id: number; name: string; access_level?: 'owner' | 'edit' | 'view'; other_users_count?: number }>>([]);
   const taskListRef = useRef<{ sortTasks: () => void; getTasks: () => Task[] }>(null);
   const { user } = useAuth();
 
@@ -35,7 +35,7 @@ function MainApp() {
         });
         if (response.ok) {
           const workspacesData = await response.json();
-                      console.log(`📋 Loaded ${workspacesData.length} workspaces:`, workspacesData.map((w: { id: number; name: string; is_default: boolean; access_level?: string }) => ({ id: w.id, name: w.name, is_default: w.is_default, access_level: w.access_level })));
+                      console.log(`📋 Loaded ${workspacesData.length} workspaces:`, workspacesData.map((w: { id: number; name: string; is_default: boolean; access_level?: string; other_users_count?: number }) => ({ id: w.id, name: w.name, is_default: w.is_default, access_level: w.access_level, other_users_count: w.other_users_count })));
           setWorkspaces(workspacesData);
           
           // Set the first workspace as selected if none is selected
@@ -68,7 +68,7 @@ function MainApp() {
       });
       if (response.ok) {
         const workspacesData = await response.json();
-        console.log(`📋 Refreshed ${workspacesData.length} workspaces:`, workspacesData.map((w: { id: number; name: string; is_default: boolean; access_level?: string }) => ({ id: w.id, name: w.name, is_default: w.is_default, access_level: w.access_level })));
+        console.log(`📋 Refreshed ${workspacesData.length} workspaces:`, workspacesData.map((w: { id: number; name: string; is_default: boolean; access_level?: string; other_users_count?: number }) => ({ id: w.id, name: w.name, is_default: w.is_default, access_level: w.access_level, other_users_count: w.other_users_count })));
         setWorkspaces(workspacesData);
         
         // Update selected workspace if current one no longer exists
