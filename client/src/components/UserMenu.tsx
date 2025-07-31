@@ -8,13 +8,15 @@ interface UserMenuProps {
   selectedWorkspaceId?: number;
   workspaces?: Array<{ id: number; name: string; access_level?: 'owner' | 'edit' | 'view' }>;
   onWorkspaceChange?: (workspaceId: number) => void;
+  refreshWorkspaces?: () => void;
 }
 
 const UserMenu: React.FC<UserMenuProps> = ({ 
   className = '', 
   selectedWorkspaceId = 1, 
   workspaces = [], 
-  onWorkspaceChange = () => {} 
+  onWorkspaceChange = () => {},
+  refreshWorkspaces = () => {}
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [isManageAccessOpen, setIsManageAccessOpen] = useState(false);
@@ -123,6 +125,7 @@ const UserMenu: React.FC<UserMenuProps> = ({
         selectedWorkspaceId={selectedWorkspaceId}
         workspaces={workspaces}
         onWorkspaceChange={onWorkspaceChange}
+        refreshWorkspaces={refreshWorkspaces}
       />
     </div>
   );

@@ -6,13 +6,16 @@ import { ChevronDown, Plus, Edit, Trash2, FolderOpen, Star, Users } from 'lucide
 interface WorkspaceSelectorProps {
   selectedWorkspaceId: number | undefined;
   onWorkspaceChange: (workspaceId: number) => void;
+  workspaces?: Array<{ id: number; name: string; description?: string; access_level?: 'owner' | 'edit' | 'view'; is_default?: boolean; created_at?: string; updated_at?: string }>;
+  refreshWorkspaces?: () => void;
 }
 
 const WorkspaceSelector: React.FC<WorkspaceSelectorProps> = ({ 
   selectedWorkspaceId, 
-  onWorkspaceChange 
+  onWorkspaceChange,
+  workspaces: propWorkspaces,
+  refreshWorkspaces = () => {}
 }) => {
-  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [isEditing, setIsEditing] = useState<number | null>(null);
@@ -21,26 +24,8 @@ const WorkspaceSelector: React.FC<WorkspaceSelectorProps> = ({
   const [editWorkspaceName, setEditWorkspaceName] = useState('');
   const [editWorkspaceDescription, setEditWorkspaceDescription] = useState('');
 
-  useEffect(() => {
-    loadWorkspaces();
-  }, []);
-
-  const loadWorkspaces = async () => {
-    try {
-      const workspacesData = await apiService.getWorkspaces();
-      setWorkspaces(workspacesData);
-      // Always select the default workspace if it exists and is not currently selected
-      const defaultWorkspace = workspacesData.find(w => w.is_default);
-      if (defaultWorkspace && selectedWorkspaceId !== defaultWorkspace.id) {
-        onWorkspaceChange(defaultWorkspace.id);
-      } else if (!defaultWorkspace && workspacesData.length > 0 && !workspacesData.find(w => w.id === selectedWorkspaceId)) {
-        // Fallback to first workspace if default doesn't exist and current selection is invalid
-        onWorkspaceChange(workspacesData[0].id);
-      }
-    } catch (error) {
-      console.error('Error loading workspaces:', error);
-    }
-  };
+  // Use prop workspaces if provided, otherwise use empty array
+  const workspaces = propWorkspaces || [];
 
   const selectedWorkspace = selectedWorkspaceId ? workspaces.find(w => w.id === selectedWorkspaceId) : null;
 
@@ -52,10 +37,10 @@ const WorkspaceSelector: React.FC<WorkspaceSelectorProps> = ({
         newWorkspaceName.trim(), 
         newWorkspaceDescription.trim() || undefined
       );
-      setWorkspaces([...workspaces, newWorkspace]);
       setNewWorkspaceName('');
       setNewWorkspaceDescription('');
       setIsCreating(false);
+      refreshWorkspaces(); // Refresh workspace list from parent
       onWorkspaceChange(newWorkspace.id);
     } catch (error) {
       console.error('Error creating workspace:', error);
@@ -71,10 +56,10 @@ const WorkspaceSelector: React.FC<WorkspaceSelectorProps> = ({
         editWorkspaceName.trim(),
         editWorkspaceDescription.trim() || undefined
       );
-      setWorkspaces(workspaces.map(w => w.id === id ? updatedWorkspace : w));
       setEditWorkspaceName('');
       setEditWorkspaceDescription('');
       setIsEditing(null);
+      refreshWorkspaces(); // Refresh workspace list from parent
     } catch (error) {
       console.error('Error updating workspace:', error);
     }
@@ -99,7 +84,7 @@ const WorkspaceSelector: React.FC<WorkspaceSelectorProps> = ({
     }
     try {
       await apiService.deleteWorkspace(id);
-      setWorkspaces(workspaces.filter(w => w.id !== id));
+      refreshWorkspaces(); // Refresh workspace list from parent
       // If the deleted workspace was selected, switch to the first available workspace
       if (selectedWorkspaceId === id && workspaces.length > 1) {
         const remainingWorkspaces = workspaces.filter(w => w.id !== id);
@@ -129,11 +114,8 @@ const WorkspaceSelector: React.FC<WorkspaceSelectorProps> = ({
   const handleSetDefault = async (workspaceId: number) => {
     try {
       const updatedWorkspace = await apiService.setDefaultWorkspace(workspaceId);
-      // Update the workspaces list to reflect the new default
-      setWorkspaces(workspaces.map(w => ({
-        ...w,
-        is_default: w.id === workspaceId
-      })));
+      // Refresh workspace list to reflect the new default
+      refreshWorkspaces();
     } catch (error) {
       console.error('Error setting default workspace:', error);
     }

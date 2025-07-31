@@ -24,6 +24,7 @@ interface ManageAccessModalProps {
   selectedWorkspaceId: number;
   workspaces: Workspace[];
   onWorkspaceChange: (workspaceId: number) => void;
+  refreshWorkspaces?: () => void;
 }
 
 const ManageAccessModal: React.FC<ManageAccessModalProps> = ({
@@ -31,7 +32,8 @@ const ManageAccessModal: React.FC<ManageAccessModalProps> = ({
   onClose,
   selectedWorkspaceId,
   workspaces,
-  onWorkspaceChange
+  onWorkspaceChange,
+  refreshWorkspaces = () => {}
 }) => {
   const { user } = useAuth();
   const [permissions, setPermissions] = useState<Permission[]>([]);
@@ -238,6 +240,7 @@ const ManageAccessModal: React.FC<ManageAccessModalProps> = ({
       }
 
       setSuccess('Left workspace successfully');
+      refreshWorkspaces(); // Refresh workspace list after leaving
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to leave workspace');

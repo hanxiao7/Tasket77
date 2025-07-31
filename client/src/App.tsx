@@ -59,6 +59,33 @@ function MainApp() {
     setSelectedWorkspaceId(workspaceId);
     setFilters(prev => ({ ...prev, workspace_id: workspaceId }));
   };
+
+  const refreshWorkspaces = async () => {
+    console.log(`🔄 Refreshing workspaces for user ${user?.id}`);
+    try {
+      const response = await fetch('http://localhost:3001/api/workspaces', {
+        credentials: 'include'
+      });
+      if (response.ok) {
+        const workspacesData = await response.json();
+        console.log(`📋 Refreshed ${workspacesData.length} workspaces:`, workspacesData.map((w: { id: number; name: string; is_default: boolean; access_level?: string }) => ({ id: w.id, name: w.name, is_default: w.is_default, access_level: w.access_level })));
+        setWorkspaces(workspacesData);
+        
+        // Update selected workspace if current one no longer exists
+        if (selectedWorkspaceId && !workspacesData.find((w: { id: number }) => w.id === selectedWorkspaceId)) {
+          if (workspacesData.length > 0) {
+            console.log(`🎯 Current workspace no longer accessible, switching to ${workspacesData[0].id} (${workspacesData[0].name})`);
+            setSelectedWorkspaceId(workspacesData[0].id);
+          } else {
+            console.log(`⚠️ No workspaces available, clearing selection`);
+            setSelectedWorkspaceId(undefined);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error refreshing workspaces:', error);
+    }
+  };
   const handleSort = () => {
     taskListRef.current?.sortTasks();
   };
@@ -99,6 +126,7 @@ function MainApp() {
                 selectedWorkspaceId={selectedWorkspaceId}
                 workspaces={workspaces}
                 onWorkspaceChange={handleWorkspaceChange}
+                refreshWorkspaces={refreshWorkspaces}
               />
             </div>
             {/* Second row: Workspace selector */}
@@ -106,6 +134,8 @@ function MainApp() {
               <WorkspaceSelector 
                 selectedWorkspaceId={selectedWorkspaceId}
                 onWorkspaceChange={handleWorkspaceChange}
+                workspaces={workspaces}
+                refreshWorkspaces={refreshWorkspaces}
               />
             </div>
           </div>
@@ -122,11 +152,14 @@ function MainApp() {
                   <WorkspaceSelector 
                     selectedWorkspaceId={selectedWorkspaceId}
                     onWorkspaceChange={handleWorkspaceChange}
+                    workspaces={workspaces}
+                    refreshWorkspaces={refreshWorkspaces}
                   />
                   <UserMenu 
                     selectedWorkspaceId={selectedWorkspaceId}
                     workspaces={workspaces}
                     onWorkspaceChange={handleWorkspaceChange}
+                    refreshWorkspaces={refreshWorkspaces}
                   />
                 </div>
                 {/* Task Summary - hidden on mobile */}

@@ -4,8 +4,8 @@ export interface Workspace {
   description?: string;
   is_default?: boolean;
   access_level?: 'owner' | 'edit' | 'view';
-  created_at: string;
-  updated_at: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface Category {
