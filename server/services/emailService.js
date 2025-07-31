@@ -11,6 +11,9 @@ const emailConfig = {
   }
 };
 
+// Email sender name (can be customized)
+const EMAIL_SENDER_NAME = process.env.EMAIL_SENDER_NAME || 'Tasket77';
+
 // Create transporter
 const transporter = nodemailer.createTransport(emailConfig);
 
@@ -72,7 +75,7 @@ async function sendWorkspaceAccessEmail(email, workspaceName, accessLevel) {
     const template = emailTemplates.workspaceAccess(workspaceName, accessLevel, appUrl);
 
     const mailOptions = {
-      from: `"Tasket77" <${process.env.SMTP_USER}>`,
+      from: `"${EMAIL_SENDER_NAME}" <${process.env.SMTP_USER}>`,
       to: email,
       subject: template.subject,
       html: template.html,
@@ -92,6 +95,12 @@ async function sendWorkspaceAccessEmail(email, workspaceName, accessLevel) {
 // Test email configuration
 async function testEmailConfig() {
   try {
+    console.log('🔍 Checking email configuration...');
+    console.log('📧 SMTP_USER:', process.env.SMTP_USER ? 'Set' : 'Not set');
+    console.log('📧 SMTP_PASS:', process.env.SMTP_PASS ? 'Set' : 'Not set');
+    console.log('📧 SMTP_HOST:', process.env.SMTP_HOST || 'smtp.gmail.com (default)');
+    console.log('📧 SMTP_PORT:', process.env.SMTP_PORT || '587 (default)');
+    
     if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
       console.log('📧 Email service not configured. Set SMTP_USER and SMTP_PASS environment variables to enable email notifications.');
       return false;

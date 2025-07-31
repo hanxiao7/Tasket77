@@ -211,7 +211,7 @@ router.delete('/workspaces/:workspaceId/permissions/:permissionId', authenticate
   const client = await pool.connect();
   try {
     const { workspaceId, permissionId } = req.params;
-    const userId = req.user.id;
+    const userId = req.user.userId;
 
     // Check if user is owner
     if (!(await isOwner(userId, workspaceId))) {
