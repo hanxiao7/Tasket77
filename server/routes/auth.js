@@ -66,20 +66,19 @@ router.post('/register', async (req, res) => {
 
       // Create default workspace for the user
       const workspaceResult = await client.query(
-        'INSERT INTO workspaces (name, description, is_default, user_id, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $5) RETURNING id',
+        'INSERT INTO workspaces (name, description, user_id, created_at, updated_at) VALUES ($1, $2, $3, $4, $4) RETURNING id',
         [
           'Default Workspace',
           'Default workspace for your tasks',
-          true,
           user.id,
           moment().utc().format('YYYY-MM-DD HH:mm:ss')
         ]
       );
 
-      // Add owner permission for the default workspace
+      // Add owner permission for the default workspace with is_default = true
       await client.query(
-        'INSERT INTO workspace_permissions (workspace_id, user_id, email, access_level) VALUES ($1, $2, $3, $4)',
-        [workspaceResult.rows[0].id, user.id, user.email, 'owner']
+        'INSERT INTO workspace_permissions (workspace_id, user_id, email, access_level, is_default) VALUES ($1, $2, $3, $4, $5)',
+        [workspaceResult.rows[0].id, user.id, user.email, 'owner', true]
       );
 
       // Check for pending workspace invitations

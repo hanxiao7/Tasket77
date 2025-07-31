@@ -347,35 +347,36 @@ router.post('/workspaces/:workspaceId/leave', authenticateToken, async (req, res
     );
 
     // Check if this was the user's default workspace
-    const workspaceResult = await client.query(
-      'SELECT is_default FROM workspaces WHERE id = $1',
-      [workspaceId]
+    const permissionResult2 = await client.query(
+      'SELECT is_default FROM workspace_permissions WHERE user_id = $1 AND workspace_id = $2',
+      [userId, workspaceId]
     );
 
-    console.log(`🏠 Workspace ${workspaceId} is_default: ${workspaceResult.rows[0]?.is_default}`);
+    console.log(`🏠 Workspace ${workspaceId} is_default: ${permissionResult2.rows[0]?.is_default}`);
 
-    if (workspaceResult.rows[0]?.is_default) {
+    if (permissionResult2.rows[0]?.is_default) {
       console.log(`⚠️ User ${userId} is leaving their default workspace ${workspaceId}, will reassign default`);
+      
       // Find another owned workspace to make default
       const otherWorkspaceResult = await client.query(
-        'SELECT w.id FROM workspaces w INNER JOIN workspace_permissions wp ON w.id = wp.workspace_id WHERE wp.user_id = $1 AND wp.access_level = $2 ORDER BY w.id LIMIT 1',
+        'SELECT wp.workspace_id FROM workspace_permissions wp WHERE wp.user_id = $1 AND wp.access_level = $2 ORDER BY wp.workspace_id LIMIT 1',
         [userId, 'owner']
       );
 
       if (otherWorkspaceResult.rows.length > 0) {
         // Set another owned workspace as default
         await client.query(
-          'UPDATE workspaces SET is_default = true WHERE id = $1',
-          [otherWorkspaceResult.rows[0].id]
+          'UPDATE workspace_permissions SET is_default = true WHERE user_id = $1 AND workspace_id = $2',
+          [userId, otherWorkspaceResult.rows[0].workspace_id]
         );
       } else {
         // Create a new default workspace
         const newWorkspaceResult = await client.query(
-          'INSERT INTO workspaces (name, description, user_id, is_default, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $5) RETURNING id',
-          ['My Workspace', 'Default workspace for your tasks', userId, true, moment().utc().format('YYYY-MM-DD HH:mm:ss')]
+          'INSERT INTO workspaces (name, description, user_id, created_at, updated_at) VALUES ($1, $2, $3, $4, $4) RETURNING id',
+          ['My Workspace', 'Default workspace for your tasks', userId, moment().utc().format('YYYY-MM-DD HH:mm:ss')]
         );
         
-        // Add owner permission for the new workspace
+        // Add owner permission for the new workspace with is_default = true
         const userResult = await client.query(
           'SELECT email FROM users WHERE id = $1',
           [userId]
@@ -383,16 +384,16 @@ router.post('/workspaces/:workspaceId/leave', authenticateToken, async (req, res
         
         if (userResult.rows.length > 0) {
           await client.query(
-            'INSERT INTO workspace_permissions (workspace_id, user_id, email, access_level) VALUES ($1, $2, $3, $4)',
-            [newWorkspaceResult.rows[0].id, userId, userResult.rows[0].email, 'owner']
+            'INSERT INTO workspace_permissions (workspace_id, user_id, email, access_level, is_default) VALUES ($1, $2, $3, $4, $5)',
+            [newWorkspaceResult.rows[0].id, userId, userResult.rows[0].email, 'owner', true]
           );
         }
       }
 
-      // Remove default flag from current workspace
+      // Remove default flag from current workspace permission
       await client.query(
-        'UPDATE workspaces SET is_default = false WHERE id = $1',
-        [workspaceId]
+        'UPDATE workspace_permissions SET is_default = false WHERE user_id = $1 AND workspace_id = $2',
+        [userId, workspaceId]
       );
     }
 
