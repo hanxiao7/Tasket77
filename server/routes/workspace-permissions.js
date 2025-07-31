@@ -158,7 +158,7 @@ router.put('/workspaces/:workspaceId/permissions/:permissionId', authenticateTok
     const userId = req.user.userId;
 
     // Validate input
-    if (!access_level || !['owner', 'edit', 'view'].includes(access_level)) {
+    if (!access_level || !['edit', 'view'].includes(access_level)) {
       return res.status(400).json({ error: 'Invalid access level' });
     }
 
@@ -178,17 +178,6 @@ router.put('/workspaces/:workspaceId/permissions/:permissionId', authenticateTok
     }
 
     const permission = permissionResult.rows[0];
-
-    // Prevent changing owner's access level if they're the only owner
-    if (permission.access_level === 'owner' && access_level !== 'owner') {
-      const ownerCount = await client.query(
-        'SELECT COUNT(*) FROM workspace_permissions WHERE workspace_id = $1 AND access_level = $2',
-        [workspaceId, 'owner']
-      );
-      if (parseInt(ownerCount.rows[0].count) <= 1) {
-        return res.status(400).json({ error: 'Cannot remove the only owner' });
-      }
-    }
 
     // Update access level
     await client.query(
@@ -247,6 +236,21 @@ router.delete('/workspaces/:workspaceId/permissions/:permissionId', authenticate
       [permissionId]
     );
 
+    // If the removed user was the owner, update workspaces.user_id to point to another owner
+    if (permission.access_level === 'owner') {
+      const newOwnerResult = await client.query(
+        'SELECT user_id FROM workspace_permissions WHERE workspace_id = $1 AND access_level = $2 LIMIT 1',
+        [workspaceId, 'owner']
+      );
+      
+      if (newOwnerResult.rows.length > 0) {
+        await client.query(
+          'UPDATE workspaces SET user_id = $1 WHERE id = $2',
+          [newOwnerResult.rows[0].user_id, workspaceId]
+        );
+      }
+    }
+
     res.json({ success: true, message: 'User removed successfully' });
 
   } catch (error) {
@@ -298,6 +302,12 @@ router.post('/workspaces/:workspaceId/permissions/:permissionId/transfer-ownersh
       ['edit', userId, workspaceId]
     );
 
+    // Update the workspaces table to reflect the new owner
+    await client.query(
+      'UPDATE workspaces SET user_id = $1 WHERE id = $2',
+      [permission.user_id, workspaceId]
+    );
+
     res.json({ success: true, message: 'Ownership transferred successfully' });
 
   } catch (error) {
@@ -345,6 +355,21 @@ router.post('/workspaces/:workspaceId/leave', authenticateToken, async (req, res
       'DELETE FROM workspace_permissions WHERE user_id = $1 AND workspace_id = $2',
       [userId, workspaceId]
     );
+
+    // If the leaving user was the owner, update workspaces.user_id to point to another owner
+    if (permission.access_level === 'owner') {
+      const newOwnerResult = await client.query(
+        'SELECT user_id FROM workspace_permissions WHERE workspace_id = $1 AND access_level = $2 LIMIT 1',
+        [workspaceId, 'owner']
+      );
+      
+      if (newOwnerResult.rows.length > 0) {
+        await client.query(
+          'UPDATE workspaces SET user_id = $1 WHERE id = $2',
+          [newOwnerResult.rows[0].user_id, workspaceId]
+        );
+      }
+    }
 
     // Check if this was the user's default workspace
     const permissionResult2 = await client.query(
