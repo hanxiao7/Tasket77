@@ -340,16 +340,25 @@ app.get('/api/tasks', authenticateToken, async (req, res) => {
   const { view, days, category_id, status, priority, show_completed, workspace_id } = req.query;
   let query = `
     SELECT t.*, c.name as category_name, tg.name as tag_name,
-           ARRAY_AGG(DISTINCT u.name) FILTER (WHERE u.name IS NOT NULL) as assignee_names,
-           ARRAY_AGG(DISTINCT u.email) FILTER (WHERE u.email IS NOT NULL) as assignee_emails
+           COALESCE(
+             (SELECT ARRAY_AGG(DISTINCT u.name) 
+              FROM task_assignees ta2 
+              JOIN users u ON ta2.user_id = u.id 
+              WHERE ta2.task_id = t.id), 
+             ARRAY[]::text[]
+           ) as assignee_names,
+           COALESCE(
+             (SELECT ARRAY_AGG(DISTINCT u.email) 
+              FROM task_assignees ta2 
+              JOIN users u ON ta2.user_id = u.id 
+              WHERE ta2.task_id = t.id), 
+             ARRAY[]::text[]
+           ) as assignee_emails
     FROM tasks t
     LEFT JOIN categories c ON t.category_id = c.id
     LEFT JOIN tags tg ON t.tag_id = tg.id
-    LEFT JOIN task_assignees ta ON t.id = ta.task_id
-    LEFT JOIN users u ON ta.user_id = u.id
     INNER JOIN workspace_permissions wp ON t.workspace_id = wp.workspace_id
     WHERE wp.user_id = $1
-    GROUP BY t.id, c.name, tg.name
   `;
   const params = [req.user.userId];
   let paramIndex = 2;
@@ -678,7 +687,21 @@ app.get('/api/tasks/:id', (req, res) => {
   const { id } = req.params;
   
   pool.query(`
-    SELECT t.*, c.name as category_name
+    SELECT t.*, c.name as category_name,
+           COALESCE(
+             (SELECT ARRAY_AGG(DISTINCT u.name) 
+              FROM task_assignees ta2 
+              JOIN users u ON ta2.user_id = u.id 
+              WHERE ta2.task_id = t.id), 
+             ARRAY[]::text[]
+           ) as assignee_names,
+           COALESCE(
+             (SELECT ARRAY_AGG(DISTINCT u.email) 
+              FROM task_assignees ta2 
+              JOIN users u ON ta2.user_id = u.id 
+              WHERE ta2.task_id = t.id), 
+             ARRAY[]::text[]
+           ) as assignee_emails
     FROM tasks t
     LEFT JOIN categories c ON t.category_id = c.id
     WHERE t.id = $1
