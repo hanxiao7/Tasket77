@@ -4,7 +4,7 @@ import { apiService } from '../services/api';
 import { ChevronDown, Plus, Edit, Trash2, FolderOpen, Star, Users } from 'lucide-react';
 
 interface WorkspaceSelectorProps {
-  selectedWorkspaceId: number;
+  selectedWorkspaceId: number | undefined;
   onWorkspaceChange: (workspaceId: number) => void;
 }
 
@@ -42,7 +42,7 @@ const WorkspaceSelector: React.FC<WorkspaceSelectorProps> = ({
     }
   };
 
-  const selectedWorkspace = workspaces.find(w => w.id === selectedWorkspaceId);
+  const selectedWorkspace = selectedWorkspaceId ? workspaces.find(w => w.id === selectedWorkspaceId) : null;
 
   const handleCreateWorkspace = async () => {
     if (!newWorkspaceName.trim()) return;

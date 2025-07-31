@@ -185,7 +185,7 @@ router.put('/workspaces/:workspaceId/permissions/:permissionId', authenticateTok
         'SELECT COUNT(*) FROM workspace_permissions WHERE workspace_id = $1 AND access_level = $2',
         [workspaceId, 'owner']
       );
-      if (ownerCount.rows[0].count <= 1) {
+      if (parseInt(ownerCount.rows[0].count) <= 1) {
         return res.status(400).json({ error: 'Cannot remove the only owner' });
       }
     }
@@ -236,7 +236,7 @@ router.delete('/workspaces/:workspaceId/permissions/:permissionId', authenticate
         'SELECT COUNT(*) FROM workspace_permissions WHERE workspace_id = $1 AND access_level = $2',
         [workspaceId, 'owner']
       );
-      if (ownerCount.rows[0].count <= 1) {
+      if (parseInt(ownerCount.rows[0].count) <= 1) {
         return res.status(400).json({ error: 'Cannot remove the only owner' });
       }
     }
@@ -335,7 +335,7 @@ router.post('/workspaces/:workspaceId/leave', authenticateToken, async (req, res
         'SELECT COUNT(*) FROM workspace_permissions WHERE workspace_id = $1 AND access_level = $2',
         [workspaceId, 'owner']
       );
-      if (ownerCount.rows[0].count <= 1) {
+      if (parseInt(ownerCount.rows[0].count) <= 1) {
         return res.status(400).json({ error: 'Cannot leave workspace as the only owner' });
       }
     }

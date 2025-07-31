@@ -13,7 +13,7 @@ import { TaskFilters, ViewMode, Task } from './types';
 
 function MainApp() {
   const [viewMode, setViewMode] = useState<ViewMode>('planner');
-  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<number>(1);
+  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<number | undefined>(undefined);
   const [filters, setFilters] = useState<TaskFilters>({
     view: 'planner',
     show_completed: false,
@@ -342,17 +342,23 @@ function MainApp() {
           </div>
         </div>
         {/* Task List */}
-        <div className="bg-white rounded-lg shadow-sm border">
-          <TaskList
-            ref={taskListRef}
-            viewMode={viewMode}
-            filters={filters}
-            selectedWorkspaceId={selectedWorkspaceId}
-            onFiltersChange={handleFiltersChange}
-            onSort={handleSort}
-            onTasksChange={setCurrentTasks}
-          />
-        </div>
+        {selectedWorkspaceId ? (
+          <div className="bg-white rounded-lg shadow-sm border">
+            <TaskList
+              ref={taskListRef}
+              viewMode={viewMode}
+              filters={filters}
+              selectedWorkspaceId={selectedWorkspaceId}
+              onFiltersChange={handleFiltersChange}
+              onSort={handleSort}
+              onTasksChange={setCurrentTasks}
+            />
+          </div>
+        ) : (
+          <div className="bg-white rounded-lg shadow-sm border p-8 text-center">
+            <p className="text-gray-500">No workspace selected. Please create or select a workspace to get started.</p>
+          </div>
+        )}
         {/* Instructions */}
         <div className="mt-6 p-3 md:p-4 bg-blue-50 rounded-lg">
           <h3 className="font-medium text-blue-900 mb-2 text-sm md:text-base">Quick Tips:</h3>

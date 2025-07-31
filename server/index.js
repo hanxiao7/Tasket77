@@ -1081,7 +1081,7 @@ app.delete('/api/workspaces/:id', authenticateToken, async (req, res) => {
       [id, req.user.userId]
     );
     
-    if (otherUsersResult.rows[0].count > 0) {
+    if (parseInt(otherUsersResult.rows[0].count) > 0) {
       res.status(400).json({ error: 'Cannot delete workspace when other users have access' });
       return;
     }

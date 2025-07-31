@@ -118,3 +118,38 @@ docker exec task-management-db pg_dump -U postgres taskmanagement > backup_$(dat
 docker exec -i task-management-db psql -U postgres taskmanagement < backup_filename.sql
 ```
 
+**Delete all data for a user**
+-- Set the email once at the top
+\set email_address 'test@example.com'
+
+BEGIN;
+
+-- Delete everything in the correct order using the variable
+DELETE FROM user_sessions 
+WHERE user_id IN (SELECT id FROM users WHERE email = :'email_address');
+
+DELETE FROM workspace_permissions 
+WHERE user_id IN (SELECT id FROM users WHERE email = :'email_address');
+
+DELETE FROM task_history 
+WHERE task_id IN (
+    SELECT t.id FROM tasks t 
+    JOIN users u ON t.user_id = u.id 
+    WHERE u.email = :'email_address'
+);
+
+DELETE FROM tasks 
+WHERE user_id IN (SELECT id FROM users WHERE email = :'email_address');
+
+DELETE FROM categories 
+WHERE user_id IN (SELECT id FROM users WHERE email = :'email_address');
+
+DELETE FROM tags 
+WHERE user_id IN (SELECT id FROM users WHERE email = :'email_address');
+
+DELETE FROM workspaces 
+WHERE user_id IN (SELECT id FROM users WHERE email = :'email_address');
+
+DELETE FROM users WHERE email = :'email_address';
+
+COMMIT;

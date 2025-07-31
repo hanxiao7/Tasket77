@@ -64,28 +64,13 @@ router.post('/register', async (req, res) => {
 
       const user = userResult.rows[0];
 
-      // Create default workspace for the user
-      const workspaceResult = await client.query(
-        'INSERT INTO workspaces (name, description, user_id, created_at, updated_at) VALUES ($1, $2, $3, $4, $4) RETURNING id',
-        [
-          'Default Workspace',
-          'Default workspace for your tasks',
-          user.id,
-          moment().utc().format('YYYY-MM-DD HH:mm:ss')
-        ]
-      );
-
-      // Add owner permission for the default workspace with is_default = true
-      await client.query(
-        'INSERT INTO workspace_permissions (workspace_id, user_id, email, access_level, is_default) VALUES ($1, $2, $3, $4, $5)',
-        [workspaceResult.rows[0].id, user.id, user.email, 'owner', true]
-      );
-
-      // Check for pending workspace invitations
+      // Check for pending workspace invitations first
       const pendingPermissions = await client.query(
         'SELECT * FROM workspace_permissions WHERE email = $1 AND user_id IS NULL',
         [user.email]
       );
+
+      console.log(`🔍 Found ${pendingPermissions.rows.length} pending invitations for ${user.email}`);
 
       // Update pending permissions with user_id
       for (const permission of pendingPermissions.rows) {
@@ -93,6 +78,54 @@ router.post('/register', async (req, res) => {
           'UPDATE workspace_permissions SET user_id = $1 WHERE id = $2',
           [user.id, permission.id]
         );
+        console.log(`✅ Updated pending permission ${permission.id} with user_id ${user.id}`);
+      }
+
+      // Check if user has any accessible workspaces after updating pending invitations
+      const accessibleWorkspaces = await client.query(
+        'SELECT COUNT(*) as count FROM workspace_permissions WHERE user_id = $1',
+        [user.id]
+      );
+
+      console.log(`🔍 User ${user.email} has ${accessibleWorkspaces.rows[0].count} accessible workspaces`);
+      console.log(`🔍 Count type: ${typeof accessibleWorkspaces.rows[0].count}, value: "${accessibleWorkspaces.rows[0].count}"`);
+
+      if (parseInt(accessibleWorkspaces.rows[0].count) === 0) {
+        // No accessible workspaces, create a default workspace
+        console.log(`📝 Creating default workspace for new user ${user.email} (no pending invitations)`);
+        
+        const workspaceResult = await client.query(
+          'INSERT INTO workspaces (name, description, user_id, created_at, updated_at) VALUES ($1, $2, $3, $4, $4) RETURNING id',
+          [
+            'Default Workspace',
+            'Default workspace for your tasks',
+            user.id,
+            moment().utc().format('YYYY-MM-DD HH:mm:ss')
+          ]
+        );
+
+        // Add owner permission for the default workspace with is_default = true
+        await client.query(
+          'INSERT INTO workspace_permissions (workspace_id, user_id, email, access_level, is_default) VALUES ($1, $2, $3, $4, $5)',
+          [workspaceResult.rows[0].id, user.id, user.email, 'owner', true]
+        );
+      } else {
+        // User has accessible workspaces from pending invitations
+        console.log(`📝 User ${user.email} has ${accessibleWorkspaces.rows[0].count} accessible workspaces from pending invitations`);
+        
+        // Set the first accessible workspace as default
+        const firstWorkspace = await client.query(
+          'SELECT workspace_id FROM workspace_permissions WHERE user_id = $1 ORDER BY workspace_id LIMIT 1',
+          [user.id]
+        );
+        
+        if (firstWorkspace.rows.length > 0) {
+          await client.query(
+            'UPDATE workspace_permissions SET is_default = true WHERE user_id = $1 AND workspace_id = $2',
+            [user.id, firstWorkspace.rows[0].workspace_id]
+          );
+          console.log(`✅ Set workspace ${firstWorkspace.rows[0].workspace_id} as default for user ${user.email}`);
+        }
       }
 
 
@@ -309,9 +342,9 @@ router.get('/me', async (req, res) => {
         'SELECT COUNT(*) as count FROM user_sessions WHERE session_token = $1',
         [token]
       );
-      console.log(`📊 Session found in database: ${sessionResult.rows[0].count > 0}`);
+      console.log(`📊 Session found in database: ${parseInt(sessionResult.rows[0].count) > 0}`);
       
-      if (sessionResult.rows[0].count === 0) {
+      if (parseInt(sessionResult.rows[0].count) === 0) {
         console.log('⚠️ Token valid but session not found in database - possible session conflict');
       }
 
