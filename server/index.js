@@ -339,12 +339,17 @@ app.delete('/api/tags/:id', authenticateToken, async (req, res) => {
 app.get('/api/tasks', authenticateToken, async (req, res) => {
   const { view, days, category_id, status, priority, show_completed, workspace_id } = req.query;
   let query = `
-    SELECT t.*, c.name as category_name, tg.name as tag_name
+    SELECT t.*, c.name as category_name, tg.name as tag_name,
+           ARRAY_AGG(DISTINCT u.name) FILTER (WHERE u.name IS NOT NULL) as assignee_names,
+           ARRAY_AGG(DISTINCT u.email) FILTER (WHERE u.email IS NOT NULL) as assignee_emails
     FROM tasks t
     LEFT JOIN categories c ON t.category_id = c.id
     LEFT JOIN tags tg ON t.tag_id = tg.id
+    LEFT JOIN task_assignees ta ON t.id = ta.task_id
+    LEFT JOIN users u ON ta.user_id = u.id
     INNER JOIN workspace_permissions wp ON t.workspace_id = wp.workspace_id
     WHERE wp.user_id = $1
+    GROUP BY t.id, c.name, tg.name
   `;
   const params = [req.user.userId];
   let paramIndex = 2;
@@ -453,16 +458,31 @@ app.post('/api/tasks', authenticateToken, async (req, res) => {
     );
     
     const taskId = result.rows[0].id;
+    
+    // Auto-assign the task creator as assignee
+    await pool.query(
+      `
+      INSERT INTO task_assignees (task_id, user_id, assigned_by, assigned_at)
+      VALUES ($1, $2, $3, $4)
+      `,
+      [taskId, req.user.userId, req.user.userId, now]
+    );
+    
     await addTaskHistory(taskId, 'todo', 'Task created');
     
-    // Get the complete task information including category and tag details
+    // Get the complete task information including category, tag, and assignee details
     const fullRowResult = await pool.query(
       `
-      SELECT t.*, c.name as category_name, tg.name as tag_name
+      SELECT t.*, c.name as category_name, tg.name as tag_name,
+             ARRAY_AGG(DISTINCT u.name) as assignee_names,
+             ARRAY_AGG(DISTINCT u.email) as assignee_emails
       FROM tasks t
       LEFT JOIN categories c ON t.category_id = c.id
       LEFT JOIN tags tg ON t.tag_id = tg.id
+      LEFT JOIN task_assignees ta ON t.id = ta.task_id
+      LEFT JOIN users u ON ta.user_id = u.id
       WHERE t.id = $1
+      GROUP BY t.id, c.name, tg.name
     `, [taskId]
     );
     res.json(fullRowResult.rows[0]);
@@ -1153,6 +1173,217 @@ app.patch('/api/workspaces/:id/set-default', authenticateToken, async (req, res)
     res.status(500).json({ error: err.message });
   } finally {
     client.release();
+  }
+});
+
+// Task assignee endpoints
+app.get('/api/tasks/:id/assignees', authenticateToken, async (req, res) => {
+  const { id } = req.params;
+  
+  try {
+    // Check if user has access to the task's workspace
+    const taskResult = await pool.query(
+      'SELECT workspace_id FROM tasks WHERE id = $1',
+      [id]
+    );
+    
+    if (taskResult.rowCount === 0) {
+      res.status(404).json({ error: 'Task not found' });
+      return;
+    }
+    
+    const workspaceId = taskResult.rows[0].workspace_id;
+    
+    // Check workspace access (any access level can view assignees)
+    const accessResult = await pool.query(
+      'SELECT access_level FROM workspace_permissions WHERE workspace_id = $1 AND user_id = $2',
+      [workspaceId, req.user.userId]
+    );
+    
+    if (accessResult.rowCount === 0) {
+      res.status(403).json({ error: 'Access denied' });
+      return;
+    }
+    
+    // Get assignees with user details
+    const assigneesResult = await pool.query(
+      `
+      SELECT ta.*, u.name as user_name, u.email as user_email
+      FROM task_assignees ta
+      JOIN users u ON ta.user_id = u.id
+      WHERE ta.task_id = $1
+      ORDER BY ta.assigned_at ASC
+      `,
+      [id]
+    );
+    
+    res.json(assigneesResult.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Add assignee to task
+app.post('/api/tasks/:id/assignees', authenticateToken, async (req, res) => {
+  const { id } = req.params;
+  const { user_id } = req.body;
+  
+  if (!user_id) {
+    res.status(400).json({ error: 'User ID is required' });
+    return;
+  }
+  
+  try {
+    // Check if user has edit access to the task's workspace
+    const taskResult = await pool.query(
+      'SELECT workspace_id FROM tasks WHERE id = $1',
+      [id]
+    );
+    
+    if (taskResult.rowCount === 0) {
+      res.status(404).json({ error: 'Task not found' });
+      return;
+    }
+    
+    const workspaceId = taskResult.rows[0].workspace_id;
+    
+    // Check workspace access (edit or owner level required)
+    const accessResult = await pool.query(
+      'SELECT access_level FROM workspace_permissions WHERE workspace_id = $1 AND user_id = $2',
+      [workspaceId, req.user.userId]
+    );
+    
+    if (accessResult.rowCount === 0 || !['edit', 'owner'].includes(accessResult.rows[0].access_level)) {
+      res.status(403).json({ error: 'Edit access required' });
+      return;
+    }
+    
+    // Check if target user has access to the workspace
+    const targetAccessResult = await pool.query(
+      'SELECT access_level FROM workspace_permissions WHERE workspace_id = $1 AND user_id = $2',
+      [workspaceId, user_id]
+    );
+    
+    if (targetAccessResult.rowCount === 0) {
+      res.status(400).json({ error: 'Target user does not have access to this workspace' });
+      return;
+    }
+    
+    // Check if assignment already exists
+    const existingResult = await pool.query(
+      'SELECT id FROM task_assignees WHERE task_id = $1 AND user_id = $2',
+      [id, user_id]
+    );
+    
+    if (existingResult.rowCount > 0) {
+      res.status(400).json({ error: 'User is already assigned to this task' });
+      return;
+    }
+    
+    // Add assignment
+    const result = await pool.query(
+      `
+      INSERT INTO task_assignees (task_id, user_id, assigned_by, assigned_at)
+      VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
+      RETURNING *
+      `,
+      [id, user_id, req.user.userId]
+    );
+    
+    // Get the complete assignment with user details
+    const fullResult = await pool.query(
+      `
+      SELECT ta.*, u.name as user_name, u.email as user_email
+      FROM task_assignees ta
+      JOIN users u ON ta.user_id = u.id
+      WHERE ta.id = $1
+      `,
+      [result.rows[0].id]
+    );
+    
+    res.json(fullResult.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Remove assignee from task
+app.delete('/api/tasks/:id/assignees/:user_id', authenticateToken, async (req, res) => {
+  const { id, user_id } = req.params;
+  
+  try {
+    // Check if user has edit access to the task's workspace
+    const taskResult = await pool.query(
+      'SELECT workspace_id FROM tasks WHERE id = $1',
+      [id]
+    );
+    
+    if (taskResult.rowCount === 0) {
+      res.status(404).json({ error: 'Task not found' });
+      return;
+    }
+    
+    const workspaceId = taskResult.rows[0].workspace_id;
+    
+    // Check workspace access (edit or owner level required)
+    const accessResult = await pool.query(
+      'SELECT access_level FROM workspace_permissions WHERE workspace_id = $1 AND user_id = $2',
+      [workspaceId, req.user.userId]
+    );
+    
+    if (accessResult.rowCount === 0 || !['edit', 'owner'].includes(accessResult.rows[0].access_level)) {
+      res.status(403).json({ error: 'Edit access required' });
+      return;
+    }
+    
+    // Remove assignment
+    const result = await pool.query(
+      'DELETE FROM task_assignees WHERE task_id = $1 AND user_id = $2 RETURNING *',
+      [id, user_id]
+    );
+    
+    if (result.rowCount === 0) {
+      res.status(404).json({ error: 'Assignment not found' });
+      return;
+    }
+    
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get workspace users for assignment
+app.get('/api/workspaces/:id/users', authenticateToken, async (req, res) => {
+  const { id } = req.params;
+  
+  try {
+    // Check if user has access to the workspace
+    const accessResult = await pool.query(
+      'SELECT access_level FROM workspace_permissions WHERE workspace_id = $1 AND user_id = $2',
+      [id, req.user.userId]
+    );
+    
+    if (accessResult.rowCount === 0) {
+      res.status(403).json({ error: 'Access denied' });
+      return;
+    }
+    
+    // Get all users with access to this workspace
+    const usersResult = await pool.query(
+      `
+      SELECT wp.user_id, u.name, u.email, wp.access_level
+      FROM workspace_permissions wp
+      JOIN users u ON wp.user_id = u.id
+      WHERE wp.workspace_id = $1
+      ORDER BY u.name ASC
+      `,
+      [id]
+    );
+    
+    res.json(usersResult.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
