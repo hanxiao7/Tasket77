@@ -145,7 +145,12 @@ class ApiService {
     if (filters) {
       Object.entries(filters).forEach(([key, value]) => {
         if (value !== undefined && value !== null) {
-          params.append(key, value.toString());
+          // Handle arrays by JSON stringifying them
+          if (Array.isArray(value)) {
+            params.append(key, JSON.stringify(value));
+          } else {
+            params.append(key, value.toString());
+          }
         }
       });
     }

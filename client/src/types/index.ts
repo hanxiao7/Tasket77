@@ -80,12 +80,13 @@ export interface UpdateTaskData {
 export interface TaskFilters {
   view?: 'planner' | 'tracker';
   days?: number;
-  category_id?: number;
-  status?: Task['status'];
+  category_ids?: number[];
+  statuses?: string[];
   priority?: Task['priority'];
   show_completed?: boolean;
   workspace_id?: number;
   grouping?: 'none' | 'status' | 'priority' | 'category' | 'tag';
+  assignee_ids?: number[];
 }
 
 export type ViewMode = 'planner' | 'tracker'; 

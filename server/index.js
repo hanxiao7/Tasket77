@@ -337,7 +337,7 @@ app.delete('/api/tags/:id', authenticateToken, async (req, res) => {
 
 // Get tasks with optional filters
 app.get('/api/tasks', authenticateToken, async (req, res) => {
-  const { view, days, category_id, status, priority, show_completed, workspace_id } = req.query;
+  const { view, days, category_ids, statuses, priority, show_completed, workspace_id, assignee_ids } = req.query;
   let query = `
     SELECT t.*, c.name as category_name, tg.name as tag_name,
            COALESCE(
@@ -375,20 +375,84 @@ app.get('/api/tasks', authenticateToken, async (req, res) => {
     params.push(daysAgo);
     paramIndex++;
   }
-  if (category_id) {
-    query += ` AND t.category_id = $${paramIndex}`;
-    params.push(category_id);
-    paramIndex++;
+  // Handle multi-category filter
+  if (category_ids) {
+    try {
+      const categoryIds = JSON.parse(category_ids);
+      if (Array.isArray(categoryIds) && categoryIds.length > 0) {
+        // Handle "None" option (-1) and regular categories
+        const hasNoneOption = categoryIds.includes(-1);
+        const regularCategoryIds = categoryIds.filter(id => id !== -1);
+        
+        if (hasNoneOption && regularCategoryIds.length > 0) {
+          // Show tasks with no category OR with specified categories
+          query += ` AND (t.category_id IS NULL OR t.category_id = ANY($${paramIndex}))`;
+          params.push(regularCategoryIds);
+          paramIndex++;
+        } else if (hasNoneOption) {
+          // Show only tasks with no category
+          query += ` AND t.category_id IS NULL`;
+        } else {
+          // Show tasks with specified categories
+          query += ` AND t.category_id = ANY($${paramIndex})`;
+          params.push(regularCategoryIds);
+          paramIndex++;
+        }
+      }
+    } catch (e) {
+      console.error('Error parsing category_ids:', e);
+    }
   }
-  if (status) {
-    query += ` AND t.status = $${paramIndex}`;
-    params.push(status);
-    paramIndex++;
+  // Handle multi-status filter
+  if (statuses) {
+    try {
+      const statusArray = JSON.parse(statuses);
+      if (Array.isArray(statusArray) && statusArray.length > 0) {
+        query += ` AND t.status = ANY($${paramIndex})`;
+        params.push(statusArray);
+        paramIndex++;
+      }
+    } catch (e) {
+      console.error('Error parsing statuses:', e);
+    }
   }
   if (priority) {
     query += ` AND t.priority = $${paramIndex}`;
     params.push(priority);
     paramIndex++;
+  }
+  if (assignee_ids) {
+    try {
+      const assigneeIds = JSON.parse(assignee_ids);
+      if (Array.isArray(assigneeIds) && assigneeIds.length > 0) {
+        // Handle "None" option (-1) and regular assignees
+        const hasNoneOption = assigneeIds.includes(-1);
+        const regularAssigneeIds = assigneeIds.filter(id => id !== -1);
+        
+        if (hasNoneOption && regularAssigneeIds.length > 0) {
+          // Show tasks with no assignees OR with specified assignees
+          query += ` AND (
+            NOT EXISTS (SELECT 1 FROM task_assignees ta WHERE ta.task_id = t.id)
+            OR EXISTS (SELECT 1 FROM task_assignees ta WHERE ta.task_id = t.id AND ta.user_id = ANY($${paramIndex}))
+          )`;
+          params.push(regularAssigneeIds);
+          paramIndex++;
+        } else if (hasNoneOption) {
+          // Show only tasks with no assignees
+          query += ` AND NOT EXISTS (SELECT 1 FROM task_assignees ta WHERE ta.task_id = t.id)`;
+        } else {
+          // Show tasks with specified assignees
+          query += ` AND EXISTS (
+            SELECT 1 FROM task_assignees ta 
+            WHERE ta.task_id = t.id AND ta.user_id = ANY($${paramIndex})
+          )`;
+          params.push(regularAssigneeIds);
+          paramIndex++;
+        }
+      }
+    } catch (e) {
+      console.error('Error parsing assignee_ids:', e);
+    }
   }
   if (view === 'planner') {
     query += ' ORDER BY CASE t.status WHEN \'in_progress\' THEN 1 WHEN \'paused\' THEN 2 WHEN \'todo\' THEN 3 WHEN \'done\' THEN 4 END,';
@@ -907,6 +971,88 @@ app.get('/api/workspace-users/:id', authenticateToken, async (req, res) => {
     res.json(usersResult.rows);
   } catch (err) {
     console.error(`❌ Error in workspace users endpoint:`, err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get user preferences for a workspace
+app.get('/api/user-preferences/:workspaceId', authenticateToken, async (req, res) => {
+  const { workspaceId } = req.params;
+  const userId = req.user.userId;
+  
+  console.log(`🔍 User preferences request: workspace_id=${workspaceId}, user_id=${userId}`);
+  
+  try {
+    // Check if user has access to the workspace
+    const accessResult = await pool.query(
+      'SELECT access_level FROM workspace_permissions WHERE workspace_id = $1 AND user_id = $2',
+      [workspaceId, userId]
+    );
+    
+    if (accessResult.rowCount === 0) {
+      console.log(`❌ Access denied for user ${userId} to workspace ${workspaceId}`);
+      res.status(403).json({ error: 'Access denied' });
+      return;
+    }
+    
+    // Get all preferences for this user and workspace
+    const preferencesResult = await pool.query(
+      'SELECT preference_key, preference_value FROM user_preferences WHERE user_id = $1 AND workspace_id = $2',
+      [userId, workspaceId]
+    );
+    
+    // Convert to object format
+    const preferencesObj = {};
+    preferencesResult.rows.forEach(row => {
+      try {
+        preferencesObj[row.preference_key] = JSON.parse(row.preference_value);
+      } catch (e) {
+        preferencesObj[row.preference_key] = row.preference_value;
+      }
+    });
+    
+    console.log(`📋 Loaded ${preferencesResult.rows.length} preferences for user ${userId} in workspace ${workspaceId}`);
+    res.json(preferencesObj);
+  } catch (err) {
+    console.error(`❌ Error in user preferences endpoint:`, err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Save user preference for a workspace
+app.post('/api/user-preferences/:workspaceId', authenticateToken, async (req, res) => {
+  const { workspaceId } = req.params;
+  const userId = req.user.userId;
+  const { key, value } = req.body;
+  
+  console.log(`💾 Saving preference: workspace_id=${workspaceId}, user_id=${userId}, key=${key}`);
+  
+  try {
+    // Check if user has access to the workspace
+    const accessResult = await pool.query(
+      'SELECT access_level FROM workspace_permissions WHERE workspace_id = $1 AND user_id = $2',
+      [workspaceId, userId]
+    );
+    
+    if (accessResult.rowCount === 0) {
+      console.log(`❌ Access denied for user ${userId} to workspace ${workspaceId}`);
+      res.status(403).json({ error: 'Access denied' });
+      return;
+    }
+    
+    // Insert or update the preference
+    await pool.query(
+      `INSERT INTO user_preferences (user_id, workspace_id, preference_key, preference_value, updated_at)
+       VALUES ($1, $2, $3, $4, NOW())
+       ON CONFLICT (user_id, workspace_id, preference_key)
+       DO UPDATE SET preference_value = $4, updated_at = NOW()`,
+      [userId, workspaceId, key, JSON.stringify(value)]
+    );
+    
+    console.log(`✅ Saved preference ${key} for user ${userId} in workspace ${workspaceId}`);
+    res.json({ success: true });
+  } catch (err) {
+    console.error(`❌ Error saving user preference:`, err);
     res.status(500).json({ error: err.message });
   }
 });

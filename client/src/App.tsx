@@ -8,6 +8,8 @@ import TaskList from './components/TaskList';
 import TaskSummary from './components/TaskSummary';
 import WorkspaceSelector from './components/WorkspaceSelector';
 import UserMenu from './components/UserMenu';
+import UniversalFilter from './components/UniversalFilter';
+import useUserPreferences from './hooks/useUserPreferences';
 import { Download, ArrowUpDown, CheckCircle } from 'lucide-react';
 import { TaskFilters, ViewMode, Task } from './types';
 
@@ -24,6 +26,9 @@ function MainApp() {
   const [workspaces, setWorkspaces] = useState<Array<{ id: number; name: string; access_level?: 'owner' | 'edit' | 'view'; other_users_count?: number }>>([]);
   const taskListRef = useRef<{ sortTasks: () => void; getTasks: () => Task[] }>(null);
   const { user } = useAuth();
+
+  // User preferences hook
+  const { preferences, savePreference } = useUserPreferences(selectedWorkspaceId || 0);
 
   // Load workspaces on component mount
   useEffect(() => {
@@ -54,7 +59,36 @@ function MainApp() {
     }
   }, [user]); // Removed selectedWorkspaceId from dependencies to prevent infinite loops
 
-  const handleFiltersChange = (newFilters: TaskFilters) => setFilters(newFilters);
+  // Sync preferences with filters when preferences load
+  useEffect(() => {
+    if (preferences.assignee_filter !== undefined) {
+      setFilters(prev => ({ ...prev, assignee_ids: preferences.assignee_filter }));
+    }
+    if (preferences.category_filter !== undefined) {
+      setFilters(prev => ({ ...prev, category_ids: preferences.category_filter }));
+    }
+    if (preferences.status_filter !== undefined) {
+      setFilters(prev => ({ ...prev, statuses: preferences.status_filter }));
+    }
+  }, [preferences.assignee_filter, preferences.category_filter, preferences.status_filter]);
+
+  const handleFiltersChange = async (newFilters: TaskFilters) => {
+    setFilters(newFilters);
+    
+    // Save filter preferences
+    if (selectedWorkspaceId) {
+      if (newFilters.assignee_ids !== filters.assignee_ids) {
+        await savePreference('assignee_filter', newFilters.assignee_ids);
+      }
+      if (newFilters.category_ids !== filters.category_ids) {
+        await savePreference('category_filter', newFilters.category_ids);
+      }
+      if (newFilters.statuses !== filters.statuses) {
+        await savePreference('status_filter', newFilters.statuses);
+      }
+    }
+  };
+
   const handleWorkspaceChange = (workspaceId: number) => {
     setSelectedWorkspaceId(workspaceId);
     setFilters(prev => ({ ...prev, workspace_id: workspaceId }));
@@ -204,8 +238,17 @@ function MainApp() {
             
                         {/* Controls row */}
             <div className="flex items-center justify-between">
-              {/* Left side: Grouping selector */}
-              <div className="flex items-center">
+              {/* Left side: Filters and Grouping */}
+              <div className="flex items-center space-x-2">
+                {/* Universal filter */}
+                {selectedWorkspaceId && (
+                  <UniversalFilter
+                    workspaceId={selectedWorkspaceId}
+                    filters={filters}
+                    onFiltersChange={handleFiltersChange}
+                  />
+                )}
+                
                 {/* Days filter for tracker */}
                 {viewMode === 'tracker' && (
                   <select
@@ -221,6 +264,7 @@ function MainApp() {
                     <option value={30}>30 days</option>
                   </select>
                 )}
+                
                 {/* Grouping selector */}
                 <select
                   value={filters.grouping || 'none'}
@@ -307,6 +351,15 @@ function MainApp() {
               </div>
               
               <div className="flex items-center space-x-4">
+                {/* Universal filter */}
+                {selectedWorkspaceId && (
+                  <UniversalFilter
+                    workspaceId={selectedWorkspaceId}
+                    filters={filters}
+                    onFiltersChange={handleFiltersChange}
+                  />
+                )}
+                
                 {/* Days filter for tracker */}
                 {viewMode === 'tracker' && (
                   <select
@@ -322,6 +375,7 @@ function MainApp() {
                     <option value={30}>30 days</option>
                   </select>
                 )}
+                
                 {/* Grouping selector */}
                 <select
                   value={filters.grouping || 'none'}
