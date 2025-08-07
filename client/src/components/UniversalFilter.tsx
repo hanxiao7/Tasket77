@@ -7,6 +7,7 @@ interface UniversalFilterProps {
   workspaceId: number;
   filters: TaskFilters;
   onFiltersChange: (filters: TaskFilters) => void;
+  viewMode: 'planner' | 'tracker';
   className?: string;
 }
 
@@ -28,6 +29,7 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
   workspaceId, 
   filters, 
   onFiltersChange, 
+  viewMode,
   className = '' 
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -149,6 +151,55 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
       case 'done': return 'Done';
       default: return status;
     }
+  };
+
+  // Get view-specific defaults
+  const getViewDefaults = () => {
+    if (viewMode === 'planner') {
+      return {
+        statuses: ['todo', 'in_progress', 'paused'], // exclude 'done' by default
+        assignee_ids: undefined,
+        category_ids: undefined
+      };
+    } else if (viewMode === 'tracker') {
+      return {
+        statuses: ['in_progress', 'paused', 'done'], // exclude 'todo' by default
+        assignee_ids: undefined,
+        category_ids: undefined
+      };
+    }
+    return {
+      statuses: undefined,
+      assignee_ids: undefined,
+      category_ids: undefined
+    };
+  };
+
+  // Check if current filters match view defaults
+  const isAtViewDefaults = () => {
+    const defaults = getViewDefaults();
+    const currentStatuses = filters.statuses || [];
+    const defaultStatuses = defaults.statuses || [];
+    
+    // Check if statuses match (order doesn't matter)
+    const statusesMatch = currentStatuses.length === defaultStatuses.length &&
+      currentStatuses.every(status => defaultStatuses.includes(status)) &&
+      defaultStatuses.every(status => currentStatuses.includes(status));
+    
+    // Check if other filters are at defaults (undefined or empty)
+    const assigneesAtDefault = !filters.assignee_ids || filters.assignee_ids.length === 0;
+    const categoriesAtDefault = !filters.category_ids || filters.category_ids.length === 0;
+    
+    return statusesMatch && assigneesAtDefault && categoriesAtDefault;
+  };
+
+  // Reset filters to view defaults
+  const handleResetToDefaults = () => {
+    const defaults = getViewDefaults();
+    onFiltersChange({
+      ...filters,
+      ...defaults
+    });
   };
 
 
@@ -374,15 +425,20 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
               )}
             </div>
 
-            {/* Footer */}
-            <div className="flex justify-end p-4 border-t border-gray-200">
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-              >
-                Close
-              </button>
-            </div>
+                         {/* Footer */}
+             <div className="flex justify-end p-4 border-t border-gray-200">
+               <button
+                 onClick={handleResetToDefaults}
+                 disabled={isAtViewDefaults()}
+                 className={`px-4 py-2 rounded-md transition-colors ${
+                   isAtViewDefaults()
+                     ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                     : 'bg-blue-600 text-white hover:bg-blue-700'
+                 }`}
+               >
+                 Reset to Default
+               </button>
+             </div>
           </div>
         </div>
       )}

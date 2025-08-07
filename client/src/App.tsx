@@ -28,7 +28,7 @@ function MainApp() {
   const { user } = useAuth();
 
   // User preferences hook
-  const { preferences, savePreference } = useUserPreferences(selectedWorkspaceId || 0);
+  const { preferences, savePreference, saveViewPreference, getViewPreference, loading: preferencesLoading } = useUserPreferences(selectedWorkspaceId || 0);
 
   // Load workspaces on component mount
   useEffect(() => {
@@ -59,32 +59,44 @@ function MainApp() {
     }
   }, [user]); // Removed selectedWorkspaceId from dependencies to prevent infinite loops
 
-  // Sync preferences with filters when preferences load
+  // Sync view-specific preferences with filters when preferences load or view changes
   useEffect(() => {
-    if (preferences.assignee_filter !== undefined) {
-      setFilters(prev => ({ ...prev, assignee_ids: preferences.assignee_filter }));
-    }
-    if (preferences.category_filter !== undefined) {
-      setFilters(prev => ({ ...prev, category_ids: preferences.category_filter }));
-    }
-    if (preferences.status_filter !== undefined) {
-      setFilters(prev => ({ ...prev, statuses: preferences.status_filter }));
-    }
-  }, [preferences.assignee_filter, preferences.category_filter, preferences.status_filter]);
+    // Don't update filters while preferences are still loading
+    if (preferencesLoading) return;
+    
+    const assigneeFilter = preferences[`${viewMode}_assignee_filter`];
+    const categoryFilter = preferences[`${viewMode}_category_filter`];
+    const statusFilter = preferences[`${viewMode}_status_filter`];
+    
+    setFilters(prev => {
+      // Only update if the values are actually different to prevent unnecessary re-renders
+      if (prev.assignee_ids !== assigneeFilter || 
+          prev.category_ids !== categoryFilter || 
+          prev.statuses !== statusFilter) {
+        return {
+          ...prev,
+          assignee_ids: assigneeFilter,
+          category_ids: categoryFilter,
+          statuses: statusFilter
+        };
+      }
+      return prev;
+    });
+  }, [viewMode, preferences, preferencesLoading]);
 
   const handleFiltersChange = async (newFilters: TaskFilters) => {
     setFilters(newFilters);
     
-    // Save filter preferences
+    // Save view-specific filter preferences
     if (selectedWorkspaceId) {
       if (newFilters.assignee_ids !== filters.assignee_ids) {
-        await savePreference('assignee_filter', newFilters.assignee_ids);
+        await saveViewPreference(viewMode, 'assignee', newFilters.assignee_ids);
       }
       if (newFilters.category_ids !== filters.category_ids) {
-        await savePreference('category_filter', newFilters.category_ids);
+        await saveViewPreference(viewMode, 'category', newFilters.category_ids);
       }
       if (newFilters.statuses !== filters.statuses) {
-        await savePreference('status_filter', newFilters.statuses);
+        await saveViewPreference(viewMode, 'status', newFilters.statuses);
       }
     }
   };
@@ -246,6 +258,7 @@ function MainApp() {
                     workspaceId={selectedWorkspaceId}
                     filters={filters}
                     onFiltersChange={handleFiltersChange}
+                    viewMode={viewMode}
                   />
                 )}
                 
@@ -357,6 +370,7 @@ function MainApp() {
                     workspaceId={selectedWorkspaceId}
                     filters={filters}
                     onFiltersChange={handleFiltersChange}
+                    viewMode={viewMode}
                   />
                 )}
                 

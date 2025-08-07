@@ -1,9 +1,20 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 interface UserPreferences {
+  // View-specific filter preferences
+  planner_assignee_filter?: number[];
+  planner_category_filter?: number[];
+  planner_status_filter?: string[];
+  tracker_assignee_filter?: number[];
+  tracker_category_filter?: number[];
+  tracker_status_filter?: string[];
+  
+  // Legacy global preferences (for backward compatibility)
   assignee_filter?: number[];
   category_filter?: number[];
   status_filter?: string[];
+  
+  // Other preferences
   sort_field?: string;
   sort_direction?: 'asc' | 'desc';
   column_visibility?: Record<string, boolean>;
@@ -14,6 +25,8 @@ interface UserPreferences {
 interface UseUserPreferencesReturn {
   preferences: UserPreferences;
   savePreference: (key: string, value: any) => Promise<void>;
+  saveViewPreference: (viewMode: 'planner' | 'tracker', filterType: 'assignee' | 'category' | 'status', value: any) => Promise<void>;
+  getViewPreference: (viewMode: 'planner' | 'tracker', filterType: 'assignee' | 'category' | 'status') => any;
   loading: boolean;
   error: string | null;
 }
@@ -74,11 +87,21 @@ const useUserPreferences = (workspaceId: number): UseUserPreferencesReturn => {
     }
   };
 
+  const saveViewPreference = async (viewMode: 'planner' | 'tracker', filterType: 'assignee' | 'category' | 'status', value: any) => {
+    const key = `${viewMode}_${filterType}_filter`;
+    await savePreference(key, value);
+  };
+
+  const getViewPreference = useCallback((viewMode: 'planner' | 'tracker', filterType: 'assignee' | 'category' | 'status') => {
+    const key = `${viewMode}_${filterType}_filter`;
+    return preferences[key];
+  }, [preferences]);
+
   useEffect(() => {
     loadPreferences();
   }, [workspaceId]);
 
-  return { preferences, savePreference, loading, error };
+  return { preferences, savePreference, saveViewPreference, getViewPreference, loading, error };
 };
 
 export default useUserPreferences;
