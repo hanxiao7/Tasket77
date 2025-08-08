@@ -1,32 +1,22 @@
 import { useState, useEffect, useCallback } from 'react';
+import { PresetFilter } from '../types';
 
 interface UserPreferences {
-  // View-specific filter preferences
-  planner_assignee_filter?: number[];
-  planner_category_filter?: number[];
-  planner_status_filter?: string[];
-  tracker_assignee_filter?: number[];
-  tracker_category_filter?: number[];
-  tracker_status_filter?: string[];
-  
-  // Legacy global preferences (for backward compatibility)
-  assignee_filter?: number[];
-  category_filter?: number[];
-  status_filter?: string[];
+  // Preset filters (stored as individual preference keys)
+  // Each preset is stored as: { key: preset_name, value: PresetFilter }
   
   // Other preferences
   sort_field?: string;
   sort_direction?: 'asc' | 'desc';
   column_visibility?: Record<string, boolean>;
-  show_completed?: boolean;
   [key: string]: any; // Allow for future preference types
 }
 
 interface UseUserPreferencesReturn {
   preferences: UserPreferences;
   savePreference: (key: string, value: any) => Promise<void>;
-  saveViewPreference: (viewMode: 'planner' | 'tracker', filterType: 'assignee' | 'category' | 'status', value: any) => Promise<void>;
-  getViewPreference: (viewMode: 'planner' | 'tracker', filterType: 'assignee' | 'category' | 'status') => any;
+  getPresetFilters: (viewMode: 'planner' | 'tracker') => PresetFilter[];
+  updatePresetFilter: (presetKey: string, enabled: boolean) => Promise<void>;
   loading: boolean;
   error: string | null;
 }
@@ -87,21 +77,44 @@ const useUserPreferences = (workspaceId: number): UseUserPreferencesReturn => {
     }
   };
 
-  const saveViewPreference = async (viewMode: 'planner' | 'tracker', filterType: 'assignee' | 'category' | 'status', value: any) => {
-    const key = `${viewMode}_${filterType}_filter`;
-    await savePreference(key, value);
-  };
-
-  const getViewPreference = useCallback((viewMode: 'planner' | 'tracker', filterType: 'assignee' | 'category' | 'status') => {
-    const key = `${viewMode}_${filterType}_filter`;
-    return preferences[key];
+  const getPresetFilters = useCallback((viewMode: 'planner' | 'tracker'): PresetFilter[] => {
+    const presetKeys = [
+      'hide_completed', 'assigned_to_me', 'due_in_7_days', 'overdue_tasks', 'high_urgent_priority',
+      'active_past_7_days', 'unchanged_past_14_days', 'lasted_more_than_1_day'
+    ];
+    
+    return presetKeys
+      .filter(key => {
+        const preset = preferences[key];
+        return preset && preset.view === viewMode;
+      })
+      .map(key => {
+        const preset = preferences[key];
+        return {
+          key,
+          enabled: preset.enabled,
+          type: preset.type,
+          view: preset.view,
+          logic: preset.logic
+        };
+      });
   }, [preferences]);
+
+  const updatePresetFilter = async (presetKey: string, enabled: boolean) => {
+    const currentPreset = preferences[presetKey];
+    if (currentPreset) {
+      await savePreference(presetKey, {
+        ...currentPreset,
+        enabled
+      });
+    }
+  };
 
   useEffect(() => {
     loadPreferences();
   }, [workspaceId]);
 
-  return { preferences, savePreference, saveViewPreference, getViewPreference, loading, error };
+  return { preferences, savePreference, getPresetFilters, updatePresetFilter, loading, error };
 };
 
 export default useUserPreferences;

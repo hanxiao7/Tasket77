@@ -18,8 +18,7 @@ function MainApp() {
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<number | undefined>(undefined);
   const [filters, setFilters] = useState<TaskFilters>({
     view: 'planner',
-    show_completed: false,
-    days: 7,
+    presets: ['hide_completed'], // Default presets
     grouping: 'none' // Default to no grouping for planner
   });
   const [currentTasks, setCurrentTasks] = useState<Task[]>([]);
@@ -28,7 +27,7 @@ function MainApp() {
   const { user } = useAuth();
 
   // User preferences hook
-  const { preferences, savePreference, saveViewPreference, getViewPreference, loading: preferencesLoading } = useUserPreferences(selectedWorkspaceId || 0);
+  const { preferences, savePreference, getPresetFilters, updatePresetFilter, loading: preferencesLoading } = useUserPreferences(selectedWorkspaceId || 0);
 
   // Load workspaces on component mount
   useEffect(() => {
@@ -59,46 +58,39 @@ function MainApp() {
     }
   }, [user]); // Removed selectedWorkspaceId from dependencies to prevent infinite loops
 
-  // Sync view-specific preferences with filters when preferences load or view changes
+  // Load preset filters when view changes
   useEffect(() => {
-    // Don't update filters while preferences are still loading
-    if (preferencesLoading) return;
+    if (preferencesLoading || !selectedWorkspaceId) return;
     
-    const assigneeFilter = preferences[`${viewMode}_assignee_filter`];
-    const categoryFilter = preferences[`${viewMode}_category_filter`];
-    const statusFilter = preferences[`${viewMode}_status_filter`];
-    
-    setFilters(prev => {
-      // Only update if the values are actually different to prevent unnecessary re-renders
-      if (prev.assignee_ids !== assigneeFilter || 
-          prev.category_ids !== categoryFilter || 
-          prev.statuses !== statusFilter) {
-        return {
-          ...prev,
-          assignee_ids: assigneeFilter,
-          category_ids: categoryFilter,
-          statuses: statusFilter
-        };
+    const loadPresetFilters = async () => {
+      try {
+        const response = await fetch(`/api/user-preferences/${selectedWorkspaceId}`, {
+          credentials: 'include'
+        });
+        
+        if (response.ok) {
+          const preferences = await response.json();
+          const enabledPresets = Object.entries(preferences)
+            .filter(([key, value]: [string, any]) => {
+              return value && value.view === viewMode && value.enabled;
+            })
+            .map(([key]) => key);
+          
+          setFilters(prev => ({
+            ...prev,
+            presets: enabledPresets
+          }));
+        }
+      } catch (error) {
+        console.error('Error loading preset filters:', error);
       }
-      return prev;
-    });
-  }, [viewMode, preferences, preferencesLoading]);
+    };
+    
+    loadPresetFilters();
+  }, [viewMode, selectedWorkspaceId, preferencesLoading]);
 
   const handleFiltersChange = async (newFilters: TaskFilters) => {
     setFilters(newFilters);
-    
-    // Save view-specific filter preferences
-    if (selectedWorkspaceId) {
-      if (newFilters.assignee_ids !== filters.assignee_ids) {
-        await saveViewPreference(viewMode, 'assignee', newFilters.assignee_ids);
-      }
-      if (newFilters.category_ids !== filters.category_ids) {
-        await saveViewPreference(viewMode, 'category', newFilters.category_ids);
-      }
-      if (newFilters.statuses !== filters.statuses) {
-        await saveViewPreference(viewMode, 'status', newFilters.statuses);
-      }
-    }
   };
 
   const handleWorkspaceChange = (workspaceId: number) => {
@@ -223,7 +215,7 @@ function MainApp() {
               <button
                 onClick={() => {
                   setViewMode('planner');
-                  setFilters({ ...filters, view: 'planner', show_completed: false, grouping: 'none' });
+                  setFilters({ ...filters, view: 'planner', presets: ['hide_completed'], grouping: 'none' });
                 }}
                 className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex-1 ${
                   viewMode === 'planner'
@@ -236,7 +228,7 @@ function MainApp() {
               <button
                 onClick={() => {
                   setViewMode('tracker');
-                  setFilters({ ...filters, view: 'tracker', show_completed: true, grouping: 'category' });
+                  setFilters({ ...filters, view: 'tracker', presets: ['active_past_7_days'], grouping: 'category' });
                 }}
                 className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex-1 ${
                   viewMode === 'tracker'
@@ -262,22 +254,6 @@ function MainApp() {
                   />
                 )}
                 
-                {/* Days filter for tracker */}
-                {viewMode === 'tracker' && (
-                  <select
-                    value={filters.days || 7}
-                    onChange={(e) => setFilters({ ...filters, days: Number(e.target.value) })}
-                    className="px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    title="Filter by days"
-                  >
-                    <option value={1}>1 day</option>
-                    <option value={3}>3 days</option>
-                    <option value={7}>7 days</option>
-                    <option value={14}>14 days</option>
-                    <option value={30}>30 days</option>
-                  </select>
-                )}
-                
                 {/* Grouping selector */}
                 <select
                   value={filters.grouping || 'none'}
@@ -294,25 +270,6 @@ function MainApp() {
               
               {/* Right side: Action buttons */}
               <div className="flex items-center space-x-2">
-                {/* Show completed toggle for planner */}
-                {viewMode === 'planner' && (
-                  <button
-                    onClick={() => setFilters({ ...filters, show_completed: !filters.show_completed })}
-                    className="flex items-center justify-center w-6 h-6 rounded-full transition-colors hover:bg-gray-100"
-                    title={filters.show_completed ? "Hide completed tasks" : "Show completed tasks"}
-                  >
-                    {filters.show_completed ? (
-                      <CheckCircle className="w-4 h-4 text-green-500" />
-                    ) : (
-                      <div className="relative">
-                        <CheckCircle className="w-4 h-4 text-green-500" />
-                        <div className="absolute inset-0 flex items-center justify-center">
-                          <div className="w-5 h-0.5 bg-red-500 transform rotate-45"></div>
-                        </div>
-                      </div>
-                    )}
-                  </button>
-                )}
                 <button
                   onClick={handleSort}
                   className="flex items-center justify-center w-10 h-10 text-gray-600 hover:text-gray-900 hover:bg-white rounded-md transition-colors"
@@ -338,7 +295,7 @@ function MainApp() {
                 <button
                   onClick={() => {
                     setViewMode('planner');
-                    setFilters({ ...filters, view: 'planner', show_completed: false, grouping: 'none' });
+                    setFilters({ ...filters, view: 'planner', presets: ['hide_completed'], grouping: 'none' });
                   }}
                   className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
                     viewMode === 'planner'
@@ -351,7 +308,7 @@ function MainApp() {
                 <button
                   onClick={() => {
                     setViewMode('tracker');
-                    setFilters({ ...filters, view: 'tracker', show_completed: true, grouping: 'category' });
+                    setFilters({ ...filters, view: 'tracker', presets: ['active_past_7_days'], grouping: 'category' });
                   }}
                   className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
                     viewMode === 'tracker'
@@ -374,21 +331,7 @@ function MainApp() {
                   />
                 )}
                 
-                {/* Days filter for tracker */}
-                {viewMode === 'tracker' && (
-                  <select
-                    value={filters.days || 7}
-                    onChange={(e) => setFilters({ ...filters, days: Number(e.target.value) })}
-                    className="px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    title="Filter by days"
-                  >
-                    <option value={1}>1 day</option>
-                    <option value={3}>3 days</option>
-                    <option value={7}>7 days</option>
-                    <option value={14}>14 days</option>
-                    <option value={30}>30 days</option>
-                  </select>
-                )}
+
                 
                 {/* Grouping selector */}
                 <select
@@ -403,25 +346,7 @@ function MainApp() {
                   <option value="category">Category</option>
                   <option value="tag">Tag</option>
                 </select>
-                {/* Show completed toggle for planner */}
-                {viewMode === 'planner' && (
-                  <button
-                    onClick={() => setFilters({ ...filters, show_completed: !filters.show_completed })}
-                    className="flex items-center justify-center w-6 h-6 rounded-full transition-colors hover:bg-gray-100"
-                    title={filters.show_completed ? "Hide completed tasks" : "Show completed tasks"}
-                  >
-                    {filters.show_completed ? (
-                      <CheckCircle className="w-4 h-4 text-green-500" />
-                    ) : (
-                      <div className="relative">
-                        <CheckCircle className="w-4 h-4 text-green-500" />
-                        <div className="absolute inset-0 flex items-center justify-center">
-                          <div className="w-5 h-0.5 bg-red-500 transform rotate-45"></div>
-                        </div>
-                      </div>
-                    )}
-                  </button>
-                )}
+
                 <div className="flex space-x-2">
                   <button
                     onClick={handleSort}

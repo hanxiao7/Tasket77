@@ -79,14 +79,39 @@ export interface UpdateTaskData {
 
 export interface TaskFilters {
   view?: 'planner' | 'tracker';
-  days?: number;
-  category_ids?: number[];
-  statuses?: string[];
-  priority?: Task['priority'];
-  show_completed?: boolean;
   workspace_id?: number;
   grouping?: 'none' | 'status' | 'priority' | 'category' | 'tag';
-  assignee_ids?: number[];
+  
+  // Preset filters (array of enabled preset keys)
+  presets: string[];
+  
+  // Custom filters (for future implementation)
+  customFilters?: FilterGroup[];
+}
+
+export interface FilterGroup {
+  id: string;
+  conditions: FilterCondition[];
+  logic: 'AND' | 'OR';
+}
+
+export interface FilterCondition {
+  field: 'assignee' | 'status' | 'category' | 'priority' | 'due_date' | 'created_date' | 'completion_date' | 'updated_at';
+  operator: 'equals' | 'not_equals' | 'in' | 'not_in' | 'greater_than' | 'less_than' | 'date_range' | 'is_null' | 'is_not_null';
+  values: any[];
+  date_field?: string;
+  date_range?: number;
+}
+
+export interface PresetFilter {
+  key: string;
+  enabled: boolean;
+  type: 'system' | 'user';
+  view: 'planner' | 'tracker';
+  logic: {
+    conditions: FilterCondition[];
+    logic: 'AND' | 'OR';
+  };
 }
 
 export type ViewMode = 'planner' | 'tracker'; 

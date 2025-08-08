@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Filter, X, Users, Tag, Calendar, CheckCircle, Play, Pause, Circle } from 'lucide-react';
-import { TaskFilters } from '../types';
-import { useAuth } from '../contexts/AuthContext';
+import { Filter, X, Plus } from 'lucide-react';
+import { TaskFilters, PresetFilter } from '../types';
 
 interface UniversalFilterProps {
   workspaceId: number;
@@ -9,20 +8,6 @@ interface UniversalFilterProps {
   onFiltersChange: (filters: TaskFilters) => void;
   viewMode: 'planner' | 'tracker';
   className?: string;
-}
-
-interface WorkspaceUser {
-  user_id: number;
-  name: string;
-  email: string;
-  access_level: string;
-}
-
-interface Category {
-  id: number;
-  name: string;
-  workspace_id: number;
-  hidden: boolean;
 }
 
 const UniversalFilter: React.FC<UniversalFilterProps> = ({ 
@@ -33,43 +18,46 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
   className = '' 
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [workspaceUsers, setWorkspaceUsers] = useState<WorkspaceUser[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
+  const [presetFilters, setPresetFilters] = useState<PresetFilter[]>([]);
   const [loading, setLoading] = useState(false);
   const modalRef = useRef<HTMLDivElement>(null);
-  const { user } = useAuth();
-  const currentUserId = user?.id || null;
 
-  // Load workspace users and categories
+  // Load preset filters
   useEffect(() => {
-    const loadData = async () => {
+    const loadPresetFilters = async () => {
       if (!workspaceId) return;
       
       setLoading(true);
       try {
-        const [usersResponse, categoriesResponse] = await Promise.all([
-          fetch(`/api/workspace-users/${workspaceId}`, { credentials: 'include' }),
-          fetch(`/api/categories?workspace_id=${workspaceId}&include_hidden=true`, { credentials: 'include' })
-        ]);
+        const response = await fetch(`/api/user-preferences/${workspaceId}`, {
+          credentials: 'include'
+        });
         
-        if (usersResponse.ok) {
-          const users = await usersResponse.json();
-          setWorkspaceUsers(users);
-        }
-        
-        if (categoriesResponse.ok) {
-          const cats = await categoriesResponse.json();
-          setCategories(cats);
+        if (response.ok) {
+          const preferences = await response.json();
+          const viewPresets = Object.entries(preferences)
+            .filter(([key, value]: [string, any]) => {
+              return value && value.view === viewMode && value.type === 'system';
+            })
+            .map(([key, value]: [string, any]) => ({
+              key,
+              enabled: value.enabled,
+              type: value.type,
+              view: value.view,
+              logic: value.logic
+            }));
+          
+          setPresetFilters(viewPresets);
         }
       } catch (error) {
-        console.error('Error loading filter data:', error);
+        console.error('Error loading preset filters:', error);
       } finally {
         setLoading(false);
       }
     };
 
-    loadData();
-  }, [workspaceId]);
+    loadPresetFilters();
+  }, [workspaceId, viewMode]);
 
   // Close modal when clicking outside
   useEffect(() => {
@@ -86,123 +74,88 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isModalOpen]);
 
-  const selectedAssigneeIds = filters.assignee_ids || [];
-  const selectedCategoryIds = filters.category_ids || [];
-  const selectedStatuses = filters.statuses || [];
+  const handlePresetToggle = async (presetKey: string, enabled: boolean) => {
+    try {
+      const response = await fetch(`/api/user-preferences/${workspaceId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ 
+          key: presetKey, 
+          value: { 
+            ...presetFilters.find(p => p.key === presetKey),
+            enabled 
+          }
+        })
+      });
 
-  const handleAssigneeToggle = (userId: number) => {
-    const newAssigneeIds = selectedAssigneeIds.includes(userId)
-      ? selectedAssigneeIds.filter(id => id !== userId)
-      : [...selectedAssigneeIds, userId];
-    
-    onFiltersChange({
-      ...filters,
-      assignee_ids: newAssigneeIds.length > 0 ? newAssigneeIds : undefined
-    });
-  };
+      if (response.ok) {
+        // Update local state
+        setPresetFilters(prev => 
+          prev.map(preset => 
+            preset.key === presetKey 
+              ? { ...preset, enabled } 
+              : preset
+          )
+        );
 
+        // Update filters
+        const enabledPresets = presetFilters
+          .map(preset => preset.key === presetKey ? { ...preset, enabled } : preset)
+          .filter(preset => preset.enabled)
+          .map(preset => preset.key);
 
-
-  const handleCategoryToggle = (categoryId: number) => {
-    const newCategoryIds = selectedCategoryIds.includes(categoryId)
-      ? selectedCategoryIds.filter(id => id !== categoryId)
-      : [...selectedCategoryIds, categoryId];
-    
-    onFiltersChange({
-      ...filters,
-      category_ids: newCategoryIds.length > 0 ? newCategoryIds : undefined
-    });
-  };
-
-  const handleStatusToggle = (status: string) => {
-    const newStatuses = selectedStatuses.includes(status)
-      ? selectedStatuses.filter(s => s !== status)
-      : [...selectedStatuses, status];
-    
-    onFiltersChange({
-      ...filters,
-      statuses: newStatuses.length > 0 ? newStatuses : undefined
-    });
+        onFiltersChange({
+          ...filters,
+          presets: enabledPresets
+        });
+      }
+    } catch (error) {
+      console.error('Error updating preset filter:', error);
+    }
   };
 
   const getActiveFiltersCount = () => {
-    let count = 0;
-    if (selectedAssigneeIds.length > 0) count++;
-    if (selectedCategoryIds.length > 0) count++;
-    if (selectedStatuses.length > 0) count++;
-    return count;
+    return presetFilters.filter(preset => preset.enabled).length;
   };
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'todo': return <Circle className="w-4 h-4" />;
-      case 'in_progress': return <Play className="w-4 h-4" />;
-      case 'paused': return <Pause className="w-4 h-4" />;
-      case 'done': return <CheckCircle className="w-4 h-4" />;
-      default: return <Circle className="w-4 h-4" />;
-    }
-  };
-
-  const getStatusLabel = (status: string) => {
-    switch (status) {
-      case 'todo': return 'To Do';
-      case 'in_progress': return 'In Progress';
-      case 'paused': return 'Paused';
-      case 'done': return 'Done';
-      default: return status;
-    }
-  };
-
-  // Get view-specific defaults
-  const getViewDefaults = () => {
-    if (viewMode === 'planner') {
-      return {
-        statuses: ['todo', 'in_progress', 'paused'], // exclude 'done' by default
-        assignee_ids: undefined,
-        category_ids: undefined
-      };
-    } else if (viewMode === 'tracker') {
-      return {
-        statuses: ['in_progress', 'paused', 'done'], // exclude 'todo' by default
-        assignee_ids: undefined,
-        category_ids: undefined
-      };
-    }
-    return {
-      statuses: undefined,
-      assignee_ids: undefined,
-      category_ids: undefined
+  const getPresetLabel = (key: string): string => {
+    const labels: Record<string, string> = {
+      'hide_completed': 'Hide completed (default)',
+      'assigned_to_me': 'Assigned to me',
+      'due_in_7_days': 'Due in 7 days',
+      'overdue_tasks': 'Overdue tasks',
+      'high_urgent_priority': 'High/Urgent priority',
+      'active_past_7_days': 'Active in past 7 days (default)',
+      'assigned_to_me_tracker': 'Assigned to me',
+      'unchanged_past_14_days': 'Unchanged in past 14 days',
+      'lasted_more_than_1_day': 'Lasted for more than 1 day'
     };
+    return labels[key] || key;
   };
 
-  // Check if current filters match view defaults
-  const isAtViewDefaults = () => {
-    const defaults = getViewDefaults();
-    const currentStatuses = filters.statuses || [];
-    const defaultStatuses = defaults.statuses || [];
-    
-    // Check if statuses match (order doesn't matter)
-    const statusesMatch = currentStatuses.length === defaultStatuses.length &&
-      currentStatuses.every(status => defaultStatuses.includes(status)) &&
-      defaultStatuses.every(status => currentStatuses.includes(status));
-    
-    // Check if other filters are at defaults (undefined or empty)
-    const assigneesAtDefault = !filters.assignee_ids || filters.assignee_ids.length === 0;
-    const categoriesAtDefault = !filters.category_ids || filters.category_ids.length === 0;
-    
-    return statusesMatch && assigneesAtDefault && categoriesAtDefault;
-  };
-
-  // Reset filters to view defaults
-  const handleResetToDefaults = () => {
-    const defaults = getViewDefaults();
-    onFiltersChange({
-      ...filters,
-      ...defaults
+  // Sort presets: default first, then assigned to me, then others alphabetically
+  const getSortedPresets = (presets: PresetFilter[]): PresetFilter[] => {
+    return presets.sort((a, b) => {
+      const aLabel = getPresetLabel(a.key);
+      const bLabel = getPresetLabel(b.key);
+      
+      // Default presets first
+      const aIsDefault = aLabel.includes('(default)');
+      const bIsDefault = bLabel.includes('(default)');
+      if (aIsDefault && !bIsDefault) return -1;
+      if (!aIsDefault && bIsDefault) return 1;
+      
+      // Assigned to me second
+      const aIsAssignedToMe = aLabel.includes('Assigned to me');
+      const bIsAssignedToMe = bLabel.includes('Assigned to me');
+      if (aIsAssignedToMe && !bIsAssignedToMe) return -1;
+      if (!aIsAssignedToMe && bIsAssignedToMe) return 1;
+      
+      // Then alphabetically
+      return aLabel.localeCompare(bLabel);
     });
   };
-
-
 
   return (
     <>
@@ -244,201 +197,57 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
                 <div className="text-center py-4 text-gray-500">Loading filters...</div>
               ) : (
                 <>
-                                     {/* Assignees Filter */}
-                   <div>
-                     <div className="flex items-center justify-between mb-3">
-                       <div className="flex items-center gap-2">
-                         <Users className="w-4 h-4 text-gray-500" />
-                         <h4 className="font-medium text-gray-900">Assignees</h4>
-                       </div>
-                                               <label className="flex items-center gap-2 text-sm cursor-pointer">
+                  {/* Preset Filters */}
+                  <div>
+                    <h4 className="font-medium text-gray-900 mb-3">Preset Filters</h4>
+                    <div className="space-y-2">
+                      {getSortedPresets(presetFilters).map((preset) => (
+                        <label
+                          key={preset.key}
+                          className="flex items-center gap-2 px-2 py-1 text-sm hover:bg-gray-100 rounded cursor-pointer"
+                        >
                           <input
                             type="checkbox"
-                            checked={selectedAssigneeIds.length === workspaceUsers.length + 1}
-                            onChange={() => {
-                              if (selectedAssigneeIds.length === workspaceUsers.length + 1) {
-                                onFiltersChange({ ...filters, assignee_ids: undefined });
-                              } else {
-                                onFiltersChange({ ...filters, assignee_ids: [-1, ...workspaceUsers.map(u => u.user_id)] });
-                              }
-                            }}
+                            checked={preset.enabled}
+                            onChange={(e) => handlePresetToggle(preset.key, e.target.checked)}
                             className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
                           />
-                          <span className="font-medium text-gray-700">Select All</span>
+                          <span className="truncate">{getPresetLabel(preset.key)}</span>
                         </label>
-                     </div>
-                     
-                     
+                      ))}
+                    </div>
+                  </div>
 
-                                           {/* Individual assignees */}
-                      <div className="space-y-1 max-h-32 overflow-y-auto">
-                        {/* Current user first */}
-                        {currentUserId && workspaceUsers.find(u => u.user_id === currentUserId) && (
-                          <label className="flex items-center gap-2 px-2 py-1 text-sm hover:bg-gray-100 rounded cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={selectedAssigneeIds.includes(currentUserId)}
-                              onChange={() => handleAssigneeToggle(currentUserId)}
-                              className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
-                            />
-                            <span className="truncate font-medium text-blue-600">
-                              {workspaceUsers.find(u => u.user_id === currentUserId)?.name} (You)
-                            </span>
-                          </label>
-                        )}
-                        
-                        {/* Other users sorted alphabetically */}
-                        {workspaceUsers
-                          .filter(user => user.user_id !== currentUserId)
-                          .sort((a, b) => a.name.localeCompare(b.name))
-                          .map((user) => (
-                            <label
-                              key={user.user_id}
-                              className="flex items-center gap-2 px-2 py-1 text-sm hover:bg-gray-100 rounded cursor-pointer"
-                            >
-                              <input
-                                type="checkbox"
-                                checked={selectedAssigneeIds.includes(user.user_id)}
-                                onChange={() => handleAssigneeToggle(user.user_id)}
-                                className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
-                              />
-                              <span className="truncate">{user.name}</span>
-                            </label>
-                          ))}
-                        
-                        {/* None option for unassigned tasks - at the bottom */}
-                        <label className="flex items-center gap-2 px-2 py-1 text-sm hover:bg-gray-100 rounded cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={selectedAssigneeIds.includes(-1)}
-                            onChange={() => handleAssigneeToggle(-1)}
-                            className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
-                          />
-                          <span className="truncate text-gray-500 italic">None (Unassigned)</span>
-                        </label>
-                      </div>
-                   </div>
-
-                                     {/* Categories Filter */}
-                   <div>
-                     <div className="flex items-center justify-between mb-3">
-                       <div className="flex items-center gap-2">
-                         <Tag className="w-4 h-4 text-gray-500" />
-                         <h4 className="font-medium text-gray-900">Categories</h4>
-                       </div>
-                                               <label className="flex items-center gap-2 text-sm cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={selectedCategoryIds.length === categories.filter(cat => !cat.hidden).length + 1}
-                            onChange={() => {
-                              const visibleCategories = categories.filter(cat => !cat.hidden);
-                              if (selectedCategoryIds.length === visibleCategories.length + 1) {
-                                onFiltersChange({ ...filters, category_ids: undefined });
-                              } else {
-                                onFiltersChange({ ...filters, category_ids: [-1, ...visibleCategories.map(c => c.id)] });
-                              }
-                            }}
-                            className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
-                          />
-                          <span className="font-medium text-gray-700">Select All</span>
-                        </label>
-                     </div>
-
-                                           {/* Individual categories */}
-                      <div className="space-y-1 max-h-32 overflow-y-auto">
-                        {categories
-                          .filter(cat => !cat.hidden)
-                          .map((category) => (
-                            <label
-                              key={category.id}
-                              className="flex items-center gap-2 px-2 py-1 text-sm hover:bg-gray-100 rounded cursor-pointer"
-                            >
-                              <input
-                                type="checkbox"
-                                checked={selectedCategoryIds.includes(category.id)}
-                                onChange={() => handleCategoryToggle(category.id)}
-                                className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
-                              />
-                              <span className="truncate">{category.name}</span>
-                            </label>
-                          ))}
-                        
-                        {/* None option for uncategorized tasks - at the bottom */}
-                        <label className="flex items-center gap-2 px-2 py-1 text-sm hover:bg-gray-100 rounded cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={selectedCategoryIds.includes(-1)}
-                            onChange={() => handleCategoryToggle(-1)}
-                            className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
-                          />
-                          <span className="truncate text-gray-500 italic">None (Uncategorized)</span>
-                        </label>
-                      </div>
-                   </div>
-
-                                     {/* Status Filter */}
-                   <div>
-                     <div className="flex items-center justify-between mb-3">
-                       <div className="flex items-center gap-2">
-                         <CheckCircle className="w-4 h-4 text-gray-500" />
-                         <h4 className="font-medium text-gray-900">Status</h4>
-                       </div>
-                       <label className="flex items-center gap-2 text-sm cursor-pointer">
-                         <input
-                           type="checkbox"
-                           checked={selectedStatuses.length === 4}
-                           onChange={() => {
-                             if (selectedStatuses.length === 4) {
-                               onFiltersChange({ ...filters, statuses: undefined });
-                             } else {
-                               onFiltersChange({ ...filters, statuses: ['todo', 'in_progress', 'paused', 'done'] });
-                             }
-                           }}
-                           className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
-                         />
-                         <span className="font-medium text-gray-700">Select All</span>
-                       </label>
-                     </div>
-
-                     {/* Individual statuses */}
-                     <div className="space-y-1">
-                       {['todo', 'in_progress', 'paused', 'done'].map((status) => (
-                         <label
-                           key={status}
-                           className="flex items-center gap-2 px-2 py-1 text-sm hover:bg-gray-100 rounded cursor-pointer"
-                         >
-                           <input
-                             type="checkbox"
-                             checked={selectedStatuses.includes(status)}
-                             onChange={() => handleStatusToggle(status)}
-                             className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
-                           />
-                           <div className="flex items-center gap-2">
-                             {getStatusIcon(status)}
-                             <span>{getStatusLabel(status)}</span>
-                           </div>
-                         </label>
-                       ))}
-                     </div>
-                   </div>
+                  {/* Custom Filters (placeholder for future) */}
+                  <div className="border-t border-gray-200 pt-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="font-medium text-gray-900">Custom Filters</h4>
+                      <button
+                        className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700"
+                        disabled
+                        title="Coming soon"
+                      >
+                        <Plus className="w-4 h-4" />
+                        Add filter
+                      </button>
+                    </div>
+                    <div className="text-sm text-gray-500 italic">
+                      Custom filters coming soon...
+                    </div>
+                  </div>
                 </>
               )}
             </div>
 
-                         {/* Footer */}
-             <div className="flex justify-end p-4 border-t border-gray-200">
-               <button
-                 onClick={handleResetToDefaults}
-                 disabled={isAtViewDefaults()}
-                 className={`px-4 py-2 rounded-md transition-colors ${
-                   isAtViewDefaults()
-                     ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                     : 'bg-blue-600 text-white hover:bg-blue-700'
-                 }`}
-               >
-                 Reset to Default
-               </button>
-             </div>
+            {/* Footer */}
+            <div className="flex justify-end p-4 border-t border-gray-200">
+              <button
+                onClick={() => setIsModalOpen(false)}
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}

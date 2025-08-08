@@ -806,12 +806,14 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
     const groupId = getGroupId(groupName);
     
     // Special handling for completed tasks in status grouping
+    // Check if hide_completed preset is enabled
+    const hideCompletedEnabled = filters.presets?.includes('hide_completed');
     if (groupingMethod === 'status' && groupName === 'Completed') {
-      return filters.show_completed && expandedCategories.has(groupId);
+      return !hideCompletedEnabled && expandedCategories.has(groupId);
     }
     
     return expandedCategories.has(groupId);
-  }, [filters.grouping, viewMode, filters.show_completed, expandedCategories, getGroupId]);
+  }, [filters.grouping, viewMode, filters.presets, expandedCategories, getGroupId]);
 
   // Toggle group expansion
   const toggleGroupExpansion = useCallback((groupName: string) => {

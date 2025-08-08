@@ -335,9 +335,108 @@ app.delete('/api/tags/:id', authenticateToken, async (req, res) => {
   }
 });
 
+// Helper function to build preset filter conditions
+function buildPresetFilterCondition(logic, startParamIndex, params, userId) {
+  if (!logic || !logic.conditions || !Array.isArray(logic.conditions)) {
+    return null;
+  }
+
+  const conditions = [];
+  let paramCount = 0;
+
+  for (const condition of logic.conditions) {
+    const { field, operator, values, date_field, date_range } = condition;
+    
+    switch (field) {
+      case 'status':
+        if (operator === 'equals' && values.includes('done')) {
+          conditions.push('t.status = \'done\'');
+        } else if (operator === 'not_equals' && values.includes('done')) {
+          conditions.push('t.status != \'done\'');
+        } else if (operator === 'in') {
+          conditions.push(`t.status = ANY($${startParamIndex + paramCount})`);
+          params.push(values);
+          paramCount++;
+        }
+        break;
+        
+      case 'assignee':
+        if (operator === 'equals' && values.includes('current_user_id')) {
+          conditions.push(`EXISTS (SELECT 1 FROM task_assignees ta WHERE ta.task_id = t.id AND ta.user_id = $${startParamIndex + paramCount})`);
+          params.push(userId);
+          paramCount++;
+        }
+        break;
+        
+      case 'due_date':
+        if (operator === 'greater_than' && values.includes('now') && date_range) {
+          const futureDate = moment().utc().add(date_range, 'days').format('YYYY-MM-DD');
+          conditions.push(`(t.due_date IS NOT NULL AND t.due_date <= $${startParamIndex + paramCount})`);
+          params.push(futureDate);
+          paramCount++;
+        } else if (operator === 'less_than' && values.includes('today')) {
+          conditions.push(`(t.due_date IS NOT NULL AND t.due_date < $${startParamIndex + paramCount})`);
+          params.push(moment().utc().format('YYYY-MM-DD'));
+          paramCount++;
+        }
+        break;
+        
+      case 'priority':
+        if (operator === 'in') {
+          conditions.push(`t.priority = ANY($${startParamIndex + paramCount})`);
+          params.push(values);
+          paramCount++;
+        }
+        break;
+        
+      case 'completion_date':
+        if (operator === 'equals' && date_range) {
+          const pastDate = moment().utc().subtract(date_range, 'days').format('YYYY-MM-DD');
+          conditions.push(`(t.status = 'done' AND t.completion_date IS NOT NULL AND t.completion_date >= $${startParamIndex + paramCount})`);
+          params.push(pastDate);
+          paramCount++;
+        } else if (operator === 'is_not_null') {
+          conditions.push('t.completion_date IS NOT NULL');
+        }
+        break;
+        
+      case 'updated_at':
+      case 'last_modified':
+        if (operator === 'less_than' && values.includes('now') && date_range) {
+          const pastDate = moment().utc().subtract(date_range, 'days').format('YYYY-MM-DD HH:mm:ss');
+          conditions.push(`t.last_modified < $${startParamIndex + paramCount}`);
+          params.push(pastDate);
+          paramCount++;
+        }
+        break;
+        
+      case 'start_date':
+        if (operator === 'is_not_null') {
+          conditions.push('t.start_date IS NOT NULL');
+        }
+        break;
+        
+      case 'duration':
+        if (operator === 'greater_than' && values.length > 0 && date_field === 'days') {
+          conditions.push(`(t.completion_date - t.start_date) > $${startParamIndex + paramCount}`);
+          params.push(values[0]);
+          paramCount++;
+        }
+        break;
+    }
+  }
+
+  if (conditions.length === 0) {
+    return null;
+  }
+
+  const query = logic.logic === 'OR' ? conditions.join(' OR ') : conditions.join(' AND ');
+  return { query: `(${query})`, paramCount };
+}
+
 // Get tasks with optional filters
 app.get('/api/tasks', authenticateToken, async (req, res) => {
-  const { view, days, category_ids, statuses, priority, show_completed, workspace_id, assignee_ids } = req.query;
+  const { view, presets, workspace_id } = req.query;
   let query = `
     SELECT t.*, c.name as category_name, tg.name as tag_name,
            COALESCE(
@@ -362,96 +461,50 @@ app.get('/api/tasks', authenticateToken, async (req, res) => {
   `;
   const params = [req.user.userId];
   let paramIndex = 2;
+  
   if (workspace_id) {
     query += ` AND t.workspace_id = $${paramIndex}`;
     params.push(workspace_id);
     paramIndex++;
   }
-  if (view === 'planner' && show_completed !== 'true') {
-    query += ' AND t.status != \'done\'';
-  } else if (view === 'tracker' && days) {
-    query += ` AND (t.completion_date >= $${paramIndex} OR t.status IN ('in_progress', 'paused'))`;
-    const daysAgo = moment().utc().subtract(parseInt(days), 'days').format('YYYY-MM-DD');
-    params.push(daysAgo);
-    paramIndex++;
-  }
-  // Handle multi-category filter
-  if (category_ids) {
+
+  // Apply preset filters
+  if (presets) {
     try {
-      const categoryIds = JSON.parse(category_ids);
-      if (Array.isArray(categoryIds) && categoryIds.length > 0) {
-        // Handle "None" option (-1) and regular categories
-        const hasNoneOption = categoryIds.includes(-1);
-        const regularCategoryIds = categoryIds.filter(id => id !== -1);
+      const presetArray = JSON.parse(presets);
+      if (Array.isArray(presetArray) && presetArray.length > 0) {
+        // Load user preferences to get preset logic
+        const preferencesResult = await pool.query(
+          'SELECT preference_key, preference_value FROM user_preferences WHERE user_id = $1 AND workspace_id = $2',
+          [req.user.userId, workspace_id]
+        );
         
-        if (hasNoneOption && regularCategoryIds.length > 0) {
-          // Show tasks with no category OR with specified categories
-          query += ` AND (t.category_id IS NULL OR t.category_id = ANY($${paramIndex}))`;
-          params.push(regularCategoryIds);
-          paramIndex++;
-        } else if (hasNoneOption) {
-          // Show only tasks with no category
-          query += ` AND t.category_id IS NULL`;
-        } else {
-          // Show tasks with specified categories
-          query += ` AND t.category_id = ANY($${paramIndex})`;
-          params.push(regularCategoryIds);
-          paramIndex++;
+        const preferences = {};
+        preferencesResult.rows.forEach(row => {
+          preferences[row.preference_key] = JSON.parse(row.preference_value);
+        });
+
+        // Build filter conditions for enabled presets
+        const filterConditions = [];
+        
+        for (const presetKey of presetArray) {
+          const preset = preferences[presetKey];
+                     if (preset && preset.enabled && preset.view === view) {
+             const condition = buildPresetFilterCondition(preset.logic, paramIndex, params, req.user.userId);
+             if (condition) {
+               filterConditions.push(condition);
+               paramIndex += condition.paramCount;
+             }
+           }
+        }
+
+        // Combine all preset conditions with AND logic
+        if (filterConditions.length > 0) {
+          query += ` AND (${filterConditions.map(c => c.query).join(' AND ')})`;
         }
       }
     } catch (e) {
-      console.error('Error parsing category_ids:', e);
-    }
-  }
-  // Handle multi-status filter
-  if (statuses) {
-    try {
-      const statusArray = JSON.parse(statuses);
-      if (Array.isArray(statusArray) && statusArray.length > 0) {
-        query += ` AND t.status = ANY($${paramIndex})`;
-        params.push(statusArray);
-        paramIndex++;
-      }
-    } catch (e) {
-      console.error('Error parsing statuses:', e);
-    }
-  }
-  if (priority) {
-    query += ` AND t.priority = $${paramIndex}`;
-    params.push(priority);
-    paramIndex++;
-  }
-  if (assignee_ids) {
-    try {
-      const assigneeIds = JSON.parse(assignee_ids);
-      if (Array.isArray(assigneeIds) && assigneeIds.length > 0) {
-        // Handle "None" option (-1) and regular assignees
-        const hasNoneOption = assigneeIds.includes(-1);
-        const regularAssigneeIds = assigneeIds.filter(id => id !== -1);
-        
-        if (hasNoneOption && regularAssigneeIds.length > 0) {
-          // Show tasks with no assignees OR with specified assignees
-          query += ` AND (
-            NOT EXISTS (SELECT 1 FROM task_assignees ta WHERE ta.task_id = t.id)
-            OR EXISTS (SELECT 1 FROM task_assignees ta WHERE ta.task_id = t.id AND ta.user_id = ANY($${paramIndex}))
-          )`;
-          params.push(regularAssigneeIds);
-          paramIndex++;
-        } else if (hasNoneOption) {
-          // Show only tasks with no assignees
-          query += ` AND NOT EXISTS (SELECT 1 FROM task_assignees ta WHERE ta.task_id = t.id)`;
-        } else {
-          // Show tasks with specified assignees
-          query += ` AND EXISTS (
-            SELECT 1 FROM task_assignees ta 
-            WHERE ta.task_id = t.id AND ta.user_id = ANY($${paramIndex})
-          )`;
-          params.push(regularAssigneeIds);
-          paramIndex++;
-        }
-      }
-    } catch (e) {
-      console.error('Error parsing assignee_ids:', e);
+      console.error('Error parsing presets:', e);
     }
   }
   if (view === 'planner') {
@@ -1376,6 +1429,141 @@ app.get('/api/workspaces', authenticateToken, async (req, res) => {
   }
 });
 
+// Helper function to create default presets for a user in a workspace
+async function createDefaultPresets(userId, workspaceId) {
+  const defaultPresets = [
+    {
+      key: 'hide_completed',
+      value: {
+        enabled: true,
+        type: 'system',
+        view: 'planner',
+        logic: {
+          conditions: [{ field: 'status', operator: 'not_equals', values: ['done'] }],
+          logic: 'AND'
+        }
+      }
+    },
+    {
+      key: 'assigned_to_me',
+      value: {
+        enabled: false,
+        type: 'system',
+        view: 'planner',
+        logic: {
+          conditions: [{ field: 'assignee', operator: 'equals', values: ['current_user_id'] }],
+          logic: 'AND'
+        }
+      }
+    },
+    {
+      key: 'due_in_7_days',
+      value: {
+        enabled: false,
+        type: 'system',
+        view: 'planner',
+        logic: {
+          conditions: [{ field: 'due_date', operator: 'greater_than', values: ['now'], date_range: 7 }],
+          logic: 'AND'
+        }
+      }
+    },
+    {
+      key: 'overdue_tasks',
+      value: {
+        enabled: false,
+        type: 'system',
+        view: 'planner',
+        logic: {
+          conditions: [
+            { field: 'due_date', operator: 'less_than', values: ['today'] },
+            { field: 'status', operator: 'not_equals', values: ['done'] }
+          ],
+          logic: 'AND'
+        }
+      }
+    },
+    {
+      key: 'high_urgent_priority',
+      value: {
+        enabled: false,
+        type: 'system',
+        view: 'planner',
+        logic: {
+          conditions: [{ field: 'priority', operator: 'in', values: ['high', 'urgent'] }],
+          logic: 'AND'
+        }
+      }
+    },
+    {
+      key: 'active_past_7_days',
+      value: {
+        enabled: true,
+        type: 'system',
+        view: 'tracker',
+        logic: {
+          conditions: [
+            { field: 'status', operator: 'in', values: ['in_progress', 'paused'] },
+            { field: 'completion_date', operator: 'equals', values: ['done'], date_range: 7 }
+          ],
+          logic: 'OR'
+        }
+      }
+    },
+    {
+      key: 'unchanged_past_14_days',
+      value: {
+        enabled: false,
+        type: 'system',
+        view: 'tracker',
+        logic: {
+          conditions: [
+            { field: 'status', operator: 'not_equals', values: ['done'] },
+            { field: 'last_modified', operator: 'less_than', values: ['now'], date_range: 14 }
+          ],
+          logic: 'AND'
+        }
+      }
+    },
+    {
+      key: 'lasted_more_than_1_day',
+      value: {
+        enabled: false,
+        type: 'system',
+        view: 'tracker',
+        logic: {
+          conditions: [
+            { field: 'status', operator: 'equals', values: ['done'] },
+            { field: 'completion_date', operator: 'is_not_null', values: [] },
+            { field: 'start_date', operator: 'is_not_null', values: [] },
+            { field: 'duration', operator: 'greater_than', values: [1], date_field: 'days' }
+          ],
+          logic: 'AND'
+        }
+      }
+    },
+    {
+      key: 'assigned_to_me_tracker',
+      value: {
+        enabled: false,
+        type: 'system',
+        view: 'tracker',
+        logic: {
+          conditions: [{ field: 'assignee', operator: 'equals', values: ['current_user_id'] }],
+          logic: 'AND'
+        }
+      }
+    }
+  ];
+
+  for (const preset of defaultPresets) {
+    await pool.query(
+      'INSERT INTO user_preferences (user_id, workspace_id, preference_key, preference_value) VALUES ($1, $2, $3, $4) ON CONFLICT (user_id, workspace_id, preference_key) DO NOTHING',
+      [userId, workspaceId, preset.key, JSON.stringify(preset.value)]
+    );
+  }
+}
+
 // Create new workspace
 app.post('/api/workspaces', authenticateToken, async (req, res) => {
   const { name, description } = req.body;
@@ -1418,6 +1606,10 @@ app.post('/api/workspaces', authenticateToken, async (req, res) => {
     );
     
     await client.query('COMMIT');
+    
+    // Create default presets for the creator
+    await createDefaultPresets(req.user.userId, result.rows[0].id);
+    
     res.json(result.rows[0]);
   } catch (err) {
     await client.query('ROLLBACK');
