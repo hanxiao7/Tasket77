@@ -31,6 +31,21 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
   const [categories, setCategories] = useState<Category[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
 
+  // Single-field custom filter state
+  type SingleMode = 'none' | 'assignee' | 'category' | 'tag' | 'status' | 'priority' | 'date_range' | 'date_diff' | 'null_is' | 'null_is_not';
+  const [singleMode, setSingleMode] = useState<SingleMode>('none');
+  const [singleValues, setSingleValues] = useState<any[]>([]);
+  const [singleIncludeNull, setSingleIncludeNull] = useState<boolean>(false);
+  const [rangeField, setRangeField] = useState<'due_date' | 'completion_date' | 'created_date' | 'last_modified' | 'start_date'>('due_date');
+  const [rangeStart, setRangeStart] = useState<string>('');
+  const [rangeEnd, setRangeEnd] = useState<string>('');
+  const [nullField, setNullField] = useState<'assignee' | 'status' | 'category' | 'tag' | 'priority' | 'due_date' | 'created_date' | 'completion_date' | 'last_modified' | 'start_date'>('due_date');
+  const [nullOperator, setNullOperator] = useState<'is_null' | 'is_not_null'>('is_null');
+  const [diffFrom, setDiffFrom] = useState<'due_date' | 'completion_date' | 'created_date' | 'last_modified' | 'start_date' | 'today'>('created_date');
+  const [diffTo, setDiffTo] = useState<'due_date' | 'completion_date' | 'created_date' | 'last_modified' | 'start_date' | 'today'>('today');
+  const [diffCmp, setDiffCmp] = useState<'lt' | 'le' | 'eq' | 'ge' | 'gt'>('le');
+  const [diffDays, setDiffDays] = useState<number>(0);
+
   // Load preset filters
   useEffect(() => {
     const loadPresetFilters = async () => {
@@ -96,6 +111,52 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
       setCustomLogic('AND');
     }
   }, [filters.customFilters, filters.customFiltersLogic]);
+
+  // Initialize single-mode UI from existing customFilters when possible
+  useEffect(() => {
+    const group = filters.customFilters?.[0];
+    const cond = group?.conditions?.[0];
+    if (!cond) {
+      setSingleMode('none');
+      setSingleValues([]);
+      setSingleIncludeNull(false);
+      setRangeField('due_date');
+      setRangeStart('');
+      setRangeEnd('');
+      setNullField('due_date');
+      setNullOperator('is_null');
+      setDiffFrom('created_date');
+      setDiffTo('today');
+      setDiffCmp('le');
+      setDiffDays(0);
+      return;
+    }
+    // Prefer operator-first interpretation so null/date-diff/range take precedence over field type
+    if (cond.operator === 'is_null' || cond.operator === 'is_not_null') {
+      setSingleMode(cond.operator === 'is_null' ? 'null_is' : 'null_is_not');
+      setNullField(cond.field as any);
+      setNullOperator(cond.operator);
+    } else if (cond.operator === 'between') {
+      setSingleMode('date_range');
+      setRangeField(cond.field as any);
+      setRangeStart((cond.values?.[0] as string) || '');
+      setRangeEnd((cond.values?.[1] as string) || '');
+    } else if (cond.operator === 'date_diff') {
+      setSingleMode('date_diff');
+      setDiffFrom((cond.date_field as any) || 'created_date');
+      setDiffTo((cond.date_field_2 as any) || 'today');
+      setDiffCmp((cond.comparator as any) || 'le');
+      setDiffDays(cond.days || 0);
+    } else {
+      if (['assignee', 'category', 'tag', 'status', 'priority'].includes(cond.field)) {
+        setSingleMode(cond.field as SingleMode);
+        setSingleValues(Array.isArray(cond.values) ? cond.values : []);
+        setSingleIncludeNull(!!cond.includeNull);
+      } else {
+        setSingleMode('none');
+      }
+    }
+  }, [filters.customFilters]);
 
   // Load option lists for categorical pickers
   useEffect(() => {
@@ -194,43 +255,63 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
   };
 
   // Custom filter handlers
-  const addGroup = () => {
-    setCustomGroups(prev => [...prev, { id: crypto.randomUUID(), conditions: [], logic: 'AND' }]);
-  };
-
-  const removeGroup = (groupId: string) => {
-    setCustomGroups(prev => prev.filter(g => g.id !== groupId));
-  };
-
-  const addCondition = (groupId: string) => {
-    setCustomGroups(prev => prev.map(g => g.id === groupId ? {
-      ...g,
-      conditions: [...g.conditions, { field: 'status', operator: 'in', values: [] }]
-    } : g));
-  };
-
-  const updateCondition = (groupId: string, index: number, partial: Partial<FilterCondition>) => {
-    setCustomGroups(prev => prev.map(g => g.id === groupId ? {
-      ...g,
-      conditions: g.conditions.map((c, i) => i === index ? { ...c, ...partial } : c)
-    } : g));
-  };
-
-  const removeCondition = (groupId: string, index: number) => {
-    setCustomGroups(prev => prev.map(g => g.id === groupId ? {
-      ...g,
-      conditions: g.conditions.filter((_, i) => i !== index)
-    } : g));
-  };
-
   const clearCustom = () => {
-    setCustomGroups([]);
-    setCustomLogic('AND');
+    setSingleMode('none');
+    setSingleValues([]);
+    setSingleIncludeNull(false);
+    setRangeField('due_date');
+    setRangeStart('');
+    setRangeEnd('');
+    setNullField('due_date');
+    setNullOperator('is_null');
+    setDiffFrom('created_date');
+    setDiffTo('today');
+    setDiffCmp('le');
+    setDiffDays(0);
     onFiltersChange({ ...filters, customFilters: undefined, customFiltersLogic: undefined });
   };
 
   const applyCustom = () => {
-    onFiltersChange({ ...filters, customFilters: customGroups, customFiltersLogic: customLogic });
+    let condition: FilterCondition | null = null;
+    if (['assignee', 'category', 'tag', 'status', 'priority'].includes(singleMode)) {
+      condition = {
+        field: singleMode as any,
+        operator: 'in',
+        values: singleValues,
+        includeNull: ['assignee', 'category', 'tag'].includes(singleMode) ? singleIncludeNull : undefined,
+      } as FilterCondition;
+    } else if (singleMode === 'date_range') {
+      if (rangeStart && rangeEnd) {
+        condition = {
+          field: rangeField,
+          operator: 'between',
+          values: [rangeStart, rangeEnd],
+        } as FilterCondition;
+      }
+    } else if (singleMode === 'null_is' || singleMode === 'null_is_not') {
+      condition = {
+        field: nullField as any,
+        operator: singleMode === 'null_is' ? 'is_null' : 'is_not_null',
+        values: [],
+      } as FilterCondition;
+    } else if (singleMode === 'date_diff') {
+      condition = {
+        field: 'created_date',
+        operator: 'date_diff',
+        values: [],
+        date_field: diffFrom,
+        date_field_2: diffTo,
+        comparator: diffCmp,
+        days: diffDays,
+      } as FilterCondition;
+    }
+
+    if (condition) {
+      const group: FilterGroup = { id: 'single', logic: 'AND', conditions: [condition] };
+      onFiltersChange({ ...filters, customFilters: [group], customFiltersLogic: 'AND' });
+    } else {
+      onFiltersChange({ ...filters, customFilters: undefined, customFiltersLogic: undefined });
+    }
   };
 
   // Sort presets: default first, then assigned to me, then others alphabetically
@@ -262,34 +343,34 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
   const statusOptions = ['todo', 'in_progress', 'paused', 'done'];
   const priorityOptions = ['urgent', 'high', 'normal', 'low'];
 
-  const renderCategoricalEditor = (groupId: string, idx: number, cond: FilterCondition) => {
+  const renderCategoricalSingle = () => {
     let options: Array<{ value: number | string; label: string }> = [];
-    if (cond.field === 'assignee') {
+    if (singleMode === 'assignee') {
       options = workspaceUsers.map(u => ({ value: u.user_id, label: u.name || `User ${u.user_id}` }));
-    } else if (cond.field === 'category') {
+    } else if (singleMode === 'category') {
       options = categories.map(c => ({ value: c.id, label: c.name }));
-    } else if (cond.field === 'tag') {
+    } else if (singleMode === 'tag') {
       options = tags.map(t => ({ value: t.id, label: t.name }));
-    } else if (cond.field === 'status') {
+    } else if (singleMode === 'status') {
       options = statusOptions.map(s => ({ value: s, label: s.replace('_', ' ') }));
-    } else if (cond.field === 'priority') {
+    } else if (singleMode === 'priority') {
       options = priorityOptions.map(p => ({ value: p, label: p }));
     }
 
-    const allSelected = options.length > 0 && Array.isArray(cond.values) && cond.values.length === options.length;
+    const allSelected = options.length > 0 && Array.isArray(singleValues) && singleValues.length === options.length;
     const toggleSelectAll = () => {
-      updateCondition(groupId, idx, { operator: 'in', values: allSelected ? [] : options.map(o => o.value) });
+      setSingleValues(allSelected ? [] : options.map(o => o.value));
     };
     const toggleValue = (val: number | string) => {
-      const current = Array.isArray(cond.values) ? [...cond.values] : [];
+      const current = Array.isArray(singleValues) ? [...singleValues] : [];
       const next = current.includes(val) ? current.filter(v => v !== val) : [...current, val];
-      updateCondition(groupId, idx, { operator: 'in', values: next });
+      setSingleValues(next);
     };
 
     return (
       <div className="w-full">
         <div className="flex items-center justify-between mb-1">
-          <span className="text-xs text-gray-600">Select values</span>
+          {/* <span className="text-xs text-gray-600">Select values</span> */}
           <label className="flex items-center gap-1 text-xs cursor-pointer">
             <input type="checkbox" className="w-4 h-4" checked={allSelected} onChange={toggleSelectAll} />
             <span>Select all</span>
@@ -301,20 +382,20 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
               <input
                 type="checkbox"
                 className="w-4 h-4"
-                checked={Array.isArray(cond.values) && cond.values.includes(opt.value)}
+                checked={Array.isArray(singleValues) && singleValues.includes(opt.value)}
                 onChange={() => toggleValue(opt.value)}
               />
               <span className="truncate">{opt.label}</span>
             </label>
           ))}
           {/* None at bottom */}
-          {['assignee', 'category', 'tag'].includes(cond.field) && (
+          {['assignee', 'category', 'tag'].includes(singleMode) && (
             <label className="flex items-center gap-2 px-2 py-1 text-sm border-t hover:bg-gray-50">
               <input
                 type="checkbox"
                 className="w-4 h-4"
-                checked={!!cond.includeNull}
-                onChange={() => updateCondition(groupId, idx, { includeNull: !cond.includeNull })}
+                checked={!!singleIncludeNull}
+                onChange={() => setSingleIncludeNull(!singleIncludeNull)}
               />
               <span className="truncate italic text-gray-600">None</span>
             </label>
@@ -324,86 +405,68 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
     );
   };
 
-  const renderDateEditor = (groupId: string, idx: number, cond: FilterCondition) => {
-    const mode: 'range' | 'diff' | 'null' = cond.operator === 'between' ? 'range' : (cond.operator === 'date_diff' ? 'diff' : (cond.operator === 'is_null' || cond.operator === 'is_not_null') ? 'null' : 'range');
-    const setMode = (m: 'range' | 'diff' | 'null') => {
-      if (m === 'range') updateCondition(groupId, idx, { operator: 'between', values: ['', ''] });
-      if (m === 'diff') updateCondition(groupId, idx, { operator: 'date_diff', date_field: cond.field as any, date_field_2: 'today', comparator: 'le', days: 0 });
-      if (m === 'null') updateCondition(groupId, idx, { operator: 'is_null' });
-    };
-    const dateFieldSelect = (
-      <select value={cond.field} onChange={e => updateCondition(groupId, idx, { field: e.target.value as any })} className="border rounded px-2 py-1">
-        {dateFields.map(f => (
-          <option key={f} value={f}>{f.replace('_', ' ')}</option>
-        ))}
-      </select>
-    );
+  const renderDateRangeSingle = () => (
+    <div className="w-full space-y-2">
+      <div className="flex items-center gap-2">
+        <select value={rangeField} onChange={e => setRangeField(e.target.value as any)} className="border rounded px-2 py-1">
+          {dateFields.map(f => (
+            <option key={f} value={f}>{f.replace('_', ' ')}</option>
+          ))}
+        </select>
+        <input type="date" value={rangeStart} onChange={e => setRangeStart(e.target.value)} className="border rounded px-2 py-1" />
+        <span className="text-sm">to</span>
+        <input type="date" value={rangeEnd} onChange={e => setRangeEnd(e.target.value)} className="border rounded px-2 py-1" />
+      </div>
+    </div>
+  );
 
-    return (
-      <div className="w-full space-y-2">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-xs text-gray-600">Mode</span>
-          <select value={mode} onChange={e => setMode(e.target.value as any)} className="border rounded px-2 py-1 text-sm">
-            <option value="range">Date range</option>
-            <option value="diff">Date difference</option>
-            <option value="null">Null check</option>
+  const renderNullCheckSingle = () => (
+    <div className="w-full">
+      <div className="flex items-center gap-2">
+        <div className="w-1/2">
+          <select value={singleMode} onChange={e => setSingleMode(e.target.value as any)} className="w-full text-sm border rounded px-2 py-1">
+            <option value="null_is">Is null</option>
+            <option value="null_is_not">Is not null</option>
           </select>
         </div>
-
-        {mode === 'range' && (
-          <div className="flex items-center gap-2">
-            {dateFieldSelect}
-            <input type="date" value={(cond.values?.[0] as string) || ''} onChange={e => {
-              const next = [...(cond.values || ['', ''])];
-              next[0] = e.target.value;
-              updateCondition(groupId, idx, { operator: 'between', values: next });
-            }} className="border rounded px-2 py-1" />
-            <span className="text-sm">to</span>
-            <input type="date" value={(cond.values?.[1] as string) || ''} onChange={e => {
-              const next = [...(cond.values || ['', ''])];
-              next[1] = e.target.value;
-              updateCondition(groupId, idx, { operator: 'between', values: next });
-            }} className="border rounded px-2 py-1" />
-          </div>
-        )}
-
-        {mode === 'diff' && (
-          <div className="flex items-center gap-2 flex-wrap">
-            <select value={cond.date_field || cond.field} onChange={e => updateCondition(groupId, idx, { date_field: e.target.value as any })} className="border rounded px-2 py-1">
-              {[...dateFields, 'today'].map(f => (
-                <option key={f} value={f}>{String(f).replace('_', ' ')}</option>
-              ))}
-            </select>
-            <span>−</span>
-            <select value={cond.date_field_2 || 'today'} onChange={e => updateCondition(groupId, idx, { date_field_2: e.target.value as any })} className="border rounded px-2 py-1">
-              {[...dateFields, 'today'].map(f => (
-                <option key={f} value={f}>{String(f).replace('_', ' ')}</option>
-              ))}
-            </select>
-            <select value={cond.comparator || 'le'} onChange={e => updateCondition(groupId, idx, { comparator: e.target.value as any })} className="border rounded px-2 py-1">
-              <option value="lt">&lt;</option>
-              <option value="le">&le;</option>
-              <option value="eq">=</option>
-              <option value="ge">&ge;</option>
-              <option value="gt">&gt;</option>
-            </select>
-            <input type="number" min={0} value={cond.days ?? 0} onChange={e => updateCondition(groupId, idx, { days: Number(e.target.value) })} className="w-20 border rounded px-2 py-1" />
-            <span>days</span>
-          </div>
-        )}
-
-        {mode === 'null' && (
-          <div className="flex items-center gap-2">
-            {dateFieldSelect}
-            <select value={cond.operator} onChange={e => updateCondition(groupId, idx, { operator: e.target.value as any })} className="border rounded px-2 py-1">
-              <option value="is_null">is null</option>
-              <option value="is_not_null">is not null</option>
-            </select>
-          </div>
-        )}
+        <div className="w-1/2">
+          <select value={nullField} onChange={e => setNullField(e.target.value as any)} className="w-full text-sm border rounded px-2 py-1">
+            {[...categoricalFields, ...dateFields].map(f => (
+              <option key={f as any} value={f as any}>{String(f).replace('_', ' ')}</option>
+            ))}
+          </select>
+        </div>
       </div>
-    );
-  };
+    </div>
+  );
+
+  const renderDateDiffSingle = () => (
+    <div className="w-full">
+      <div className="flex items-center gap-2 flex-wrap">
+        <span>From</span>
+        <select value={diffFrom} onChange={e => setDiffFrom(e.target.value as any)} className="border rounded px-2 py-1">
+          {[...dateFields, 'today'].map(f => (
+            <option key={f as any} value={f as any}>{String(f).replace('_', ' ')}</option>
+          ))}
+        </select>
+        <span>to</span>
+        <select value={diffTo} onChange={e => setDiffTo(e.target.value as any)} className="border rounded px-2 py-1">
+          {[...dateFields, 'today'].map(f => (
+            <option key={f as any} value={f as any}>{String(f).replace('_', ' ')}</option>
+          ))}
+        </select>
+        <select value={diffCmp} onChange={e => setDiffCmp(e.target.value as any)} className="border rounded px-2 py-1">
+          <option value="lt">&lt;</option>
+          <option value="le">&le;</option>
+          <option value="eq">=</option>
+          <option value="ge">&ge;</option>
+          <option value="gt">&gt;</option>
+        </select>
+        <input type="number" min={0} value={diffDays} onChange={e => setDiffDays(Number(e.target.value))} className="w-14 border rounded px-2 py-1" />
+        <span>days</span>
+      </div>
+    </div>
+  );
 
   return (
     <>
@@ -466,67 +529,58 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
                     </div>
                   </div>
 
-                  {/* Custom Filters (placeholder for future) */}
-            <div className="border-t border-gray-200 pt-4">
-              <div className="flex items-center justify-between mb-3">
-                <h4 className="font-medium text-gray-900">Custom Filters</h4>
-                <div className="flex items-center gap-2">
-                  <button onClick={addGroup} className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700">
-                    <Plus className="w-4 h-4" /> Add group
-                  </button>
-                  <button onClick={clearCustom} className="text-sm text-gray-600 hover:text-gray-800">Clear</button>
-                </div>
-              </div>
-              <div className="flex items-center gap-2 mb-3">
-                <span className="text-sm text-gray-600">Combine groups with</span>
-                <select value={customLogic} onChange={e => setCustomLogic(e.target.value as 'AND' | 'OR')} className="text-sm border rounded px-2 py-1">
-                  <option value="AND">AND</option>
-                  <option value="OR">OR</option>
-                </select>
-                <button onClick={applyCustom} className="ml-auto text-sm text-blue-600 hover:text-blue-700">Apply</button>
-              </div>
-              <div className="space-y-4">
-                {customGroups.map(group => (
-                  <div key={group.id} className="border rounded p-3">
-                    <div className="flex items-center justify-between mb-2">
+                  {/* Custom Filters - Single field mode */}
+                  <div className="border-t border-gray-200 pt-4">
+                    <h4 className="font-medium text-gray-900 mb-3">Custom Filters</h4>
+                    <div className="space-y-3">
                       <div className="flex items-center gap-2">
-                        <span className="text-sm text-gray-600">Group logic</span>
-                        <select value={group.logic} onChange={e => setCustomGroups(prev => prev.map(g => g.id === group.id ? { ...g, logic: e.target.value as 'AND' | 'OR' } : g))} className="text-sm border rounded px-2 py-1">
-                          <option value="AND">AND</option>
-                          <option value="OR">OR</option>
-                        </select>
-                      </div>
-                      <button onClick={() => removeGroup(group.id)} className="text-sm text-red-600 hover:text-red-700">Remove group</button>
-                    </div>
-                    <div className="space-y-2">
-                      {group.conditions.map((cond, idx) => (
-                        <div key={idx} className="flex flex-col gap-2 text-sm">
-                          <div className="flex items-center gap-2">
-                            <select value={cond.field} onChange={e => updateCondition(group.id, idx, { field: e.target.value as any, values: [], operator: categoricalFields.includes(e.target.value as any) ? 'in' : 'between' })} className="border rounded px-2 py-1">
-                              <option value="status">Status</option>
-                              <option value="assignee">Assignee</option>
-                              <option value="category">Category</option>
-                              <option value="tag">Tag</option>
-                              <option value="priority">Priority</option>
-                              <option value="due_date">Due date</option>
-                              <option value="completion_date">Completion date</option>
-                              <option value="created_date">Created date</option>
-                              <option value="last_modified">Last modified</option>
-                              <option value="start_date">Start date</option>
-                            </select>
-                            <button onClick={() => removeCondition(group.id, idx)} className="ml-auto text-red-600 hover:text-red-700">Remove</button>
-                          </div>
-                          {categoricalFields.includes(cond.field as any)
-                            ? renderCategoricalEditor(group.id, idx, cond)
-                            : renderDateEditor(group.id, idx, cond)}
+                        <div className="relative w-1/2">
+                          {singleMode === 'none' && (
+                            <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-sm">Filter by</span>
+                          )}
+                          <select
+                            value={singleMode}
+                            onChange={e => setSingleMode(e.target.value as any)}
+                            className="text-sm border rounded px-2 py-1 w-full text-gray-900"
+                          >
+                            <option value="none"></option>
+                          <option value="assignee">Assignee</option>
+                          <option value="category">Category</option>
+                          <option value="tag">Tag</option>
+                          <option value="status">Status</option>
+                          <option value="priority">Priority</option>
+                          <option value="date_range">Date range</option>
+                          <option value="date_diff">Date difference</option>
+                          <option value="null_is">Is null</option>
+                          <option value="null_is_not">Is not null</option>
+                          </select>
                         </div>
-                      ))}
+                        {(singleMode === 'null_is' || singleMode === 'null_is_not') && (
+                          <select
+                            value={nullField}
+                            onChange={e => setNullField(e.target.value as any)}
+                            className="text-sm border rounded px-2 py-1 w-1/2 text-gray-900"
+                          >
+                            {[...categoricalFields, ...dateFields].map(f => (
+                              <option key={f as any} value={f as any}>{String(f).replace('_', ' ')}</option>
+                            ))}
+                          </select>
+                        )}
+                      </div>
+
+                      {['assignee', 'category', 'tag', 'status', 'priority'].includes(singleMode) && (
+                        renderCategoricalSingle()
+                      )}
+
+                      {singleMode === 'date_range' && renderDateRangeSingle()}
+                      {singleMode === 'date_diff' && renderDateDiffSingle()}
                     </div>
-                    <button onClick={() => addCondition(group.id)} className="mt-2 text-sm text-blue-600 hover:text-blue-700">+ Add condition</button>
+
+                    <div className="flex items-center justify-between mt-4">
+                      <button onClick={clearCustom} className="px-3 py-1.5 text-sm border rounded text-gray-700 hover:bg-gray-50">Clear</button>
+                      <button onClick={applyCustom} className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded hover:bg-blue-700">Apply</button>
+                    </div>
                   </div>
-                ))}
-              </div>
-            </div>
                 </>
               )}
             </div>
