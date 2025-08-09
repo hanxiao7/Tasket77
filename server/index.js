@@ -347,13 +347,37 @@ function buildPresetFilterCondition(logic, startParamIndex, params, userId) {
   for (const condition of logic.conditions) {
     const { field, operator, values, date_field, date_range } = condition;
     
+    // Special handling for generic date difference regardless of 'field'
+    if (operator === 'date_diff' && condition.date_field && condition.date_field_2 && condition.comparator && typeof condition.days === 'number') {
+      const fieldMap = {
+        due_date: 't.due_date',
+        completion_date: 't.completion_date',
+        created_date: 't.created_at',
+        last_modified: 't.last_modified',
+        updated_at: 't.last_modified',
+        start_date: 't.start_date',
+        today: 'CURRENT_DATE'
+      };
+      const leftExpr = fieldMap[condition.date_field] || 't.created_at';
+      const rightExpr = fieldMap[condition.date_field_2] || 't.created_at';
+      const cmp = condition.comparator === 'lt' ? '<' : condition.comparator === 'le' ? '<=' : condition.comparator === 'gt' ? '>' : condition.comparator === 'ge' ? '>=' : '=';
+      conditions.push(`(((${leftExpr})::date - (${rightExpr})::date) ${cmp} $${startParamIndex + paramCount})`);
+      params.push(condition.days);
+      paramCount++;
+      continue;
+    }
+    
     switch (field) {
       case 'status':
-        if (operator === 'equals' && values.includes('done')) {
-          conditions.push('t.status = \'done\'');
-        } else if (operator === 'not_equals' && values.includes('done')) {
-          conditions.push('t.status != \'done\'');
-        } else if (operator === 'in') {
+        if (operator === 'equals' && values.length > 0) {
+          conditions.push(`t.status = $${startParamIndex + paramCount}`);
+          params.push(values[0]);
+          paramCount++;
+        } else if (operator === 'not_equals' && values.length > 0) {
+          conditions.push(`t.status != $${startParamIndex + paramCount}`);
+          params.push(values[0]);
+          paramCount++;
+        } else if (operator === 'in' && values.length > 0) {
           conditions.push(`t.status = ANY($${startParamIndex + paramCount})`);
           params.push(values);
           paramCount++;
@@ -361,40 +385,90 @@ function buildPresetFilterCondition(logic, startParamIndex, params, userId) {
         break;
         
       case 'assignee':
-        if (operator === 'equals' && values.includes('current_user_id')) {
-          conditions.push(`EXISTS (SELECT 1 FROM task_assignees ta WHERE ta.task_id = t.id AND ta.user_id = $${startParamIndex + paramCount})`);
-          params.push(userId);
+        if ((operator === 'equals' || operator === 'in') && values.length > 0) {
+          const normalized = values.map(v => (v === 'current_user_id' ? userId : v));
+          const existsIn = `EXISTS (SELECT 1 FROM task_assignees ta WHERE ta.task_id = t.id AND ta.user_id = ANY($${startParamIndex + paramCount}))`;
+          if (condition.includeNull) {
+            conditions.push(`(${existsIn} OR NOT EXISTS (SELECT 1 FROM task_assignees ta2 WHERE ta2.task_id = t.id))`);
+          } else {
+            conditions.push(existsIn);
+          }
+          params.push(operator === 'equals' ? [normalized[0]] : normalized);
           paramCount++;
+        } else if (operator === 'is_null') {
+          conditions.push(`NOT EXISTS (SELECT 1 FROM task_assignees ta WHERE ta.task_id = t.id)`);
+        } else if (operator === 'is_not_null') {
+          conditions.push(`EXISTS (SELECT 1 FROM task_assignees ta WHERE ta.task_id = t.id)`);
+        }
+        break;
+      
+      case 'category':
+        if ((operator === 'equals' || operator === 'in') && values.length > 0) {
+          const inQuery = `t.category_id = ANY($${startParamIndex + paramCount})`;
+          params.push(operator === 'equals' ? [values[0]] : values);
+          if (condition.includeNull) {
+            conditions.push(`(${inQuery} OR t.category_id IS NULL)`);
+          } else {
+            conditions.push(inQuery);
+          }
+          paramCount++;
+        } else if (operator === 'is_null') {
+          conditions.push('t.category_id IS NULL');
+        } else if (operator === 'is_not_null') {
+          conditions.push('t.category_id IS NOT NULL');
+        }
+        break;
+
+      case 'tag':
+        if ((operator === 'equals' || operator === 'in') && values.length > 0) {
+          const inQuery = `t.tag_id = ANY($${startParamIndex + paramCount})`;
+          params.push(operator === 'equals' ? [values[0]] : values);
+          if (condition.includeNull) {
+            conditions.push(`(${inQuery} OR t.tag_id IS NULL)`);
+          } else {
+            conditions.push(inQuery);
+          }
+          paramCount++;
+        } else if (operator === 'is_null') {
+          conditions.push('t.tag_id IS NULL');
+        } else if (operator === 'is_not_null') {
+          conditions.push('t.tag_id IS NOT NULL');
         }
         break;
         
       case 'due_date':
-        if (operator === 'greater_than' && values.includes('now') && date_range) {
-          const futureDate = moment().utc().add(date_range, 'days').format('YYYY-MM-DD');
-          conditions.push(`(t.due_date IS NOT NULL AND t.due_date <= $${startParamIndex + paramCount})`);
-          params.push(futureDate);
-          paramCount++;
-        } else if (operator === 'less_than' && values.includes('today')) {
-          conditions.push(`(t.due_date IS NOT NULL AND t.due_date < $${startParamIndex + paramCount})`);
-          params.push(moment().utc().format('YYYY-MM-DD'));
-          paramCount++;
+        if (operator === 'between' && values && values.length === 2) {
+          conditions.push(`(t.due_date IS NOT NULL AND t.due_date BETWEEN $${startParamIndex + paramCount} AND $${startParamIndex + paramCount + 1})`);
+          params.push(values[0]);
+          params.push(values[1]);
+          paramCount += 2;
+        } else if (operator === 'is_null') {
+          conditions.push('t.due_date IS NULL');
+        } else if (operator === 'is_not_null') {
+          conditions.push('t.due_date IS NOT NULL');
         }
         break;
         
       case 'priority':
-        if (operator === 'in') {
+        if (operator === 'in' && values.length > 0) {
           conditions.push(`t.priority = ANY($${startParamIndex + paramCount})`);
           params.push(values);
+          paramCount++;
+        } else if (operator === 'equals' && values.length > 0) {
+          conditions.push(`t.priority = $${startParamIndex + paramCount}`);
+          params.push(values[0]);
           paramCount++;
         }
         break;
         
       case 'completion_date':
-        if (operator === 'equals' && date_range) {
-          const pastDate = moment().utc().subtract(date_range, 'days').format('YYYY-MM-DD');
-          conditions.push(`(t.status = 'done' AND t.completion_date IS NOT NULL AND t.completion_date >= $${startParamIndex + paramCount})`);
-          params.push(pastDate);
-          paramCount++;
+        if (operator === 'between' && values && values.length === 2) {
+          conditions.push(`(t.completion_date IS NOT NULL AND t.completion_date BETWEEN $${startParamIndex + paramCount} AND $${startParamIndex + paramCount + 1})`);
+          params.push(values[0]);
+          params.push(values[1]);
+          paramCount += 2;
+        } else if (operator === 'is_null') {
+          conditions.push('t.completion_date IS NULL');
         } else if (operator === 'is_not_null') {
           conditions.push('t.completion_date IS NOT NULL');
         }
@@ -402,11 +476,41 @@ function buildPresetFilterCondition(logic, startParamIndex, params, userId) {
         
       case 'updated_at':
       case 'last_modified':
-        if (operator === 'less_than' && values.includes('now') && date_range) {
-          const pastDate = moment().utc().subtract(date_range, 'days').format('YYYY-MM-DD HH:mm:ss');
-          conditions.push(`t.last_modified < $${startParamIndex + paramCount}`);
-          params.push(pastDate);
-          paramCount++;
+        if (operator === 'between' && values && values.length === 2) {
+          conditions.push(`(t.last_modified::date BETWEEN $${startParamIndex + paramCount} AND $${startParamIndex + paramCount + 1})`);
+          params.push(values[0]);
+          params.push(values[1]);
+          paramCount += 2;
+        } else if (operator === 'is_null') {
+          conditions.push('t.last_modified IS NULL');
+        } else if (operator === 'is_not_null') {
+          conditions.push('t.last_modified IS NOT NULL');
+        }
+        break;
+
+      case 'created_date':
+        if (operator === 'between' && values && values.length === 2) {
+          conditions.push(`(t.created_at::date BETWEEN $${startParamIndex + paramCount} AND $${startParamIndex + paramCount + 1})`);
+          params.push(values[0]);
+          params.push(values[1]);
+          paramCount += 2;
+        } else if (operator === 'is_null') {
+          conditions.push('t.created_at IS NULL');
+        } else if (operator === 'is_not_null') {
+          conditions.push('t.created_at IS NOT NULL');
+        }
+        break;
+
+      case 'start_date':
+        if (operator === 'between' && values && values.length === 2) {
+          conditions.push(`(t.start_date IS NOT NULL AND t.start_date BETWEEN $${startParamIndex + paramCount} AND $${startParamIndex + paramCount + 1})`);
+          params.push(values[0]);
+          params.push(values[1]);
+          paramCount += 2;
+        } else if (operator === 'is_null') {
+          conditions.push('t.start_date IS NULL');
+        } else if (operator === 'is_not_null') {
+          conditions.push('t.start_date IS NOT NULL');
         }
         break;
         
@@ -436,7 +540,7 @@ function buildPresetFilterCondition(logic, startParamIndex, params, userId) {
 
 // Get tasks with optional filters
 app.get('/api/tasks', authenticateToken, async (req, res) => {
-  const { view, presets, workspace_id } = req.query;
+  const { view, presets, workspace_id, customFilters, customFiltersLogic } = req.query;
   let query = `
     SELECT t.*, c.name as category_name, tg.name as tag_name,
            COALESCE(
@@ -505,6 +609,30 @@ app.get('/api/tasks', authenticateToken, async (req, res) => {
       }
     } catch (e) {
       console.error('Error parsing presets:', e);
+    }
+  }
+
+  // Apply custom filters (optional): expects JSON of FilterGroup[] and logic 'AND' | 'OR'
+  if (customFilters) {
+    try {
+      const groups = JSON.parse(customFilters);
+      const groupLogic = (customFiltersLogic === 'OR') ? 'OR' : 'AND';
+      if (Array.isArray(groups) && groups.length > 0) {
+        const groupQueries = [];
+        for (const group of groups) {
+          // group: { id, conditions, logic }
+          const built = buildPresetFilterCondition(group, paramIndex, params, req.user.userId);
+          if (built) {
+            groupQueries.push(built.query);
+            paramIndex += built.paramCount;
+          }
+        }
+        if (groupQueries.length > 0) {
+          query += ` AND (${groupQueries.join(` ${groupLogic} `)})`;
+        }
+      }
+    } catch (e) {
+      console.error('Error parsing customFilters:', e);
     }
   }
   if (view === 'planner') {

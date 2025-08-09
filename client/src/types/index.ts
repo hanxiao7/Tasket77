@@ -87,6 +87,8 @@ export interface TaskFilters {
   
   // Custom filters (for future implementation)
   customFilters?: FilterGroup[];
+  // Logic to combine groups
+  customFiltersLogic?: 'AND' | 'OR';
 }
 
 export interface FilterGroup {
@@ -96,11 +98,16 @@ export interface FilterGroup {
 }
 
 export interface FilterCondition {
-  field: 'assignee' | 'status' | 'category' | 'priority' | 'due_date' | 'created_date' | 'completion_date' | 'updated_at';
-  operator: 'equals' | 'not_equals' | 'in' | 'not_in' | 'greater_than' | 'less_than' | 'date_range' | 'is_null' | 'is_not_null';
+  field: 'assignee' | 'status' | 'category' | 'tag' | 'priority' | 'due_date' | 'created_date' | 'completion_date' | 'updated_at' | 'last_modified' | 'start_date';
+  operator: 'equals' | 'not_equals' | 'in' | 'not_in' | 'greater_than' | 'less_than' | 'between' | 'date_diff' | 'is_null' | 'is_not_null';
   values: any[];
   date_field?: string;
   date_range?: number;
+  // Custom additions for categorical null handling and date diff
+  includeNull?: boolean;
+  date_field_2?: string; // for date_diff
+  comparator?: 'lt' | 'le' | 'gt' | 'ge' | 'eq';
+  days?: number; // for date_diff
 }
 
 export interface PresetFilter {

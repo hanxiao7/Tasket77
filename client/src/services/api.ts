@@ -148,6 +148,8 @@ class ApiService {
           // Handle arrays by JSON stringifying them
           if (Array.isArray(value)) {
             params.append(key, JSON.stringify(value));
+          } else if (key === 'customFilters') {
+            params.append(key, JSON.stringify(value));
           } else {
             params.append(key, value.toString());
           }
