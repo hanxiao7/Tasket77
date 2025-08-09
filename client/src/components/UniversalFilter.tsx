@@ -357,9 +357,16 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
       options = priorityOptions.map(p => ({ value: p, label: p }));
     }
 
-    const allSelected = options.length > 0 && Array.isArray(singleValues) && singleValues.length === options.length;
+    const supportsNull = ['assignee', 'category', 'tag'].includes(singleMode);
+    const allSelected = options.length > 0 && Array.isArray(singleValues) && singleValues.length === options.length && (!supportsNull || singleIncludeNull);
     const toggleSelectAll = () => {
-      setSingleValues(allSelected ? [] : options.map(o => o.value));
+      if (allSelected) {
+        setSingleValues([]);
+        if (supportsNull) setSingleIncludeNull(false);
+      } else {
+        setSingleValues(options.map(o => o.value));
+        if (supportsNull) setSingleIncludeNull(true);
+      }
     };
     const toggleValue = (val: number | string) => {
       const current = Array.isArray(singleValues) ? [...singleValues] : [];
@@ -406,16 +413,11 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
   };
 
   const renderDateRangeSingle = () => (
-    <div className="w-full space-y-2">
+    <div className="w-full mt-2">
       <div className="flex items-center gap-2">
-        <select value={rangeField} onChange={e => setRangeField(e.target.value as any)} className="border rounded px-2 py-1">
-          {dateFields.map(f => (
-            <option key={f} value={f}>{f.replace('_', ' ')}</option>
-          ))}
-        </select>
-        <input type="date" value={rangeStart} onChange={e => setRangeStart(e.target.value)} className="border rounded px-2 py-1" />
+        <input type="date" value={rangeStart} onChange={e => setRangeStart(e.target.value)} className="text-sm border rounded px-2 py-1" />
         <span className="text-sm">to</span>
-        <input type="date" value={rangeEnd} onChange={e => setRangeEnd(e.target.value)} className="border rounded px-2 py-1" />
+        <input type="date" value={rangeEnd} onChange={e => setRangeEnd(e.target.value)} className="text-sm border rounded px-2 py-1" />
       </div>
     </div>
   );
@@ -441,29 +443,29 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
   );
 
   const renderDateDiffSingle = () => (
-    <div className="w-full">
+    <div className="w-full mt-2">
       <div className="flex items-center gap-2 flex-wrap">
-        <span>From</span>
-        <select value={diffFrom} onChange={e => setDiffFrom(e.target.value as any)} className="border rounded px-2 py-1">
+        <span className="text-sm">From</span>
+        <select value={diffFrom} onChange={e => setDiffFrom(e.target.value as any)} className="text-sm border rounded px-1 py-1 w-30">
           {[...dateFields, 'today'].map(f => (
             <option key={f as any} value={f as any}>{String(f).replace('_', ' ')}</option>
           ))}
         </select>
-        <span>to</span>
-        <select value={diffTo} onChange={e => setDiffTo(e.target.value as any)} className="border rounded px-2 py-1">
+        <span className="text-sm">to</span>
+        <select value={diffTo} onChange={e => setDiffTo(e.target.value as any)} className="text-sm border rounded px-1 py-1 w-30">
           {[...dateFields, 'today'].map(f => (
             <option key={f as any} value={f as any}>{String(f).replace('_', ' ')}</option>
           ))}
         </select>
-        <select value={diffCmp} onChange={e => setDiffCmp(e.target.value as any)} className="border rounded px-2 py-1">
+        <select value={diffCmp} onChange={e => setDiffCmp(e.target.value as any)} className="text-sm border rounded px-1 py-1">
           <option value="lt">&lt;</option>
           <option value="le">&le;</option>
           <option value="eq">=</option>
           <option value="ge">&ge;</option>
           <option value="gt">&gt;</option>
         </select>
-        <input type="number" min={0} value={diffDays} onChange={e => setDiffDays(Number(e.target.value))} className="w-14 border rounded px-2 py-1" />
-        <span>days</span>
+        <input type="number" min={0} value={diffDays} onChange={e => setDiffDays(Number(e.target.value))} className="w-12 text-sm border rounded px-1 py-1" />
+        <span className="text-sm">days</span>
       </div>
     </div>
   );
@@ -489,7 +491,7 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div 
             ref={modalRef}
-            className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[80vh] overflow-y-auto"
+            className="bg-white rounded-lg shadow-xl max-w-lg w-full max-h-[80vh] overflow-y-auto"
           >
             {/* Header */}
             <div className="flex items-center justify-between p-4 border-b border-gray-200">
@@ -543,7 +545,7 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
                             onChange={e => setSingleMode(e.target.value as any)}
                             className="text-sm border rounded px-2 py-1 w-full text-gray-900"
                           >
-                            <option value="none"></option>
+                            <option value="none" hidden></option>
                           <option value="assignee">Assignee</option>
                           <option value="category">Category</option>
                           <option value="tag">Tag</option>
@@ -555,6 +557,17 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
                           <option value="null_is_not">Is not null</option>
                           </select>
                         </div>
+                        {singleMode === 'date_range' && (
+                          <select
+                            value={rangeField}
+                            onChange={e => setRangeField(e.target.value as any)}
+                            className="text-sm border rounded px-2 py-1 w-1/2 text-gray-900"
+                          >
+                            {dateFields.map(f => (
+                              <option key={f} value={f}>{f.replace('_', ' ')}</option>
+                            ))}
+                          </select>
+                        )}
                         {(singleMode === 'null_is' || singleMode === 'null_is_not') && (
                           <select
                             value={nullField}

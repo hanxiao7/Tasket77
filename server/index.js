@@ -395,6 +395,9 @@ function buildPresetFilterCondition(logic, startParamIndex, params, userId) {
           }
           params.push(operator === 'equals' ? [normalized[0]] : normalized);
           paramCount++;
+        } else if ((operator === 'equals' || operator === 'in') && (!values || values.length === 0) && condition.includeNull) {
+          // Only 'None' selected: match tasks with no assignees
+          conditions.push(`NOT EXISTS (SELECT 1 FROM task_assignees ta WHERE ta.task_id = t.id)`);
         } else if (operator === 'is_null') {
           conditions.push(`NOT EXISTS (SELECT 1 FROM task_assignees ta WHERE ta.task_id = t.id)`);
         } else if (operator === 'is_not_null') {
@@ -412,6 +415,9 @@ function buildPresetFilterCondition(logic, startParamIndex, params, userId) {
             conditions.push(inQuery);
           }
           paramCount++;
+        } else if ((operator === 'equals' || operator === 'in') && (!values || values.length === 0) && condition.includeNull) {
+          // Only 'None' selected: match NULL categories
+          conditions.push('t.category_id IS NULL');
         } else if (operator === 'is_null') {
           conditions.push('t.category_id IS NULL');
         } else if (operator === 'is_not_null') {
@@ -429,6 +435,9 @@ function buildPresetFilterCondition(logic, startParamIndex, params, userId) {
             conditions.push(inQuery);
           }
           paramCount++;
+        } else if ((operator === 'equals' || operator === 'in') && (!values || values.length === 0) && condition.includeNull) {
+          // Only 'None' selected: match NULL tags
+          conditions.push('t.tag_id IS NULL');
         } else if (operator === 'is_null') {
           conditions.push('t.tag_id IS NULL');
         } else if (operator === 'is_not_null') {
