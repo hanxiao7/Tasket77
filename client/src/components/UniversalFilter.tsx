@@ -302,7 +302,7 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
 
   const getPresetLabel = (key: string): string => {
     const labels: Record<string, string> = {
-      'hide_completed': 'Hide completed (default)',
+      'hide_completed': 'Hide completed',
       'assigned_to_me': 'Assigned to me',
       'due_in_7_days': 'Due in',
       'overdue_tasks': 'Overdue tasks',
@@ -381,11 +381,17 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
       const aLabel = getPresetLabel(a.key);
       const bLabel = getPresetLabel(b.key);
       
-      // Default presets first
+      // Default presets first (based on view mode)
       const aIsDefault = aLabel.includes('(default)');
       const bIsDefault = bLabel.includes('(default)');
       if (aIsDefault && !bIsDefault) return -1;
       if (!aIsDefault && bIsDefault) return 1;
+      
+      // View-specific default filters (Active in past for tracker, Hide completed for planner)
+      if (viewMode === 'tracker' && a.key === 'active_past_7_days' && b.key !== 'active_past_7_days') return -1;
+      if (viewMode === 'tracker' && b.key === 'active_past_7_days' && a.key !== 'active_past_7_days') return 1;
+      if (viewMode === 'planner' && a.key === 'hide_completed' && b.key !== 'hide_completed') return -1;
+      if (viewMode === 'planner' && b.key === 'hide_completed' && a.key !== 'hide_completed') return 1;
       
       // Assigned to me second
       const aIsAssignedToMe = aLabel.includes('Assigned to me');
@@ -602,9 +608,19 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
                               <span className="text-sm text-gray-900">
                                 {preset.key === 'lasted_more_than_1_day' ? 'days' : 'days'}
                               </span>
+                              {/* Show default note for tracker view default filter */}
+                              {viewMode === 'tracker' && preset.key === 'active_past_7_days' && (
+                                <span className="text-xs text-gray-500 italic">(default)</span>
+                              )}
                             </div>
                           ) : (
-                            <span className="truncate flex-1">{getPresetLabel(preset.key)}</span>
+                            <div className="flex items-center gap-1 flex-1">
+                              <span className="truncate">{getPresetLabel(preset.key)}</span>
+                              {/* Show default note for planner view default filter */}
+                              {viewMode === 'planner' && preset.key === 'hide_completed' && (
+                                <span className="text-xs text-gray-500 italic">(default)</span>
+                              )}
+                            </div>
                           )}
                         </div>
                       ))}
