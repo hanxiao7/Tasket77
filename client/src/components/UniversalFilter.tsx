@@ -598,15 +598,7 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
               )}
             </div>
 
-            {/* Footer */}
-            <div className="flex justify-end p-4 border-t border-gray-200">
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-              >
-                Close
-              </button>
-            </div>
+            {/* Footer removed - close button already exists in header */}
           </div>
         </div>
       )}
