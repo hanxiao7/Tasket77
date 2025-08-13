@@ -22,6 +22,7 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
   const [customGroups, setCustomGroups] = useState<FilterGroup[]>([]);
   const [customLogic, setCustomLogic] = useState<'AND' | 'OR'>('AND');
   const [presetFilters, setPresetFilters] = useState<PresetFilter[]>([]);
+  const [customDays, setCustomDays] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(false);
   const modalRef = useRef<HTMLDivElement>(null);
   const { user } = useAuth();
@@ -72,6 +73,15 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
             }));
           
           setPresetFilters(viewPresets);
+          
+          // Initialize customDays with values from backend
+          const daysValues: Record<string, number> = {};
+          Object.entries(preferences).forEach(([key, value]: [string, any]) => {
+            if (value && value.days && isDatePreset(key)) {
+              daysValues[key] = value.days;
+            }
+          });
+          setCustomDays(daysValues);
         }
       } catch (error) {
         console.error('Error loading preset filters:', error);
@@ -194,6 +204,9 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
 
   const handlePresetToggle = async (presetKey: string, enabled: boolean) => {
     try {
+      const currentPreset = presetFilters.find(p => p.key === presetKey);
+      if (!currentPreset) return;
+      
       const response = await fetch(`/api/user-preferences/${workspaceId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -201,8 +214,9 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
         body: JSON.stringify({ 
           key: presetKey, 
           value: { 
-            ...presetFilters.find(p => p.key === presetKey),
-            enabled 
+            ...currentPreset,
+            enabled,
+            days: customDays[presetKey] || getDefaultDays(presetKey)
           }
         })
       });
@@ -233,6 +247,53 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
     }
   };
 
+  const handleDaysChange = async (presetKey: string, days: number) => {
+    setCustomDays(prev => ({ ...prev, [presetKey]: days }));
+    
+    // Save the updated days value to the backend
+    try {
+      const currentPreset = presetFilters.find(p => p.key === presetKey);
+      if (currentPreset) {
+        const response = await fetch(`/api/user-preferences/${workspaceId}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ 
+            key: presetKey, 
+            value: { 
+              ...currentPreset,
+              days
+            }
+          })
+        });
+
+        if (response.ok) {
+          // Update filters to reflect the new days value
+          onFiltersChange({
+            ...filters,
+            presets: filters.presets || []
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error updating days value:', error);
+    }
+  };
+
+  const getDefaultDays = (presetKey: string): number => {
+    const defaults: Record<string, number> = {
+      'due_in_7_days': 7,
+      'active_past_7_days': 7,
+      'unchanged_past_14_days': 14,
+      'lasted_more_than_1_day': 1
+    };
+    return defaults[presetKey] || 7;
+  };
+
+  const isDatePreset = (presetKey: string): boolean => {
+    return ['due_in_7_days', 'active_past_7_days', 'unchanged_past_14_days', 'lasted_more_than_1_day'].includes(presetKey);
+  };
+
   const getActiveFiltersCount = () => {
     const presetCount = presetFilters.filter(preset => preset.enabled).length;
     const customCount = customGroups.reduce((acc, g) => acc + (g.conditions?.length || 0), 0);
@@ -243,13 +304,13 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
     const labels: Record<string, string> = {
       'hide_completed': 'Hide completed (default)',
       'assigned_to_me': 'Assigned to me',
-      'due_in_7_days': 'Due in 7 days',
+      'due_in_7_days': 'Due in',
       'overdue_tasks': 'Overdue tasks',
       'high_urgent_priority': 'High/Urgent priority',
-      'active_past_7_days': 'Active in past 7 days (default)',
+      'active_past_7_days': 'Active in past',
       'assigned_to_me_tracker': 'Assigned to me',
-      'unchanged_past_14_days': 'Unchanged in past 14 days',
-      'lasted_more_than_1_day': 'Lasted for more than 1 day'
+      'unchanged_past_14_days': 'Unchanged in past',
+      'lasted_more_than_1_day': 'Lasted for at least'
     };
     return labels[key] || key;
   };
@@ -515,9 +576,9 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
                     <h4 className="font-medium text-gray-900 mb-3">Preset Filters</h4>
                     <div className="space-y-2">
                       {getSortedPresets(presetFilters).map((preset) => (
-                        <label
+                        <div
                           key={preset.key}
-                          className="flex items-center gap-2 px-2 py-1 text-sm hover:bg-gray-100 rounded cursor-pointer"
+                          className="flex items-center gap-2 px-2 py-1 text-sm hover:bg-gray-100 rounded"
                         >
                           <input
                             type="checkbox"
@@ -525,8 +586,27 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
                             onChange={(e) => handlePresetToggle(preset.key, e.target.checked)}
                             className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
                           />
-                          <span className="truncate">{getPresetLabel(preset.key)}</span>
-                        </label>
+                          {isDatePreset(preset.key) ? (
+                            <div className="flex items-center gap-1 flex-1">
+                              <span className="truncate">
+                                {getPresetLabel(preset.key).replace(/\[\d+\]/, '')}
+                              </span>
+                              <input
+                                type="number"
+                                min="0"
+                                value={customDays[preset.key] || getDefaultDays(preset.key)}
+                                onChange={(e) => handleDaysChange(preset.key, Number(e.target.value))}
+                                className="w-12 text-sm border rounded px-1 py-0.5 text-center"
+                                onClick={(e) => e.stopPropagation()}
+                              />
+                              <span className="text-sm text-gray-900">
+                                {preset.key === 'lasted_more_than_1_day' ? 'days' : 'days'}
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="truncate flex-1">{getPresetLabel(preset.key)}</span>
+                          )}
+                        </div>
                       ))}
                     </div>
                   </div>

@@ -336,7 +336,7 @@ app.delete('/api/tags/:id', authenticateToken, async (req, res) => {
 });
 
 // Helper function to build preset filter conditions
-function buildPresetFilterCondition(logic, startParamIndex, params, userId) {
+function buildPresetFilterCondition(logic, startParamIndex, params, userId, days) {
   if (!logic || !logic.conditions || !Array.isArray(logic.conditions)) {
     return null;
   }
@@ -451,6 +451,15 @@ function buildPresetFilterCondition(logic, startParamIndex, params, userId) {
           params.push(values[0]);
           params.push(values[1]);
           paramCount += 2;
+        } else if (operator === 'greater_than' && values.length > 0) {
+          if (values[0] === 'now' && days) {
+            // "Due in X days" means tasks due within the next X days (including today)
+            conditions.push(`t.due_date <= CURRENT_DATE + INTERVAL '${days} days' AND t.due_date IS NOT NULL`);
+          } else {
+            conditions.push(`t.due_date > $${startParamIndex + paramCount}`);
+            params.push(values[0]);
+            paramCount++;
+          }
         } else if (operator === 'is_null') {
           conditions.push('t.due_date IS NULL');
         } else if (operator === 'is_not_null') {
@@ -476,6 +485,14 @@ function buildPresetFilterCondition(logic, startParamIndex, params, userId) {
           params.push(values[0]);
           params.push(values[1]);
           paramCount += 2;
+        } else if (operator === 'equals' && values.length > 0) {
+          if (values[0] === 'done' && days) {
+            conditions.push(`t.completion_date > CURRENT_DATE - INTERVAL '${days} days'`);
+          } else {
+            conditions.push(`t.completion_date = $${startParamIndex + paramCount}`);
+            params.push(values[0]);
+            paramCount++;
+          }
         } else if (operator === 'is_null') {
           conditions.push('t.completion_date IS NULL');
         } else if (operator === 'is_not_null') {
@@ -490,6 +507,14 @@ function buildPresetFilterCondition(logic, startParamIndex, params, userId) {
           params.push(values[0]);
           params.push(values[1]);
           paramCount += 2;
+        } else if (operator === 'less_than' && values.length > 0) {
+          if (values[0] === 'now' && days) {
+            conditions.push(`t.last_modified < CURRENT_DATE - INTERVAL '${days} days'`);
+          } else {
+            conditions.push(`t.last_modified < $${startParamIndex + paramCount}`);
+            params.push(values[0]);
+            paramCount++;
+          }
         } else if (operator === 'is_null') {
           conditions.push('t.last_modified IS NULL');
         } else if (operator === 'is_not_null') {
@@ -531,8 +556,15 @@ function buildPresetFilterCondition(logic, startParamIndex, params, userId) {
         
       case 'duration':
         if (operator === 'greater_than' && values.length > 0 && date_field === 'days') {
-          conditions.push(`(t.completion_date - t.start_date) > $${startParamIndex + paramCount}`);
-          params.push(values[0]);
+          const durationDays = days || values[0]; // Use days parameter if available, otherwise use values[0]
+          // For "lasted more than X days", we want >= to include tasks that lasted exactly X days
+          conditions.push(`(t.completion_date - t.start_date) >= $${startParamIndex + paramCount}`);
+          params.push(durationDays);
+          paramCount++;
+        } else if (operator === 'greater_than_or_equal' && values.length > 0 && date_field === 'days') {
+          const durationDays = days || values[0]; // Use days parameter if available, otherwise use values[0]
+          conditions.push(`(t.completion_date - t.start_date) >= $${startParamIndex + paramCount}`);
+          params.push(durationDays);
           paramCount++;
         }
         break;
@@ -602,13 +634,14 @@ app.get('/api/tasks', authenticateToken, async (req, res) => {
         
         for (const presetKey of presetArray) {
           const preset = preferences[presetKey];
-                     if (preset && preset.enabled && preset.view === view) {
-             const condition = buildPresetFilterCondition(preset.logic, paramIndex, params, req.user.userId);
-             if (condition) {
-               filterConditions.push(condition);
-               paramIndex += condition.paramCount;
-             }
-           }
+          if (preset && preset.enabled && preset.view === view) {
+            const days = preset.days; // Extract the customizable days value
+            const condition = buildPresetFilterCondition(preset.logic, paramIndex, params, req.user.userId, days);
+            if (condition) {
+              filterConditions.push(condition);
+              paramIndex += condition.paramCount;
+            }
+          }
         }
 
         // Combine all preset conditions with AND logic
@@ -630,7 +663,7 @@ app.get('/api/tasks', authenticateToken, async (req, res) => {
         const groupQueries = [];
         for (const group of groups) {
           // group: { id, conditions, logic }
-          const built = buildPresetFilterCondition(group, paramIndex, params, req.user.userId);
+          const built = buildPresetFilterCondition(group, paramIndex, params, req.user.userId, undefined);
           if (built) {
             groupQueries.push(built.query);
             paramIndex += built.paramCount;
@@ -1600,9 +1633,10 @@ async function createDefaultPresets(userId, workspaceId) {
         type: 'system',
         view: 'planner',
         logic: {
-          conditions: [{ field: 'due_date', operator: 'greater_than', values: ['now'], date_range: 7 }],
+          conditions: [{ field: 'due_date', operator: 'greater_than', values: ['now'] }],
           logic: 'AND'
-        }
+        },
+        days: 7
       }
     },
     {
@@ -1641,10 +1675,11 @@ async function createDefaultPresets(userId, workspaceId) {
         logic: {
           conditions: [
             { field: 'status', operator: 'in', values: ['in_progress', 'paused'] },
-            { field: 'completion_date', operator: 'equals', values: ['done'], date_range: 7 }
+            { field: 'completion_date', operator: 'equals', values: ['done'] }
           ],
           logic: 'OR'
-        }
+        },
+        days: 7
       }
     },
     {
@@ -1656,10 +1691,11 @@ async function createDefaultPresets(userId, workspaceId) {
         logic: {
           conditions: [
             { field: 'status', operator: 'not_equals', values: ['done'] },
-            { field: 'last_modified', operator: 'less_than', values: ['now'], date_range: 14 }
+            { field: 'last_modified', operator: 'less_than', values: ['now'] }
           ],
           logic: 'AND'
-        }
+        },
+        days: 14
       }
     },
     {
@@ -1673,10 +1709,11 @@ async function createDefaultPresets(userId, workspaceId) {
             { field: 'status', operator: 'equals', values: ['done'] },
             { field: 'completion_date', operator: 'is_not_null', values: [] },
             { field: 'start_date', operator: 'is_not_null', values: [] },
-            { field: 'duration', operator: 'greater_than', values: [1], date_field: 'days' }
+            { field: 'duration', operator: 'greater_than_or_equal', values: [1], date_field: 'days' }
           ],
           logic: 'AND'
-        }
+        },
+        days: 1
       }
     },
     {

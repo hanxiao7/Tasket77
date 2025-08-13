@@ -43,9 +43,10 @@ async function createDefaultPresets(userId, workspaceId) {
         type: 'system',
         view: 'planner',
         logic: {
-          conditions: [{ field: 'due_date', operator: 'greater_than', values: ['now'], date_range: 7 }],
+          conditions: [{ field: 'due_date', operator: 'greater_than', values: ['now'] }],
           logic: 'AND'
-        }
+        },
+        days: 7
       }
     },
     {
@@ -84,10 +85,11 @@ async function createDefaultPresets(userId, workspaceId) {
         logic: {
           conditions: [
             { field: 'status', operator: 'in', values: ['in_progress', 'paused'] },
-            { field: 'completion_date', operator: 'equals', values: ['done'], date_range: 7 }
+            { field: 'completion_date', operator: 'equals', values: ['done'] }
           ],
           logic: 'OR'
-        }
+        },
+        days: 7
       }
     },
     {
@@ -99,10 +101,11 @@ async function createDefaultPresets(userId, workspaceId) {
         logic: {
           conditions: [
             { field: 'status', operator: 'not_equals', values: ['done'] },
-            { field: 'last_modified', operator: 'less_than', values: ['now'], date_range: 14 }
+            { field: 'last_modified', operator: 'less_than', values: ['now'] }
           ],
           logic: 'AND'
-        }
+        },
+        days: 14
       }
     },
     {
@@ -116,10 +119,11 @@ async function createDefaultPresets(userId, workspaceId) {
             { field: 'status', operator: 'equals', values: ['done'] },
             { field: 'completion_date', operator: 'is_not_null', values: [] },
             { field: 'start_date', operator: 'is_not_null', values: [] },
-            { field: 'duration', operator: 'greater_than', values: [1], date_field: 'days' }
+            { field: 'duration', operator: 'greater_than_or_equal', values: [1], date_field: 'days' }
           ],
           logic: 'AND'
-        }
+        },
+        days: 1
       }
     },
     {

@@ -99,7 +99,7 @@ export interface FilterGroup {
 
 export interface FilterCondition {
   field: 'assignee' | 'status' | 'category' | 'tag' | 'priority' | 'due_date' | 'created_date' | 'completion_date' | 'updated_at' | 'last_modified' | 'start_date';
-  operator: 'equals' | 'not_equals' | 'in' | 'not_in' | 'greater_than' | 'less_than' | 'between' | 'date_diff' | 'is_null' | 'is_not_null';
+  operator: 'equals' | 'not_equals' | 'in' | 'not_in' | 'greater_than' | 'greater_than_or_equal' | 'less_than' | 'between' | 'date_diff' | 'is_null' | 'is_not_null';
   values: any[];
   date_field?: string;
   date_range?: number;
@@ -119,6 +119,7 @@ export interface PresetFilter {
     conditions: FilterCondition[];
     logic: 'AND' | 'OR';
   };
+  days?: number; // Customizable days value for date-related presets
 }
 
 export type ViewMode = 'planner' | 'tracker'; 

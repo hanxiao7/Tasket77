@@ -95,17 +95,19 @@ const useUserPreferences = (workspaceId: number): UseUserPreferencesReturn => {
           enabled: preset.enabled,
           type: preset.type,
           view: preset.view,
-          logic: preset.logic
+          logic: preset.logic,
+          days: preset.days
         };
       });
   }, [preferences]);
 
-  const updatePresetFilter = async (presetKey: string, enabled: boolean) => {
+  const updatePresetFilter = async (presetKey: string, enabled: boolean, days?: number) => {
     const currentPreset = preferences[presetKey];
     if (currentPreset) {
       await savePreference(presetKey, {
         ...currentPreset,
-        enabled
+        enabled,
+        ...(days !== undefined && { days })
       });
     }
   };
