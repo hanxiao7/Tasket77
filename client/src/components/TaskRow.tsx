@@ -28,6 +28,7 @@ interface TaskRowProps {
   editingPriorityValue: Task['priority'];
   editingCategoryTaskId: number | null;
   editingCategoryValue: string;
+  editingAssigneeTaskId: number | null;
   visibleTooltips: Set<number>;
   hoveredTask: number | null;
   chatIcons: Set<number>;
@@ -61,12 +62,16 @@ interface TaskRowProps {
   onSetEditingTitleTaskId: (value: number | null) => void;
   onSetEditingPriorityTaskId: (value: number | null) => void;
   onSetEditingCategoryTaskId: (value: number | null) => void;
+  onSetEditingAssigneeTaskId: (value: number | null) => void;
   onSetHoveredTask: (value: number | null) => void;
   onSetEditingTooltips: (value: Set<number>) => void;
   onDrop: (e: React.DragEvent, taskId: number) => void;
   titleInputRef: React.RefObject<HTMLInputElement>;
 
   categoryInputRef: React.RefObject<HTMLSelectElement>;
+  onAssigneeClick: (taskId: number) => void;
+  onAssigneeSave: (taskId: number, assigneeNames: string[]) => Promise<void>;
+  workspaceUsers: Array<{user_id: number, name: string, email: string}>;
   formatDate: (dateString: string | undefined) => string;
   getStatusIcon: (status: Task['status']) => React.ReactNode;
   getStatusColor: (status: Task['status']) => string;
@@ -90,6 +95,7 @@ const TaskRow: React.FC<TaskRowProps> = ({
   editingPriorityValue,
   editingCategoryTaskId,
   editingCategoryValue,
+  editingAssigneeTaskId,
   visibleTooltips,
   hoveredTask,
   chatIcons,
@@ -124,12 +130,16 @@ const TaskRow: React.FC<TaskRowProps> = ({
   onSetEditingPriorityTaskId,
 
   onSetEditingCategoryTaskId,
+  onSetEditingAssigneeTaskId,
   onSetHoveredTask,
   onSetEditingTooltips,
   onDrop,
   titleInputRef,
 
   categoryInputRef,
+  onAssigneeClick,
+  onAssigneeSave,
+  workspaceUsers,
   formatDate,
   getStatusIcon,
   getStatusColor,
@@ -423,6 +433,82 @@ const TaskRow: React.FC<TaskRowProps> = ({
           )}
         </div>
       )}
+
+      {/* Assignee */}
+      <div className="hidden sm:flex flex-shrink-0 w-24 text-center relative">
+        <div
+          className={clsx(
+            "text-xs rounded px-1 py-1 w-full transition-all cursor-pointer min-h-[20px] flex items-center justify-center",
+            editingAssigneeTaskId === task.id 
+              ? "border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500" 
+              : "border border-transparent hover:border-gray-300 hover:bg-blue-50"
+          )}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (editingAssigneeTaskId !== task.id) {
+              onAssigneeClick(task.id);
+            } else {
+              onSetEditingAssigneeTaskId(null);
+            }
+          }}
+          title="Click to edit assignees"
+        >
+          {task.assignee_names && task.assignee_names.length > 0 ? (
+            <span className="text-sm font-medium truncate">
+              {task.assignee_names.join(', ')}
+            </span>
+          ) : (
+            <span className="text-gray-400">-</span>
+          )}
+        </div>
+        
+        {/* Assignee dropdown menu */}
+        {editingAssigneeTaskId === task.id && (
+          <div 
+            className="absolute top-full left-0 right-0 bg-white border border-gray-200 rounded-lg shadow-lg z-50 mt-1"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="max-h-40 overflow-y-auto">
+              <div 
+                className="px-2 py-1 text-xs text-gray-500 hover:bg-gray-50 cursor-pointer border-b"
+                onClick={() => {
+                  onAssigneeSave(task.id, []);
+                  onSetEditingAssigneeTaskId(null);
+                }}
+              >
+                No assignees
+              </div>
+              {workspaceUsers.map((user) => (
+                <div
+                  key={user.user_id}
+                  className={clsx(
+                    "px-2 py-1 text-xs cursor-pointer hover:bg-blue-50 transition-colors",
+                    task.assignee_names?.includes(user.name) && "bg-blue-100 text-blue-700"
+                  )}
+                  onClick={() => {
+                    const currentAssignees = task.assignee_names || [];
+                    const isAssigned = currentAssignees.includes(user.name);
+                    let newAssignees: string[];
+                    
+                    if (isAssigned) {
+                      // Remove assignee
+                      newAssignees = currentAssignees.filter(name => name !== user.name);
+                    } else {
+                      // Add assignee
+                      newAssignees = [...currentAssignees, user.name];
+                    }
+                    
+                    onAssigneeSave(task.id, newAssignees);
+                    onSetEditingAssigneeTaskId(null);
+                  }}
+                >
+                  {user.name}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Start date */}
       <div className="hidden sm:flex flex-shrink-0 w-12 justify-center">

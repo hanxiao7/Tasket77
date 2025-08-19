@@ -39,6 +39,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
   const [tasks, setTasks] = useState<Task[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
+  const [workspaceUsers, setWorkspaceUsers] = useState<Array<{user_id: number, name: string, email: string}>>([]);
   const [loading, setLoading] = useState(true);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [showCategoryEditModal, setShowCategoryEditModal] = useState(false);
@@ -59,6 +60,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
 
   const [editingCategoryTaskId, setEditingCategoryTaskId] = useState<number | null>(null);
   const [editingCategoryValue, setEditingCategoryValue] = useState('');
+  const [editingAssigneeTaskId, setEditingAssigneeTaskId] = useState<number | null>(null);
   const [editingPriorityTaskId, setEditingPriorityTaskId] = useState<number | null>(null);
   const [editingPriorityValue, setEditingPriorityValue] = useState<Task['priority']>('normal');
   const [tooltipTimers, setTooltipTimers] = useState<Map<number, NodeJS.Timeout>>(new Map());
@@ -315,10 +317,11 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
-      const [tasksData, categoriesData, tagsData] = await Promise.all([
+      const [tasksData, categoriesData, tagsData, usersData] = await Promise.all([
         apiService.getTasks({ ...filters, view: viewMode, workspace_id: selectedWorkspaceId }),
         apiService.getCategories(true, selectedWorkspaceId), // Include hidden categories and filter by workspace
-        apiService.getTags(selectedWorkspaceId) // Get tags for the workspace
+        apiService.getTags(selectedWorkspaceId), // Get tags for the workspace
+        fetch(`/api/workspace-users/${selectedWorkspaceId}`, { credentials: 'include' }).then(res => res.ok ? res.json() : [])
       ]);
       
       // Apply sorting to the loaded data
@@ -326,7 +329,8 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
       setTasks(sortedTasks);
       setCategories(categoriesData);
       setTags(tagsData);
-      console.log(`📋 Loaded ${tasksData.length} tasks, ${categoriesData.length} categories, and ${tagsData.length} tags`);
+      setWorkspaceUsers(usersData);
+      console.log(`📋 Loaded ${tasksData.length} tasks, ${categoriesData.length} categories, ${tagsData.length} tags, and ${usersData.length} users`);
       
       // Clear caches when data changes
       positionCache.current.clear();
@@ -392,6 +396,11 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
         setEditingCategoryTaskId(null);
         setEditingCategoryValue('');
       }
+      // Also close assignee dropdown when clicking outside
+      if (editingAssigneeTaskId !== null) {
+        console.log('Closing assignee dropdown due to outside click');
+        setEditingAssigneeTaskId(null);
+      }
       // Also close new task category dropdown when clicking outside
       if (showNewTaskCategoryDropdown) {
         setShowNewTaskCategoryDropdown(false);
@@ -403,7 +412,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
     return () => {
       document.removeEventListener('click', handleClickOutside);
     };
-  }, [contextMenu.visible, editingCategoryTaskId, showNewTaskCategoryDropdown]);
+  }, [contextMenu.visible, editingCategoryTaskId, editingAssigneeTaskId, showNewTaskCategoryDropdown]);
 
   // Debug editingCategoryTaskId changes
   useEffect(() => {
@@ -1080,6 +1089,80 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
     }
   };
 
+  const handleAssigneeClick = (taskId: number) => {
+    setEditingAssigneeTaskId(taskId);
+  };
+
+  const handleAssigneeSave = async (taskId: number, assigneeNames: string[]) => {
+    try {
+      // Get current assignees for this task
+      const currentTask = tasks.find(t => t.id === taskId);
+      const currentAssignees = currentTask?.assignee_names || [];
+      
+      // Convert assignee names to user IDs
+      const newAssigneeIds: number[] = [];
+      for (const name of assigneeNames) {
+        const user = workspaceUsers.find(u => u.name === name);
+        if (user) {
+          newAssigneeIds.push(user.user_id);
+        }
+      }
+      
+      // Find assignees to remove (in current but not in new)
+      const assigneesToRemove = currentAssignees.filter(name => !assigneeNames.includes(name));
+      
+      // Find assignees to add (in new but not in current)
+      const assigneesToAdd = assigneeNames.filter(name => !currentAssignees.includes(name));
+      
+      // Remove assignees that are no longer needed
+      for (const name of assigneesToRemove) {
+        const user = workspaceUsers.find(u => u.name === name);
+        if (user) {
+          const response = await fetch(`/api/tasks/${taskId}/assignees/${user.user_id}`, {
+            method: 'DELETE',
+            credentials: 'include'
+          });
+          
+          if (!response.ok) {
+            console.error(`Failed to remove assignee ${name}:`, response.status);
+          }
+        }
+      }
+      
+      // Add new assignees that weren't there before
+      for (const name of assigneesToAdd) {
+        const user = workspaceUsers.find(u => u.name === name);
+        if (user) {
+          const response = await fetch(`/api/tasks/${taskId}/assignees`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ user_id: user.user_id })
+          });
+          
+          if (!response.ok) {
+            console.error(`Failed to add assignee ${name}:`, response.status);
+          }
+        }
+      }
+      
+      // Update local state
+      setTasks(prevTasks => {
+        const updatedTasks = prevTasks.map(t => {
+          if (t.id === taskId) {
+            return { ...t, assignee_names: assigneeNames } as Task;
+          }
+          return t;
+        });
+        return updatedTasks;
+      });
+    } catch (error) {
+      console.error('Error updating task assignees:', error);
+    } finally {
+      setEditingAssigneeTaskId(null);
+    }
+  };
+
   const handleCreateCategoryKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       handleCreateCategory();
@@ -1699,6 +1782,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
                   <div className="w-4"></div> {/* Priority */}
                   <div className="flex-1">Task</div>
                   {viewMode === 'planner' && <div className="hidden sm:block w-24 text-center">Category</div>}
+                  <div className="hidden sm:block w-24 text-center">Assignee</div>
                   <div className="hidden sm:block w-12 text-center">Start</div>
                   {viewMode === 'tracker' && <div className="hidden sm:block w-12 text-center">Complete</div>}
                   <div className="hidden sm:block w-12 text-center">Due</div>
@@ -1718,6 +1802,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
                     editingPriorityValue={editingPriorityValue}
                     editingCategoryTaskId={editingCategoryTaskId}
                     editingCategoryValue={editingCategoryValue}
+                    editingAssigneeTaskId={editingAssigneeTaskId}
                     visibleTooltips={visibleTooltips}
                     hoveredTask={hoveredTask}
                     chatIcons={chatIcons}
@@ -1751,11 +1836,15 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
                     onSetEditingTitleTaskId={setEditingTitleTaskId}
                     onSetEditingPriorityTaskId={setEditingPriorityTaskId}
                     onSetEditingCategoryTaskId={setEditingCategoryTaskId}
+                    onSetEditingAssigneeTaskId={setEditingAssigneeTaskId}
                     onSetHoveredTask={setHoveredTask}
                     onSetEditingTooltips={setEditingTooltips}
                     onDrop={handleDrop}
                     titleInputRef={titleInputRef}
                     categoryInputRef={categoryInputRef}
+                    onAssigneeClick={handleAssigneeClick}
+                    onAssigneeSave={handleAssigneeSave}
+                    workspaceUsers={workspaceUsers}
 
                     formatDate={formatDate}
                     getStatusIcon={getStatusIcon}
@@ -1782,6 +1871,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
             <div className="w-4"></div> {/* Priority */}
             <div className="flex-1">Task</div>
             {viewMode === 'planner' && <div className="hidden sm:block w-24 text-center">Category</div>}
+            <div className="hidden sm:block w-24 text-center">Assignee</div>
             <div className="hidden sm:block w-12 text-center">Start</div>
             {viewMode === 'tracker' && <div className="hidden sm:block w-12 text-center">Complete</div>}
             <div className="hidden sm:block w-12 text-center">Due</div>
@@ -1803,6 +1893,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
                 editingPriorityValue={editingPriorityValue}
                 editingCategoryTaskId={editingCategoryTaskId}
                 editingCategoryValue={editingCategoryValue}
+                editingAssigneeTaskId={editingAssigneeTaskId}
                 visibleTooltips={visibleTooltips}
                 hoveredTask={hoveredTask}
                 chatIcons={chatIcons}
@@ -1836,11 +1927,15 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
                 onSetEditingTitleTaskId={setEditingTitleTaskId}
                 onSetEditingPriorityTaskId={setEditingPriorityTaskId}
                 onSetEditingCategoryTaskId={setEditingCategoryTaskId}
+                onSetEditingAssigneeTaskId={setEditingAssigneeTaskId}
                 onSetHoveredTask={setHoveredTask}
                 onSetEditingTooltips={setEditingTooltips}
                 onDrop={handleDrop}
                 titleInputRef={titleInputRef}
                 categoryInputRef={categoryInputRef}
+                onAssigneeClick={handleAssigneeClick}
+                onAssigneeSave={handleAssigneeSave}
+                workspaceUsers={workspaceUsers}
 
                 formatDate={formatDate}
                 getStatusIcon={getStatusIcon}
