@@ -460,6 +460,15 @@ function buildPresetFilterCondition(logic, startParamIndex, params, userId, days
             params.push(values[0]);
             paramCount++;
           }
+        } else if (operator === 'less_than' && values.length > 0) {
+          if (values[0] === 'today') {
+            // "Overdue tasks" means tasks due before today
+            conditions.push(`t.due_date < CURRENT_DATE AND t.due_date IS NOT NULL`);
+          } else {
+            conditions.push(`t.due_date < $${startParamIndex + paramCount}`);
+            params.push(values[0]);
+            paramCount++;
+          }
         } else if (operator === 'is_null') {
           conditions.push('t.due_date IS NULL');
         } else if (operator === 'is_not_null') {
