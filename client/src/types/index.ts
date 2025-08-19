@@ -85,6 +85,9 @@ export interface TaskFilters {
   // Preset filters (array of enabled preset keys)
   presets: string[];
   
+  // Current days values for date-related presets (session-only)
+  currentDays?: Record<string, number>;
+  
   // Custom filters (for future implementation)
   customFilters?: FilterGroup[];
   // Logic to combine groups

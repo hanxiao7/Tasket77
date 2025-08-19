@@ -145,10 +145,8 @@ class ApiService {
     if (filters) {
       Object.entries(filters).forEach(([key, value]) => {
         if (value !== undefined && value !== null) {
-          // Handle arrays by JSON stringifying them
-          if (Array.isArray(value)) {
-            params.append(key, JSON.stringify(value));
-          } else if (key === 'customFilters') {
+          // Handle arrays and objects by JSON stringifying them
+          if (Array.isArray(value) || typeof value === 'object') {
             params.append(key, JSON.stringify(value));
           } else {
             params.append(key, value.toString());

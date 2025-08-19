@@ -581,7 +581,7 @@ function buildPresetFilterCondition(logic, startParamIndex, params, userId, days
 
 // Get tasks with optional filters
 app.get('/api/tasks', authenticateToken, async (req, res) => {
-  const { view, presets, workspace_id, customFilters, customFiltersLogic } = req.query;
+  const { view, presets, workspace_id, customFilters, customFiltersLogic, currentDays } = req.query;
   let query = `
     SELECT t.*, c.name as category_name, tg.name as tag_name,
            COALESCE(
@@ -632,21 +632,51 @@ app.get('/api/tasks', authenticateToken, async (req, res) => {
         // Build filter conditions for enabled presets
         const filterConditions = [];
         
+        console.log('Processing preset filters:', presetArray);
+        console.log('Available preferences:', Object.keys(preferences));
+        
+        // Parse currentDays if provided
+        let frontendDays = {};
+        if (currentDays) {
+          try {
+            frontendDays = JSON.parse(currentDays);
+            console.log('Using frontend days values:', frontendDays);
+          } catch (e) {
+            console.log('Failed to parse currentDays, using database values');
+          }
+        }
+        
         for (const presetKey of presetArray) {
           const preset = preferences[presetKey];
-          if (preset && preset.enabled && preset.view === view) {
-            const days = preset.days; // Extract the customizable days value
+          console.log(`Processing preset ${presetKey}:`, preset);
+          
+          if (preset && preset.view === view) {
+            // If the preset is in the presets array, it's enabled (session state)
+            // We don't need to check preset.enabled from database anymore
+            // Use frontend days value if available, otherwise fall back to database
+            const days = frontendDays[presetKey] || preset.days;
+            console.log(`Building condition for ${presetKey} with days:`, days, '(frontend:', frontendDays[presetKey], ', database:', preset.days, ')');
+            
             const condition = buildPresetFilterCondition(preset.logic, paramIndex, params, req.user.userId, days);
             if (condition) {
+              console.log(`Condition built for ${presetKey}:`, condition.query);
               filterConditions.push(condition);
               paramIndex += condition.paramCount;
+            } else {
+              console.log(`No condition built for ${presetKey}`);
             }
+          } else {
+            console.log(`Skipping preset ${presetKey}:`, { preset: !!preset, view: preset?.view, expectedView: view });
           }
         }
 
         // Combine all preset conditions with AND logic
         if (filterConditions.length > 0) {
           query += ` AND (${filterConditions.map(c => c.query).join(' AND ')})`;
+          console.log('Final query with preset filters:', query);
+          console.log('Filter conditions applied:', filterConditions.length);
+        } else {
+          console.log('No filter conditions were built');
         }
       }
     } catch (e) {

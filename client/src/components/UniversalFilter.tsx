@@ -18,6 +18,11 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
   viewMode,
   className = '' 
 }) => {
+  // NOTE: This component now works in session-only mode:
+  // - Preset filter states (enabled/disabled) are loaded from database defaults on page load
+  // - All filter changes during the session are kept in local state only
+  // - Changes are lost on page refresh and reset to database defaults
+  // - Custom filters are always session-only and never saved
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [customGroups, setCustomGroups] = useState<FilterGroup[]>([]);
   const [customLogic, setCustomLogic] = useState<'AND' | 'OR'>('AND');
@@ -47,7 +52,7 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
   const [diffCmp, setDiffCmp] = useState<'lt' | 'le' | 'eq' | 'ge' | 'gt'>('le');
   const [diffDays, setDiffDays] = useState<number>(0);
 
-  // Load preset filters
+  // Load preset filters from database (defaults only - changes are session-only)
   useEffect(() => {
     const loadPresetFilters = async () => {
       if (!workspaceId) return;
@@ -72,9 +77,11 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
               logic: value.logic
             }));
           
+          // Set initial state from database defaults
           setPresetFilters(viewPresets);
           
-          // Initialize customDays with values from backend
+          // Initialize customDays with default values from backend
+          // Note: days values are loaded from database but changes are session-only
           const daysValues: Record<string, number> = {};
           Object.entries(preferences).forEach(([key, value]: [string, any]) => {
             if (value && value.days && isDatePreset(key)) {
@@ -82,6 +89,9 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
             }
           });
           setCustomDays(daysValues);
+          
+          // Note: We don't call onFiltersChange here to avoid circular updates
+          // The parent component should handle initializing the filters with default presets
         }
       } catch (error) {
         console.error('Error loading preset filters:', error);
@@ -92,6 +102,9 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
 
     loadPresetFilters();
   }, [workspaceId, viewMode]);
+
+  // Note: We don't use useEffect to avoid infinite loops
+  // Filters are updated only when user makes explicit changes
 
   // Close modal when clicking outside
   useEffect(() => {
@@ -202,81 +215,48 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
     loadOptions();
   }, [workspaceId, user?.id]);
 
-  const handlePresetToggle = async (presetKey: string, enabled: boolean) => {
-    try {
-      const currentPreset = presetFilters.find(p => p.key === presetKey);
-      if (!currentPreset) return;
+  const handlePresetToggle = (presetKey: string, enabled: boolean) => {
+    // Update local state first
+    setPresetFilters(prev => {
+      const newPresets = prev.map(preset => 
+        preset.key === presetKey 
+          ? { ...preset, enabled } 
+          : preset
+      );
       
-      const response = await fetch(`/api/user-preferences/${workspaceId}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ 
-          key: presetKey, 
-          value: { 
-            ...currentPreset,
-            enabled,
-            days: customDays[presetKey] || getDefaultDays(presetKey)
-          }
-        })
-      });
-
-      if (response.ok) {
-        // Update local state
-        setPresetFilters(prev => 
-          prev.map(preset => 
-            preset.key === presetKey 
-              ? { ...preset, enabled } 
-              : preset
-          )
-        );
-
-        // Update filters
-        const enabledPresets = presetFilters
-          .map(preset => preset.key === presetKey ? { ...preset, enabled } : preset)
-          .filter(preset => preset.enabled)
-          .map(preset => preset.key);
-
-        onFiltersChange({
-          ...filters,
-          presets: enabledPresets
-        });
-      }
-    } catch (error) {
-      console.error('Error updating preset filter:', error);
-    }
+      // Update parent filters after state update
+      const updatedPresets = newPresets
+        .filter(preset => preset.enabled)
+        .map(preset => preset.key);
+      
+      const newFilters = {
+        ...filters,
+        presets: updatedPresets,
+        currentDays: customDays
+      };
+      
+      console.log('UniversalFilter: Toggle preset, updating filters with:', newFilters);
+      onFiltersChange(newFilters);
+      
+      return newPresets;
+    });
   };
 
-  const handleDaysChange = async (presetKey: string, days: number) => {
+  const handleDaysChange = (presetKey: string, days: number) => {
+    console.log(`UniversalFilter: Changing days for ${presetKey} to ${days}`);
+    
+    // Update local state only (session-only)
     setCustomDays(prev => ({ ...prev, [presetKey]: days }));
     
-    // Save the updated days value to the backend
-    try {
-      const currentPreset = presetFilters.find(p => p.key === presetKey);
-      if (currentPreset) {
-        const response = await fetch(`/api/user-preferences/${workspaceId}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ 
-            key: presetKey, 
-            value: { 
-              ...currentPreset,
-              days
-            }
-          })
-        });
-
-        if (response.ok) {
-          // Update filters to reflect the new days value
-          onFiltersChange({
-            ...filters,
-            presets: filters.presets || []
-          });
-        }
-      }
-    } catch (error) {
-      console.error('Error updating days value:', error);
+    // Trigger filter update to use the new days value
+    const currentPreset = presetFilters.find(p => p.key === presetKey);
+    if (currentPreset && currentPreset.enabled) {
+      const newFilters = {
+        ...filters,
+        currentDays: { ...customDays, [presetKey]: days }
+      };
+      console.log('UniversalFilter: Triggering filter update with:', newFilters);
+      onFiltersChange(newFilters);
     }
   };
 
@@ -315,7 +295,7 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
     return labels[key] || key;
   };
 
-  // Custom filter handlers
+  // Custom filter handlers (session-only - not saved to database)
   const clearCustom = () => {
     setSingleMode('none');
     setSingleValues([]);
@@ -333,6 +313,7 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
   };
 
   const applyCustom = () => {
+    // Custom filters are session-only and not saved to database
     let condition: FilterCondition | null = null;
     if (['assignee', 'category', 'tag', 'status', 'priority'].includes(singleMode)) {
       condition = {
