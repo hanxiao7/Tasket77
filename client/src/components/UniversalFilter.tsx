@@ -242,23 +242,26 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
     });
   };
 
+  // Handle date interval changes for preset filters
+  // Always updates the filter immediately so that when the preset is enabled,
+  // it uses the current days value without needing an "Apply" button
   const handleDaysChange = (presetKey: string, days: number) => {
     console.log(`UniversalFilter: Changing days for ${presetKey} to ${days}`);
     
     // Update local state only (session-only)
     setCustomDays(prev => ({ ...prev, [presetKey]: days }));
     
-    // Trigger filter update to use the new days value
-    const currentPreset = presetFilters.find(p => p.key === presetKey);
-    if (currentPreset && currentPreset.enabled) {
-      const newFilters = {
-        ...filters,
-        currentDays: { ...customDays, [presetKey]: days }
-      };
-      console.log('UniversalFilter: Triggering filter update with:', newFilters);
-      onFiltersChange(newFilters);
-    }
+    // Always trigger filter update to use the new days value, regardless of preset state
+    // This ensures that when the preset is enabled, it uses the updated days value
+    const newFilters = {
+      ...filters,
+      currentDays: { ...customDays, [presetKey]: days }
+    };
+    console.log('UniversalFilter: Triggering filter update with new days value:', newFilters);
+    onFiltersChange(newFilters);
   };
+
+
 
   const getDefaultDays = (presetKey: string): number => {
     const defaults: Record<string, number> = {
@@ -313,6 +316,21 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
   };
 
   const applyCustom = () => {
+    console.log('UniversalFilter: Apply button clicked, current state:', {
+      singleMode,
+      singleValues,
+      singleIncludeNull,
+      rangeField,
+      rangeStart,
+      rangeEnd,
+      nullField,
+      nullOperator,
+      diffFrom,
+      diffTo,
+      diffCmp,
+      diffDays
+    });
+    
     // Custom filters are session-only and not saved to database
     let condition: FilterCondition | null = null;
     if (['assignee', 'category', 'tag', 'status', 'priority'].includes(singleMode)) {
@@ -348,10 +366,15 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
       } as FilterCondition;
     }
 
+    console.log('UniversalFilter: Built condition:', condition);
+
     if (condition) {
       const group: FilterGroup = { id: 'single', logic: 'AND', conditions: [condition] };
-      onFiltersChange({ ...filters, customFilters: [group], customFiltersLogic: 'AND' });
+      const newFilters = { ...filters, customFilters: [group], customFiltersLogic: 'AND' as const };
+      console.log('UniversalFilter: Applying custom filters:', newFilters);
+      onFiltersChange(newFilters);
     } else {
+      console.log('UniversalFilter: No valid condition, clearing custom filters');
       onFiltersChange({ ...filters, customFilters: undefined, customFiltersLogic: undefined });
     }
   };
@@ -494,18 +517,18 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
     <div className="w-full mt-2">
       <div className="flex items-center gap-2 flex-wrap">
         <span className="text-sm">From</span>
-        <select value={diffFrom} onChange={e => setDiffFrom(e.target.value as any)} className="text-sm border rounded px-1 py-1 w-30">
+                        <select value={diffFrom} onChange={e => setDiffFrom(e.target.value as any)} className="text-sm border rounded px-1 py-1 w-30">
           {[...dateFields, 'today'].map(f => (
             <option key={f as any} value={f as any}>{String(f).replace('_', ' ')}</option>
           ))}
         </select>
         <span className="text-sm">to</span>
-        <select value={diffTo} onChange={e => setDiffTo(e.target.value as any)} className="text-sm border rounded px-1 py-1 w-30">
+                        <select value={diffTo} onChange={e => setDiffTo(e.target.value as any)} className="text-sm border rounded px-1 py-1 w-30">
           {[...dateFields, 'today'].map(f => (
             <option key={f as any} value={f as any}>{String(f).replace('_', ' ')}</option>
           ))}
         </select>
-        <select value={diffCmp} onChange={e => setDiffCmp(e.target.value as any)} className="text-sm border rounded px-1 py-1">
+                        <select value={diffCmp} onChange={e => setDiffCmp(e.target.value as any)} className="text-sm border rounded px-1 py-1">
           <option value="lt">&lt;</option>
           <option value="le">&le;</option>
           <option value="eq">=</option>

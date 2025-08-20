@@ -378,7 +378,9 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
     viewMode: '',
     selectedWorkspaceId: 0,
     presets: [] as string[],
-    grouping: ''
+    grouping: '',
+    currentDays: {} as Record<string, number>,
+    customFilters: undefined as any
   });
 
   // Ref to store current filters for loadData function
@@ -390,7 +392,9 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
       viewMode,
       selectedWorkspaceId: selectedWorkspaceId || 0,
       presets: filters.presets || [],
-      grouping: filters.grouping || ''
+      grouping: filters.grouping || '',
+      currentDays: filters.currentDays || {},
+      customFilters: filters.customFilters || undefined
     };
 
     const lastState = lastLoadedStateRef.current;
@@ -400,17 +404,21 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
       currentState.viewMode !== lastState.viewMode ||
       currentState.selectedWorkspaceId !== lastState.selectedWorkspaceId ||
       currentState.presets.join(',') !== lastState.presets.join(',') ||
-      currentState.grouping !== lastState.grouping;
+      currentState.grouping !== lastState.grouping ||
+      JSON.stringify(currentState.currentDays) !== JSON.stringify(lastState.currentDays) ||
+      JSON.stringify(currentState.customFilters) !== JSON.stringify(lastState.customFilters);
 
     if (needsReload) {
       console.log('🔄 State changed, triggering data reload:', { 
         from: lastState,
-        to: currentState
+        to: currentState,
+        currentDaysChanged: JSON.stringify(currentState.currentDays) !== JSON.stringify(lastState.currentDays),
+        customFiltersChanged: JSON.stringify(currentState.customFilters) !== JSON.stringify(lastState.customFilters)
       });
       loadData();
       lastLoadedStateRef.current = currentState;
     }
-  }, [viewMode, selectedWorkspaceId, filters.presets, filters.grouping, loadData]);
+  }, [viewMode, selectedWorkspaceId, filters.presets, filters.grouping, filters.currentDays, filters.customFilters, loadData]);
 
   // Recheck title truncation when view mode changes
   useEffect(() => {
