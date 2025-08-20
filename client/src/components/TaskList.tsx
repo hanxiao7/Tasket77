@@ -315,16 +315,23 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
   }, [viewMode]);
 
   const loadData = useCallback(async () => {
+    console.log('📥 loadData function called at:', new Date().toISOString());
+    console.log('🔧 loadData function recreated with dependencies:', { 
+      viewMode: viewMode,
+      selectedWorkspaceId: selectedWorkspaceId
+    });
     try {
       setLoading(true);
       const [tasksData, categoriesData, tagsData, usersData] = await Promise.all([
-        apiService.getTasks({ ...filters, view: viewMode, workspace_id: selectedWorkspaceId }),
+        apiService.getTasks({ ...currentFiltersRef.current, view: viewMode, workspace_id: selectedWorkspaceId }),
         apiService.getCategories(true, selectedWorkspaceId), // Include hidden categories and filter by workspace
         apiService.getTags(selectedWorkspaceId), // Get tags for the workspace
         fetch(`/api/workspace-users/${selectedWorkspaceId}`, { credentials: 'include' }).then(res => res.ok ? res.json() : [])
       ]);
       
       // Apply sorting to the loaded data
+      // Note: sortTasks is not in dependencies because it's a pure function
+      // that gets the current viewMode value when called
       const sortedTasks = sortTasks(tasksData);
       setTasks(sortedTasks);
       setCategories(categoriesData);
@@ -337,7 +344,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
       maxWidthCache.current.clear();
       
       // Always expand all groups by default
-      const groupingMethod = filters.grouping || (viewMode === 'planner' ? 'none' : 'category');
+      const groupingMethod = currentFiltersRef.current.grouping || (viewMode === 'planner' ? 'none' : 'category');
       
       if (groupingMethod === 'none') {
         setExpandedCategories(new Set());
@@ -362,11 +369,48 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
     } finally {
       setLoading(false);
     }
-  }, [filters, viewMode, sortTasks, selectedWorkspaceId]);
+  }, [viewMode, sortTasks, selectedWorkspaceId]); // Removed filters to prevent function recreation
+
+
+
+  // Single intelligent useEffect to handle all changes
+  const lastLoadedStateRef = useRef({
+    viewMode: '',
+    selectedWorkspaceId: 0,
+    presets: [] as string[],
+    grouping: ''
+  });
+
+  // Ref to store current filters for loadData function
+  const currentFiltersRef = useRef(filters);
+  currentFiltersRef.current = filters;
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    const currentState = {
+      viewMode,
+      selectedWorkspaceId: selectedWorkspaceId || 0,
+      presets: filters.presets || [],
+      grouping: filters.grouping || ''
+    };
+
+    const lastState = lastLoadedStateRef.current;
+    
+    // Check if we need to reload data
+    const needsReload = 
+      currentState.viewMode !== lastState.viewMode ||
+      currentState.selectedWorkspaceId !== lastState.selectedWorkspaceId ||
+      currentState.presets.join(',') !== lastState.presets.join(',') ||
+      currentState.grouping !== lastState.grouping;
+
+    if (needsReload) {
+      console.log('🔄 State changed, triggering data reload:', { 
+        from: lastState,
+        to: currentState
+      });
+      loadData();
+      lastLoadedStateRef.current = currentState;
+    }
+  }, [viewMode, selectedWorkspaceId, filters.presets, filters.grouping, loadData]);
 
   // Recheck title truncation when view mode changes
   useEffect(() => {
@@ -398,7 +442,6 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
       }
       // Also close assignee dropdown when clicking outside
       if (editingAssigneeTaskId !== null) {
-        console.log('Closing assignee dropdown due to outside click');
         setEditingAssigneeTaskId(null);
       }
       // Also close new task category dropdown when clicking outside

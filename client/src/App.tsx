@@ -62,6 +62,8 @@ function MainApp() {
   useEffect(() => {
     if (preferencesLoading || !selectedWorkspaceId) return;
     
+    console.log('🔄 App.tsx: Loading preset filters for viewMode:', viewMode);
+    
     const loadPresetFilters = async () => {
       try {
         const response = await fetch(`/api/user-preferences/${selectedWorkspaceId}`, {
@@ -76,8 +78,12 @@ function MainApp() {
             })
             .map(([key]) => key);
           
+          console.log('🔄 App.tsx: Updating filters with view:', viewMode, 'presets:', enabledPresets);
+          
+          // Batch both view and presets updates into a single setFilters call
           setFilters(prev => ({
             ...prev,
+            view: viewMode,
             presets: enabledPresets
           }));
         }
