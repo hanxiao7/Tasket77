@@ -9,7 +9,7 @@ import TaskSummary from './components/TaskSummary';
 import WorkspaceSelector from './components/WorkspaceSelector';
 import UserMenu from './components/UserMenu';
 import UniversalFilter from './components/UniversalFilter';
-import useUserPreferences from './hooks/useUserPreferences';
+// import useUserPreferences from './hooks/useUserPreferences'; // No longer needed with new filter system
 import { Download, ArrowUpDown, CheckCircle } from 'lucide-react';
 import { TaskFilters, ViewMode, Task } from './types';
 
@@ -18,7 +18,7 @@ function MainApp() {
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<number | undefined>(undefined);
   const [filters, setFilters] = useState<TaskFilters>({
     view: 'planner',
-    presets: ['hide_completed'], // Default presets
+    presets: [], // Default presets will be loaded from database
     grouping: 'none' // Default to no grouping for planner
   });
   const [currentTasks, setCurrentTasks] = useState<Task[]>([]);
@@ -27,7 +27,8 @@ function MainApp() {
   const { user } = useAuth();
 
   // User preferences hook
-  const { preferences, savePreference, getPresetFilters, updatePresetFilter, loading: preferencesLoading } = useUserPreferences(selectedWorkspaceId || 0);
+  // const { preferences, savePreference, getPresetFilters, updatePresetFilter, loading: preferencesLoading } = useUserPreferences(selectedWorkspaceId || 0);
+  const preferencesLoading = false; // No longer needed with new filter system
 
   // Load workspaces on component mount
   useEffect(() => {
@@ -66,25 +67,25 @@ function MainApp() {
     
     const loadPresetFilters = async () => {
       try {
-        const response = await fetch(`/api/user-preferences/${selectedWorkspaceId}`, {
+        const response = await fetch(`/api/filters/${selectedWorkspaceId}?view_mode=${viewMode}`, {
           credentials: 'include'
         });
         
         if (response.ok) {
-          const preferences = await response.json();
-          const enabledPresets = Object.entries(preferences)
-            .filter(([key, value]: [string, any]) => {
-              return value && value.view === viewMode && value.enabled;
-            })
-            .map(([key]) => key);
+          const filters = await response.json();
+          const enabledPresets = filters
+            .filter((filter: any) => filter.is_default)
+            .map((filter: any) => filter.id);
           
           console.log('🔄 App.tsx: Updating filters with view:', viewMode, 'presets:', enabledPresets);
           
-          // Batch both view and presets updates into a single setFilters call
+          // Update filters in a single call to prevent double reload
           setFilters(prev => ({
             ...prev,
             view: viewMode,
-            presets: enabledPresets
+            presets: enabledPresets,
+            // Initialize currentDays to empty to prevent undefined issues
+            currentDays: prev.currentDays || {}
           }));
         }
       } catch (error) {
@@ -221,7 +222,7 @@ function MainApp() {
               <button
                 onClick={() => {
                   setViewMode('planner');
-                  setFilters({ ...filters, view: 'planner', presets: ['hide_completed'], grouping: 'none' });
+                  setFilters({ ...filters, view: 'planner', presets: [], grouping: 'none' });
                 }}
                 className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex-1 ${
                   viewMode === 'planner'
@@ -234,7 +235,7 @@ function MainApp() {
               <button
                 onClick={() => {
                   setViewMode('tracker');
-                  setFilters({ ...filters, view: 'tracker', presets: ['active_past_7_days'], grouping: 'category' });
+                  setFilters({ ...filters, view: 'tracker', presets: [], grouping: 'category' });
                 }}
                 className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex-1 ${
                   viewMode === 'tracker'
@@ -301,7 +302,7 @@ function MainApp() {
                 <button
                   onClick={() => {
                     setViewMode('planner');
-                    setFilters({ ...filters, view: 'planner', presets: ['hide_completed'], grouping: 'none' });
+                    setFilters({ ...filters, view: 'planner', presets: [], grouping: 'none' });
                   }}
                   className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
                     viewMode === 'planner'
@@ -314,7 +315,7 @@ function MainApp() {
                 <button
                   onClick={() => {
                     setViewMode('tracker');
-                    setFilters({ ...filters, view: 'tracker', presets: ['active_past_7_days'], grouping: 'category' });
+                    setFilters({ ...filters, view: 'tracker', presets: [], grouping: 'category' });
                   }}
                   className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
                     viewMode === 'tracker'

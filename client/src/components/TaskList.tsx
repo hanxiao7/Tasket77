@@ -377,7 +377,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
   const lastLoadedStateRef = useRef({
     viewMode: '',
     selectedWorkspaceId: 0,
-    presets: [] as string[],
+    presets: [] as number[],
     grouping: '',
     currentDays: {} as Record<string, number>,
     customFilters: undefined as any
@@ -866,8 +866,9 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
     const groupId = getGroupId(groupName);
     
     // Special handling for completed tasks in status grouping
-    // Check if hide_completed preset is enabled
-    const hideCompletedEnabled = filters.presets?.includes('hide_completed');
+    // Note: This will need to be updated when we implement the new filter system
+    // For now, we'll assume hide_completed is not enabled since we're using the new system
+    const hideCompletedEnabled = false; // TODO: Implement proper filter checking with new system
     if (groupingMethod === 'status' && groupName === 'Completed') {
       return !hideCompletedEnabled && expandedCategories.has(groupId);
     }

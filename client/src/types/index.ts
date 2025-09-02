@@ -82,8 +82,8 @@ export interface TaskFilters {
   workspace_id?: number;
   grouping?: 'none' | 'status' | 'priority' | 'category' | 'tag';
   
-  // Preset filters (array of enabled preset keys)
-  presets: string[];
+  // Preset filters (array of enabled preset IDs)
+  presets: number[];
   
   // Current days values for date-related presets (session-only)
   currentDays?: Record<string, number>;
@@ -114,15 +114,13 @@ export interface FilterCondition {
 }
 
 export interface PresetFilter {
-  key: string;
+  id: number;
+  name: string;
   enabled: boolean;
-  type: 'system' | 'user';
-  view: 'planner' | 'tracker';
-  logic: {
-    conditions: FilterCondition[];
-    logic: 'AND' | 'OR';
-  };
-  days?: number; // Customizable days value for date-related presets
+  view_mode: 'planner' | 'tracker';
+  operator: 'AND' | 'OR';
+  is_default: boolean;
+  conditions: FilterCondition[];
 }
 
 export type ViewMode = 'planner' | 'tracker'; 

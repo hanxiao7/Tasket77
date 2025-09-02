@@ -52,40 +52,60 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
   const [diffCmp, setDiffCmp] = useState<'lt' | 'le' | 'eq' | 'ge' | 'gt'>('le');
   const [diffDays, setDiffDays] = useState<number>(0);
 
-  // Load preset filters from database (defaults only - changes are session-only)
+  // Load saved filters from database (defaults only - changes are session-only)
   useEffect(() => {
-    const loadPresetFilters = async () => {
+    const loadSavedFilters = async () => {
       if (!workspaceId) return;
       
       setLoading(true);
       try {
-        const response = await fetch(`/api/user-preferences/${workspaceId}`, {
+        const response = await fetch(`/api/filters/${workspaceId}?view_mode=${viewMode}`, {
           credentials: 'include'
         });
         
         if (response.ok) {
-          const preferences = await response.json();
-          const viewPresets = Object.entries(preferences)
-            .filter(([key, value]: [string, any]) => {
-              return value && value.view === viewMode && value.type === 'system';
-            })
-            .map(([key, value]: [string, any]) => ({
-              key,
-              enabled: value.enabled,
-              type: value.type,
-              view: value.view,
-              logic: value.logic
-            }));
+          const filters = await response.json();
+          
+          // Map new database structure to existing UI format
+          const viewPresets = filters.map((filter: any) => ({
+            id: filter.id,
+            name: filter.name,
+            enabled: filter.is_default,  // Use is_default for initial state
+            view_mode: filter.view_mode,
+            operator: filter.operator,
+            conditions: filter.conditions
+          }));
           
           // Set initial state from database defaults
           setPresetFilters(viewPresets);
           
-          // Initialize customDays with default values from backend
+          // Initialize customDays with default values from conditions
           // Note: days values are loaded from database but changes are session-only
           const daysValues: Record<string, number> = {};
-          Object.entries(preferences).forEach(([key, value]: [string, any]) => {
-            if (value && value.days && isDatePreset(key)) {
-              daysValues[key] = value.days;
+          filters.forEach((filter: any) => {
+            // Only process filters that have date_diff conditions
+            const hasDateDiffCondition = filter.conditions.some((condition: any) => 
+              condition.condition_type === 'date_diff'
+            );
+            
+            if (hasDateDiffCondition) {
+              // Find the date_diff condition for this filter
+              const dateDiffCondition = filter.conditions.find((condition: any) => 
+                condition.condition_type === 'date_diff' && condition.values && condition.values.length > 0
+              );
+              
+              if (dateDiffCondition) {
+                // Map database filter names to the expected keys
+                const keyMap: Record<string, string> = {
+                  'Due in 7 Days': 'due_in_7_days',
+                  'Active in Past 7 Days': 'active_past_7_days',
+                  'Unchanged in Past 14 Days': 'unchanged_past_14_days',
+                  'Lasted More Than 1 Day': 'lasted_more_than_1_day'
+                };
+                const key = keyMap[filter.name] || filter.name.toLowerCase().replace(/\s+/g, '_');
+                daysValues[key] = dateDiffCondition.values[0];
+                console.log(`Setting days for ${filter.name} (${key}): ${dateDiffCondition.values[0]}`);
+              }
             }
           });
           setCustomDays(daysValues);
@@ -94,13 +114,13 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
           // The parent component should handle initializing the filters with default presets
         }
       } catch (error) {
-        console.error('Error loading preset filters:', error);
+        console.error('Error loading saved filters:', error);
       } finally {
         setLoading(false);
       }
     };
 
-    loadPresetFilters();
+    loadSavedFilters();
   }, [workspaceId, viewMode]);
 
   // Note: We don't use useEffect to avoid infinite loops
@@ -215,11 +235,11 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
     loadOptions();
   }, [workspaceId, user?.id]);
 
-  const handlePresetToggle = (presetKey: string, enabled: boolean) => {
+  const handlePresetToggle = (presetId: number, enabled: boolean) => {
     // Update local state first
     setPresetFilters(prev => {
       const newPresets = prev.map(preset => 
-        preset.key === presetKey 
+        preset.id === presetId 
           ? { ...preset, enabled } 
           : preset
       );
@@ -227,7 +247,7 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
       // Update parent filters after state update
       const updatedPresets = newPresets
         .filter(preset => preset.enabled)
-        .map(preset => preset.key);
+        .map(preset => preset.id);
       
       const newFilters = {
         ...filters,
@@ -263,18 +283,19 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
 
 
 
-  const getDefaultDays = (presetKey: string): number => {
+  const getDefaultDays = (filterName: string): number => {
     const defaults: Record<string, number> = {
-      'due_in_7_days': 7,
-      'active_past_7_days': 7,
-      'unchanged_past_14_days': 14,
-      'lasted_more_than_1_day': 1
+      'due in 7 days': 7,
+      'active in past 7 days': 7,
+      'unchanged in past 14 days': 14,
+      'lasted more than 1 day': 1
     };
-    return defaults[presetKey] || 7;
+    return defaults[filterName.toLowerCase()] || 7;
   };
 
-  const isDatePreset = (presetKey: string): boolean => {
-    return ['due_in_7_days', 'active_past_7_days', 'unchanged_past_14_days', 'lasted_more_than_1_day'].includes(presetKey);
+  const isDatePreset = (filterName: string): boolean => {
+    const dateFilters = ['due in 7 days', 'active in past 7 days', 'unchanged in past 14 days', 'lasted more than 1 day'];
+    return dateFilters.includes(filterName.toLowerCase());
   };
 
   const getActiveFiltersCount = () => {
@@ -283,19 +304,19 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
     return presetCount + (customCount > 0 ? 1 : 0);
   };
 
-  const getPresetLabel = (key: string): string => {
-    const labels: Record<string, string> = {
-      'hide_completed': 'Hide completed',
-      'assigned_to_me': 'Assigned to me',
-      'due_in_7_days': 'Due in',
-      'overdue_tasks': 'Overdue tasks',
-      'high_urgent_priority': 'High/Urgent priority',
-      'active_past_7_days': 'Active in past',
-      'assigned_to_me_tracker': 'Assigned to me',
-      'unchanged_past_14_days': 'Unchanged in past',
-      'lasted_more_than_1_day': 'Lasted for at least'
-    };
-    return labels[key] || key;
+  const getPresetLabel = (filterName: string): string => {
+    // For date filters, return the part before the number
+    if (isDatePreset(filterName)) {
+      const labels: Record<string, string> = {
+        'due in 7 days': 'Due in',
+        'active in past 7 days': 'Active in past',
+        'unchanged in past 14 days': 'Unchanged in past',
+        'lasted more than 1 day': 'Lasted for at least'
+      };
+      return labels[filterName.toLowerCase()] || filterName;
+    }
+    // For other filters, return the full name
+    return filterName;
   };
 
   // Custom filter handlers (session-only - not saved to database)
@@ -382,20 +403,18 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
   // Sort presets: default first, then assigned to me, then others alphabetically
   const getSortedPresets = (presets: PresetFilter[]): PresetFilter[] => {
     return presets.sort((a, b) => {
-      const aLabel = getPresetLabel(a.key);
-      const bLabel = getPresetLabel(b.key);
+      const aLabel = getPresetLabel(a.name);
+      const bLabel = getPresetLabel(b.name);
       
-      // Default presets first (based on view mode)
-      const aIsDefault = aLabel.includes('(default)');
-      const bIsDefault = bLabel.includes('(default)');
-      if (aIsDefault && !bIsDefault) return -1;
-      if (!aIsDefault && bIsDefault) return 1;
+      // Default presets first (based on is_default field)
+      if (a.is_default && !b.is_default) return -1;
+      if (!a.is_default && b.is_default) return 1;
       
       // View-specific default filters (Active in past for tracker, Hide completed for planner)
-      if (viewMode === 'tracker' && a.key === 'active_past_7_days' && b.key !== 'active_past_7_days') return -1;
-      if (viewMode === 'tracker' && b.key === 'active_past_7_days' && a.key !== 'active_past_7_days') return 1;
-      if (viewMode === 'planner' && a.key === 'hide_completed' && b.key !== 'hide_completed') return -1;
-      if (viewMode === 'planner' && b.key === 'hide_completed' && a.key !== 'hide_completed') return 1;
+      if (viewMode === 'tracker' && a.name.toLowerCase().includes('active') && !b.name.toLowerCase().includes('active')) return -1;
+      if (viewMode === 'tracker' && b.name.toLowerCase().includes('active') && !a.name.toLowerCase().includes('active')) return 1;
+      if (viewMode === 'planner' && a.name.toLowerCase().includes('hide') && !b.name.toLowerCase().includes('hide')) return -1;
+      if (viewMode === 'planner' && b.name.toLowerCase().includes('hide') && !a.name.toLowerCase().includes('hide')) return 1;
       
       // Assigned to me second
       const aIsAssignedToMe = aLabel.includes('Assigned to me');
@@ -587,41 +606,41 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
                     <div className="space-y-2">
                       {getSortedPresets(presetFilters).map((preset) => (
                         <div
-                          key={preset.key}
+                          key={preset.id}
                           className="flex items-center gap-2 px-2 py-1 text-sm hover:bg-gray-100 rounded"
                         >
                           <input
                             type="checkbox"
                             checked={preset.enabled}
-                            onChange={(e) => handlePresetToggle(preset.key, e.target.checked)}
+                            onChange={(e) => handlePresetToggle(preset.id, e.target.checked)}
                             className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
                           />
-                          {isDatePreset(preset.key) ? (
+                          {isDatePreset(preset.name) ? (
                             <div className="flex items-center gap-1 flex-1">
                               <span className="truncate">
-                                {getPresetLabel(preset.key).replace(/\[\d+\]/, '')}
+                                {getPresetLabel(preset.name).replace(/\[\d+\]/, '')}
                               </span>
                               <input
                                 type="number"
                                 min="0"
-                                value={customDays[preset.key] || getDefaultDays(preset.key)}
-                                onChange={(e) => handleDaysChange(preset.key, Number(e.target.value))}
+                                value={customDays[preset.name.toLowerCase().replace(/\s+/g, '_')] || getDefaultDays(preset.name)}
+                                onChange={(e) => handleDaysChange(preset.name.toLowerCase().replace(/\s+/g, '_'), Number(e.target.value))}
                                 className="w-12 text-sm border rounded px-1 py-0.5 text-center"
                                 onClick={(e) => e.stopPropagation()}
                               />
                               <span className="text-sm text-gray-900">
-                                {preset.key === 'lasted_more_than_1_day' ? 'days' : 'days'}
+                                {preset.name.toLowerCase().includes('lasted') ? 'days' : 'days'}
                               </span>
                               {/* Show default note for tracker view default filter */}
-                              {viewMode === 'tracker' && preset.key === 'active_past_7_days' && (
+                              {viewMode === 'tracker' && preset.name.toLowerCase().includes('active') && (
                                 <span className="text-xs text-gray-500 italic">(default)</span>
                               )}
                             </div>
                           ) : (
                             <div className="flex items-center gap-1 flex-1">
-                              <span className="truncate">{getPresetLabel(preset.key)}</span>
+                              <span className="truncate">{getPresetLabel(preset.name)}</span>
                               {/* Show default note for planner view default filter */}
-                              {viewMode === 'planner' && preset.key === 'hide_completed' && (
+                              {viewMode === 'planner' && preset.name.toLowerCase().includes('hide') && (
                                 <span className="text-xs text-gray-500 italic">(default)</span>
                               )}
                             </div>

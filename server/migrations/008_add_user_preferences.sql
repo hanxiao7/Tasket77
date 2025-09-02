@@ -46,3 +46,22 @@ CREATE INDEX IF NOT EXISTS idx_user_preferences_lookup
   ON user_preferences(user_id, workspace_id, preference_key);
 CREATE INDEX IF NOT EXISTS idx_user_preferences_key 
   ON user_preferences(preference_key);
+
+
+  -- Migration: Add days field to date-related preset filters
+-- Update existing user preferences to include default days values
+
+UPDATE user_preferences 
+SET preference_value = jsonb_set(
+  preference_value::jsonb, 
+  '{days}', 
+  CASE 
+    WHEN preference_key = 'due_in_7_days' THEN '7'
+    WHEN preference_key = 'active_past_7_days' THEN '7' 
+    WHEN preference_key = 'unchanged_past_14_days' THEN '14'
+    WHEN preference_key = 'lasted_more_than_1_day' THEN '1'
+    ELSE preference_value::jsonb->'days'  -- Keep existing if not a date preset
+  END::jsonb
+)
+WHERE preference_key IN ('due_in_7_days', 'active_past_7_days', 'unchanged_past_14_days', 'lasted_more_than_1_day')
+AND preference_value::jsonb->>'type' = 'system';

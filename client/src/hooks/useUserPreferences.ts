@@ -78,27 +78,9 @@ const useUserPreferences = (workspaceId: number): UseUserPreferencesReturn => {
   };
 
   const getPresetFilters = useCallback((viewMode: 'planner' | 'tracker'): PresetFilter[] => {
-    const presetKeys = [
-      'hide_completed', 'assigned_to_me', 'due_in_7_days', 'overdue_tasks', 'high_urgent_priority',
-      'active_past_7_days', 'unchanged_past_14_days', 'lasted_more_than_1_day'
-    ];
-    
-    return presetKeys
-      .filter(key => {
-        const preset = preferences[key];
-        return preset && preset.view === viewMode;
-      })
-      .map(key => {
-        const preset = preferences[key];
-        return {
-          key,
-          enabled: preset.enabled,
-          type: preset.type,
-          view: preset.view,
-          logic: preset.logic,
-          days: preset.days
-        };
-      });
+    // This hook is deprecated - use the new filter system instead
+    // Return empty array for now
+    return [];
   }, [preferences]);
 
   const updatePresetFilter = async (presetKey: string, enabled: boolean, days?: number) => {

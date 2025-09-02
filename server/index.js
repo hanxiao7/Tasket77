@@ -336,6 +336,170 @@ app.delete('/api/tags/:id', authenticateToken, async (req, res) => {
 });
 
 // Helper function to build preset filter conditions
+// New dynamic filter query builder using the new database structure
+async function buildFilterQueryFromDatabase(filterIds, startParamIndex, params, userId, currentDays) {
+  if (!filterIds || filterIds.length === 0) {
+    return null;
+  }
+
+  try {
+    // Get filter conditions from database
+    const query = `
+      SELECT 
+        fp.id,
+        fp.name,
+        fp.operator,
+        fc.condition_type,
+        fc.field,
+        fc.date_from,
+        fc.date_to,
+        fc.operator as condition_operator,
+        fc.values,
+        fc.unit
+      FROM filter_preferences fp
+      LEFT JOIN filter_conditions fc ON fp.id = fc.filter_id
+      WHERE fp.id = ANY($1)
+      ORDER BY fp.id, fc.id
+    `;
+    
+    const result = await pool.query(query, [filterIds]);
+    
+    console.log(`🔍 buildFilterQueryFromDatabase: Querying filters with IDs:`, filterIds);
+    console.log(`🔍 buildFilterQueryFromDatabase: Found ${result.rows.length} rows:`, result.rows);
+    
+    if (result.rows.length === 0) {
+      console.log(`🔍 buildFilterQueryFromDatabase: No filter conditions found, returning null`);
+      return null;
+    }
+
+    // Group conditions by filter
+    const filtersMap = new Map();
+    result.rows.forEach(row => {
+      if (!filtersMap.has(row.id)) {
+        filtersMap.set(row.id, {
+          id: row.id,
+          name: row.name,
+          operator: row.operator,
+          conditions: []
+        });
+      }
+      
+      if (row.condition_type) {
+        filtersMap.get(row.id).conditions.push({
+          condition_type: row.condition_type,
+          field: row.field,
+          date_from: row.date_from,
+          date_to: row.date_to,
+          operator: row.condition_operator,
+          values: row.values,
+          unit: row.unit
+        });
+      }
+    });
+
+    // Build query conditions
+    const allConditions = [];
+    let paramCount = 0;
+
+    for (const [filterId, filter] of filtersMap) {
+      const filterConditions = [];
+      
+      for (const condition of filter.conditions) {
+        let conditionQuery = '';
+        
+        if (condition.condition_type === 'list') {
+          console.log(`🔍 Processing list condition:`, condition);
+          // Handle list conditions (status, assignee, etc.)
+          if (condition.operator === '=' && condition.values && condition.values.length > 0) {
+            if (condition.values[0] === 'current_user_id') {
+              // Special handling for current user
+              conditionQuery = `EXISTS (
+                SELECT 1 FROM task_assignees ta 
+                WHERE ta.task_id = t.id AND ta.user_id = $${startParamIndex + paramCount}
+              )`;
+              params.push(userId);
+              console.log(`🔍 Built current_user_id condition:`, conditionQuery);
+            } else {
+              conditionQuery = `t.${condition.field} = $${startParamIndex + paramCount}`;
+              params.push(condition.values[0]);
+              console.log(`🔍 Built equals condition:`, conditionQuery, `with value:`, condition.values[0]);
+            }
+            paramCount++;
+          } else if (condition.operator === '!=' && condition.values && condition.values.length > 0) {
+            conditionQuery = `t.${condition.field} != $${startParamIndex + paramCount}`;
+            params.push(condition.values[0]);
+            console.log(`🔍 Built not-equals condition:`, conditionQuery, `with value:`, condition.values[0]);
+            paramCount++;
+          } else if (condition.operator === 'IN' && condition.values && condition.values.length > 0) {
+            conditionQuery = `t.${condition.field} = ANY($${startParamIndex + paramCount})`;
+            params.push(condition.values);
+            console.log(`🔍 Built IN condition:`, conditionQuery, `with values:`, condition.values);
+            paramCount++;
+          }
+        } else if (condition.condition_type === 'date_diff') {
+          // Handle date difference conditions using date_from and date_to
+          const fieldMap = {
+            due_date: 't.due_date',
+            completion_date: 't.completion_date',
+            created_date: 't.created_at',
+            last_modified: 't.last_modified',
+            start_date: 't.start_date',
+            today: 'CURRENT_DATE'
+          };
+          
+          const dateFrom = fieldMap[condition.date_from] || 'CURRENT_DATE';
+          const dateTo = fieldMap[condition.date_to] || 'CURRENT_DATE';
+          
+          // Use currentDays if available, otherwise use default values
+          let daysValue = condition.values && condition.values.length > 0 ? condition.values[0] : 7;
+          
+          // Map database filter names to the expected keys (same as frontend)
+          const keyMap = {
+            'Due in 7 Days': 'due_in_7_days',
+            'Active in Past 7 Days': 'active_past_7_days',
+            'Unchanged in Past 14 Days': 'unchanged_past_14_days',
+            'Lasted More Than 1 Day': 'lasted_more_than_1_day'
+          };
+          const key = keyMap[filter.name] || filter.name.toLowerCase().replace(/\s+/g, '_');
+          
+          if (currentDays && currentDays[key]) {
+            daysValue = currentDays[key];
+            console.log(`Using custom days for ${filter.name} (${key}): ${daysValue}`);
+          } else {
+            console.log(`Using default days for ${filter.name}: ${daysValue}`);
+          }
+          
+          // Always use: date_to - date_from [operator] [days]
+          conditionQuery = `((${dateTo})::date - (${dateFrom})::date) ${condition.operator} $${startParamIndex + paramCount}`;
+          params.push(daysValue);
+          paramCount++;
+        }
+        
+        if (conditionQuery) {
+          filterConditions.push(conditionQuery);
+        }
+      }
+      
+      if (filterConditions.length > 0) {
+        const filterQuery = filterConditions.join(` ${filter.operator} `);
+        allConditions.push(`(${filterQuery})`);
+      }
+    }
+
+    // Each filter should be independent - they're already combined with their own operators
+    // So we just need to join them with AND (since multiple enabled filters should all apply)
+    const finalQuery = allConditions.length > 0 ? allConditions.join(' AND ') : null;
+    console.log(`🔍 buildFilterQueryFromDatabase: Final query condition:`, finalQuery);
+    console.log(`🔍 buildFilterQueryFromDatabase: Parameters:`, params.slice(startParamIndex - 1));
+    console.log(`🔍 buildFilterQueryFromDatabase: Number of filters processed:`, filtersMap.size);
+    return finalQuery;
+    
+  } catch (error) {
+    console.error('Error building filter query from database:', error);
+    return null;
+  }
+}
+
 function buildPresetFilterCondition(logic, startParamIndex, params, userId, days) {
   if (!logic || !logic.conditions || !Array.isArray(logic.conditions)) {
     return null;
@@ -655,37 +819,23 @@ app.get('/api/tasks', authenticateToken, async (req, res) => {
           }
         }
         
-        for (const presetKey of presetArray) {
-          const preset = preferences[presetKey];
-          console.log(`Processing preset ${presetKey}:`, preset);
-          
-          if (preset && preset.view === view) {
-            // If the preset is in the presets array, it's enabled (session state)
-            // We don't need to check preset.enabled from database anymore
-            // Use frontend days value if available, otherwise fall back to database
-            const days = frontendDays[presetKey] || preset.days;
-            console.log(`Building condition for ${presetKey} with days:`, days, '(frontend:', frontendDays[presetKey], ', database:', preset.days, ')');
-            
-            const condition = buildPresetFilterCondition(preset.logic, paramIndex, params, req.user.userId, days);
-            if (condition) {
-              console.log(`Condition built for ${presetKey}:`, condition.query);
-              filterConditions.push(condition);
-              paramIndex += condition.paramCount;
-            } else {
-              console.log(`No condition built for ${presetKey}`);
-            }
+        // Use new dynamic filter system
+        if (presetArray && presetArray.length > 0) {
+          console.log('🔍 Using new dynamic filter system with filter IDs:', presetArray);
+          console.log('🔍 Number of enabled filters:', presetArray.length);
+          console.log('🔍 Current paramIndex:', paramIndex);
+          console.log('🔍 Current params:', params);
+          const dynamicCondition = await buildFilterQueryFromDatabase(presetArray, paramIndex, params, req.user.userId, frontendDays);
+          if (dynamicCondition) {
+            query += ` AND (${dynamicCondition})`;
+            console.log('🔍 Dynamic filter condition applied:', dynamicCondition);
+            console.log('🔍 Final query:', query);
+            console.log('🔍 Final params:', params);
           } else {
-            console.log(`Skipping preset ${presetKey}:`, { preset: !!preset, view: preset?.view, expectedView: view });
+            console.log('🔍 No dynamic condition built');
           }
-        }
-
-        // Combine all preset conditions with AND logic
-        if (filterConditions.length > 0) {
-          query += ` AND (${filterConditions.map(c => c.query).join(' AND ')})`;
-          console.log('Final query with preset filters:', query);
-          console.log('Filter conditions applied:', filterConditions.length);
         } else {
-          console.log('No filter conditions were built');
+          console.log('🔍 No preset filters enabled');
         }
       }
     } catch (e) {
@@ -1315,6 +1465,95 @@ app.post('/api/user-preferences/:workspaceId', authenticateToken, async (req, re
     res.json({ success: true });
   } catch (err) {
     console.error(`❌ Error saving user preference:`, err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get filters for a workspace and view mode
+app.get('/api/filters/:workspaceId', authenticateToken, async (req, res) => {
+  const { workspaceId } = req.params;
+  const { view_mode } = req.query;
+  const userId = req.user.userId;
+  
+  console.log(`🔍 Filters request: workspace_id=${workspaceId}, user_id=${userId}, view_mode=${view_mode}`);
+  
+  try {
+    // Check if user has access to the workspace
+    const accessResult = await pool.query(
+      'SELECT access_level FROM workspace_permissions WHERE workspace_id = $1 AND user_id = $2',
+      [workspaceId, userId]
+    );
+    
+    if (accessResult.rowCount === 0) {
+      console.log(`❌ Access denied for user ${userId} to workspace ${workspaceId}`);
+      res.status(403).json({ error: 'Access denied' });
+      return;
+    }
+    
+    // Query filter_preferences with conditions
+    const query = `
+      SELECT 
+        fp.id,
+        fp.name,
+        fp.view_mode,
+        fp.operator,
+        fp.is_default,
+        fp.created_at,
+        fc.id as condition_id,
+        fc.condition_type,
+        fc.field,
+        fc.date_from,
+        fc.date_to,
+        fc.operator as condition_operator,
+        fc.values,
+        fc.unit
+      FROM filter_preferences fp
+      LEFT JOIN filter_conditions fc ON fp.id = fc.filter_id
+      WHERE fp.user_id = $1 
+        AND fp.workspace_id = $2 
+        AND fp.view_mode = $3
+      ORDER BY fp.id, fc.id
+    `;
+    
+    const result = await pool.query(query, [userId, workspaceId, view_mode]);
+    
+    // Group conditions by filter
+    const filtersMap = new Map();
+    
+    result.rows.forEach(row => {
+      if (!filtersMap.has(row.id)) {
+        filtersMap.set(row.id, {
+          id: row.id,
+          name: row.name,
+          view_mode: row.view_mode,
+          operator: row.operator,
+          is_default: row.is_default,
+          created_at: row.created_at,
+          conditions: []
+        });
+      }
+      
+      if (row.condition_id) {
+        filtersMap.get(row.id).conditions.push({
+          id: row.condition_id,
+          condition_type: row.condition_type,
+          field: row.field,
+          date_from: row.date_from,
+          date_to: row.date_to,
+          operator: row.condition_operator,
+          values: row.values,
+          unit: row.unit
+        });
+      }
+    });
+    
+    const filters = Array.from(filtersMap.values());
+    
+    console.log(`📋 Loaded ${filters.length} filters for user ${userId} in workspace ${workspaceId} (${view_mode})`);
+    res.json(filters);
+    
+  } catch (err) {
+    console.error(`❌ Error in filters endpoint:`, err);
     res.status(500).json({ error: err.message });
   }
 });
