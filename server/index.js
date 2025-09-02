@@ -337,8 +337,9 @@ app.delete('/api/tags/:id', authenticateToken, async (req, res) => {
 
 // Helper function to build preset filter conditions
 // New dynamic filter query builder using the new database structure
-async function buildFilterQueryFromDatabase(filterIds, startParamIndex, params, userId, currentDays) {
-  if (!filterIds || filterIds.length === 0) {
+async function buildFilterQueryFromDatabase(filterIds, startParamIndex, params, userId, currentDays, customFilters = []) {
+  if ((!filterIds || filterIds.length === 0) && (!customFilters || customFilters.length === 0)) {
+    console.log('🔍 buildFilterQueryFromDatabase: No filter IDs or custom filters provided, returning null');
     return null;
   }
 
@@ -419,6 +420,14 @@ async function buildFilterQueryFromDatabase(filterIds, startParamIndex, params, 
               )`;
               params.push(userId);
               console.log(`🔍 Built current_user_id condition:`, conditionQuery);
+            } else if (condition.field === 'category') {
+              conditionQuery = `t.category_id = $${startParamIndex + paramCount}`;
+              params.push(condition.values[0]);
+              console.log(`🔍 Built category equals condition:`, conditionQuery, `with value:`, condition.values[0]);
+            } else if (condition.field === 'tag') {
+              conditionQuery = `t.tag_id = $${startParamIndex + paramCount}`;
+              params.push(condition.values[0]);
+              console.log(`🔍 Built tag equals condition:`, conditionQuery, `with value:`, condition.values[0]);
             } else {
               conditionQuery = `t.${condition.field} = $${startParamIndex + paramCount}`;
               params.push(condition.values[0]);
@@ -426,12 +435,24 @@ async function buildFilterQueryFromDatabase(filterIds, startParamIndex, params, 
             }
             paramCount++;
           } else if (condition.operator === '!=' && condition.values && condition.values.length > 0) {
-            conditionQuery = `t.${condition.field} != $${startParamIndex + paramCount}`;
+            if (condition.field === 'category') {
+              conditionQuery = `t.category_id != $${startParamIndex + paramCount}`;
+            } else if (condition.field === 'tag') {
+              conditionQuery = `t.tag_id != $${startParamIndex + paramCount}`;
+            } else {
+              conditionQuery = `t.${condition.field} != $${startParamIndex + paramCount}`;
+            }
             params.push(condition.values[0]);
             console.log(`🔍 Built not-equals condition:`, conditionQuery, `with value:`, condition.values[0]);
             paramCount++;
           } else if (condition.operator === 'IN' && condition.values && condition.values.length > 0) {
-            conditionQuery = `t.${condition.field} = ANY($${startParamIndex + paramCount})`;
+            if (condition.field === 'category') {
+              conditionQuery = `t.category_id = ANY($${startParamIndex + paramCount})`;
+            } else if (condition.field === 'tag') {
+              conditionQuery = `t.tag_id = ANY($${startParamIndex + paramCount})`;
+            } else {
+              conditionQuery = `t.${condition.field} = ANY($${startParamIndex + paramCount})`;
+            }
             params.push(condition.values);
             console.log(`🔍 Built IN condition:`, conditionQuery, `with values:`, condition.values);
             paramCount++;
@@ -486,12 +507,99 @@ async function buildFilterQueryFromDatabase(filterIds, startParamIndex, params, 
       }
     }
 
+    // Process custom filters (same logic as database filters)
+    for (const customFilter of customFilters) {
+      console.log(`🔍 Processing custom filter:`, customFilter);
+      const customFilterConditions = [];
+      
+      for (const condition of customFilter.conditions) {
+        let conditionQuery = '';
+        
+        if (condition.condition_type === 'list') {
+          console.log(`🔍 Processing custom list condition:`, condition);
+          if (condition.operator === 'IN' && condition.values && condition.values.length > 0) {
+            if (condition.field === 'assignee') {
+              // Special handling for assignee field
+              conditionQuery = `EXISTS (
+                SELECT 1 FROM task_assignees ta 
+                WHERE ta.task_id = t.id AND ta.user_id = ANY($${startParamIndex + paramCount})
+              )`;
+              params.push(condition.values);
+            } else if (condition.field === 'category') {
+              // Special handling for category field (uses category_id)
+              conditionQuery = `t.category_id = ANY($${startParamIndex + paramCount})`;
+              params.push(condition.values);
+            } else if (condition.field === 'tag') {
+              // Special handling for tag field (uses tag_id)
+              conditionQuery = `t.tag_id = ANY($${startParamIndex + paramCount})`;
+              params.push(condition.values);
+            } else {
+              conditionQuery = `t.${condition.field} = ANY($${startParamIndex + paramCount})`;
+              params.push(condition.values);
+            }
+            paramCount++;
+          } else if (condition.operator === 'IS_NULL') {
+            if (condition.field === 'assignee') {
+              conditionQuery = `NOT EXISTS (SELECT 1 FROM task_assignees ta WHERE ta.task_id = t.id)`;
+            } else if (condition.field === 'category') {
+              conditionQuery = `t.category_id IS NULL`;
+            } else if (condition.field === 'tag') {
+              conditionQuery = `t.tag_id IS NULL`;
+            } else {
+              conditionQuery = `t.${condition.field} IS NULL`;
+            }
+          } else if (condition.operator === 'IS_NOT_NULL') {
+            if (condition.field === 'assignee') {
+              conditionQuery = `EXISTS (SELECT 1 FROM task_assignees ta WHERE ta.task_id = t.id)`;
+            } else if (condition.field === 'category') {
+              conditionQuery = `t.category_id IS NOT NULL`;
+            } else if (condition.field === 'tag') {
+              conditionQuery = `t.tag_id IS NOT NULL`;
+            } else {
+              conditionQuery = `t.${condition.field} IS NOT NULL`;
+            }
+          }
+        } else if (condition.condition_type === 'date_diff') {
+          console.log(`🔍 Processing custom date_diff condition:`, condition);
+          const fieldMap = {
+            due_date: 't.due_date',
+            completion_date: 't.completion_date',
+            created_date: 't.created_at',
+            last_modified: 't.last_modified',
+            start_date: 't.start_date',
+            today: 'CURRENT_DATE'
+          };
+          
+          const dateFrom = fieldMap[condition.date_from] || 'CURRENT_DATE';
+          const dateTo = fieldMap[condition.date_to] || 'CURRENT_DATE';
+          
+          conditionQuery = `((${dateTo})::date - (${dateFrom})::date) ${condition.operator} $${startParamIndex + paramCount}`;
+          params.push(condition.values[0]);
+          paramCount++;
+        } else if (condition.condition_type === 'date_range') {
+          console.log(`🔍 Processing custom date_range condition:`, condition);
+          conditionQuery = `t.${condition.field} BETWEEN $${startParamIndex + paramCount} AND $${startParamIndex + paramCount + 1}`;
+          params.push(condition.values[0], condition.values[1]);
+          paramCount += 2;
+        }
+        
+        if (conditionQuery) {
+          customFilterConditions.push(conditionQuery);
+        }
+      }
+      
+      if (customFilterConditions.length > 0) {
+        const customFilterQuery = customFilterConditions.join(` ${customFilter.logic} `);
+        allConditions.push(`(${customFilterQuery})`);
+      }
+    }
+
     // Each filter should be independent - they're already combined with their own operators
     // So we just need to join them with AND (since multiple enabled filters should all apply)
     const finalQuery = allConditions.length > 0 ? allConditions.join(' AND ') : null;
     console.log(`🔍 buildFilterQueryFromDatabase: Final query condition:`, finalQuery);
     console.log(`🔍 buildFilterQueryFromDatabase: Parameters:`, params.slice(startParamIndex - 1));
-    console.log(`🔍 buildFilterQueryFromDatabase: Number of filters processed:`, filtersMap.size);
+    console.log(`🔍 buildFilterQueryFromDatabase: Number of filters processed:`, filtersMap.size + customFilters.length);
     return finalQuery;
     
   } catch (error) {
@@ -501,7 +609,13 @@ async function buildFilterQueryFromDatabase(filterIds, startParamIndex, params, 
 }
 
 function buildPresetFilterCondition(logic, startParamIndex, params, userId, days) {
+  console.log('🔍 buildPresetFilterCondition called with:', JSON.stringify(logic, null, 2));
+  console.log('🔍 Logic exists?', !!logic);
+  console.log('🔍 Logic.conditions exists?', !!(logic && logic.conditions));
+  console.log('🔍 Logic.conditions is array?', !!(logic && logic.conditions && Array.isArray(logic.conditions)));
+  
   if (!logic || !logic.conditions || !Array.isArray(logic.conditions)) {
+    console.log('🔍 buildPresetFilterCondition returning null - invalid logic structure');
     return null;
   }
 
@@ -819,13 +933,23 @@ app.get('/api/tasks', authenticateToken, async (req, res) => {
           }
         }
         
-        // Use new dynamic filter system
-        if (presetArray && presetArray.length > 0) {
+        // Use new dynamic filter system for both preset and custom filters
+        let customFiltersArray = [];
+        if (customFilters) {
+          try {
+            customFiltersArray = JSON.parse(customFilters);
+            console.log('🔍 Custom filters parsed:', customFiltersArray);
+          } catch (e) {
+            console.error('Error parsing custom filters:', e);
+          }
+        }
+        
+        if (presetArray && presetArray.length > 0 || customFiltersArray && customFiltersArray.length > 0) {
           console.log('🔍 Using new dynamic filter system with filter IDs:', presetArray);
-          console.log('🔍 Number of enabled filters:', presetArray.length);
+          console.log('🔍 Custom filters:', customFiltersArray);
           console.log('🔍 Current paramIndex:', paramIndex);
           console.log('🔍 Current params:', params);
-          const dynamicCondition = await buildFilterQueryFromDatabase(presetArray, paramIndex, params, req.user.userId, frontendDays);
+          const dynamicCondition = await buildFilterQueryFromDatabase(presetArray, paramIndex, params, req.user.userId, frontendDays, customFiltersArray);
           if (dynamicCondition) {
             query += ` AND (${dynamicCondition})`;
             console.log('🔍 Dynamic filter condition applied:', dynamicCondition);
@@ -835,7 +959,7 @@ app.get('/api/tasks', authenticateToken, async (req, res) => {
             console.log('🔍 No dynamic condition built');
           }
         } else {
-          console.log('🔍 No preset filters enabled');
+          console.log('🔍 No preset or custom filters enabled');
         }
       }
     } catch (e) {
@@ -843,29 +967,7 @@ app.get('/api/tasks', authenticateToken, async (req, res) => {
     }
   }
 
-  // Apply custom filters (optional): expects JSON of FilterGroup[] and logic 'AND' | 'OR'
-  if (customFilters) {
-    try {
-      const groups = JSON.parse(customFilters);
-      const groupLogic = (customFiltersLogic === 'OR') ? 'OR' : 'AND';
-      if (Array.isArray(groups) && groups.length > 0) {
-        const groupQueries = [];
-        for (const group of groups) {
-          // group: { id, conditions, logic }
-          const built = buildPresetFilterCondition(group, paramIndex, params, req.user.userId, undefined);
-          if (built) {
-            groupQueries.push(built.query);
-            paramIndex += built.paramCount;
-          }
-        }
-        if (groupQueries.length > 0) {
-          query += ` AND (${groupQueries.join(` ${groupLogic} `)})`;
-        }
-      }
-    } catch (e) {
-      console.error('Error parsing customFilters:', e);
-    }
-  }
+  // Custom filters are now handled in the unified buildFilterQueryFromDatabase function above
   if (view === 'planner') {
     query += ' ORDER BY CASE t.status WHEN \'in_progress\' THEN 1 WHEN \'paused\' THEN 2 WHEN \'todo\' THEN 3 WHEN \'done\' THEN 4 END,';
     query += ' CASE t.priority WHEN \'urgent\' THEN 1 WHEN \'high\' THEN 2 WHEN \'normal\' THEN 3 WHEN \'low\' THEN 4 END,';

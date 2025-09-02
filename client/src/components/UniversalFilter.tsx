@@ -42,6 +42,7 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
   const [singleMode, setSingleMode] = useState<SingleMode>('none');
   const [singleValues, setSingleValues] = useState<any[]>([]);
   const [singleIncludeNull, setSingleIncludeNull] = useState<boolean>(false);
+  const [categoricalOperator, setCategoricalOperator] = useState<'in' | 'is_null' | 'is_not_null'>('in');
   const [rangeField, setRangeField] = useState<'due_date' | 'completion_date' | 'created_date' | 'last_modified' | 'start_date'>('due_date');
   const [rangeStart, setRangeStart] = useState<string>('');
   const [rangeEnd, setRangeEnd] = useState<string>('');
@@ -341,6 +342,7 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
       singleMode,
       singleValues,
       singleIncludeNull,
+      categoricalOperator,
       rangeField,
       rangeStart,
       rangeEnd,
@@ -352,46 +354,56 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
       diffDays
     });
     
-    // Custom filters are session-only and not saved to database
-    let condition: FilterCondition | null = null;
+    // Convert UI selection to database-compatible format
+    let condition: any = null;
+    
     if (['assignee', 'category', 'tag', 'status', 'priority'].includes(singleMode)) {
+      // Categorical fields with operator selector
       condition = {
-        field: singleMode as any,
-        operator: 'in',
-        values: singleValues,
+        condition_type: 'list',
+        field: singleMode,
+        operator: categoricalOperator.toUpperCase(), // Convert to uppercase for database
+        values: categoricalOperator === 'in' ? singleValues : [],
         includeNull: ['assignee', 'category', 'tag'].includes(singleMode) ? singleIncludeNull : undefined,
-      } as FilterCondition;
+      };
     } else if (singleMode === 'date_range') {
       if (rangeStart && rangeEnd) {
         condition = {
+          condition_type: 'date_range',
           field: rangeField,
           operator: 'between',
           values: [rangeStart, rangeEnd],
-        } as FilterCondition;
+        };
       }
     } else if (singleMode === 'null_is' || singleMode === 'null_is_not') {
       condition = {
-        field: nullField as any,
+        condition_type: 'list',
+        field: nullField,
         operator: singleMode === 'null_is' ? 'is_null' : 'is_not_null',
         values: [],
-      } as FilterCondition;
+      };
     } else if (singleMode === 'date_diff') {
       condition = {
-        field: 'created_date',
-        operator: 'date_diff',
-        values: [],
-        date_field: diffFrom,
-        date_field_2: diffTo,
-        comparator: diffCmp,
-        days: diffDays,
-      } as FilterCondition;
+        condition_type: 'date_diff',
+        date_from: diffFrom,
+        date_to: diffTo,
+        operator: diffCmp === 'lt' ? '<' : diffCmp === 'le' ? '<=' : diffCmp === 'eq' ? '=' : diffCmp === 'ge' ? '>=' : '>',
+        values: [diffDays],
+        unit: 'days',
+      };
     }
 
-    console.log('UniversalFilter: Built condition:', condition);
+    console.log('UniversalFilter: Built database-compatible condition:', condition);
 
     if (condition) {
-      const group: FilterGroup = { id: 'single', logic: 'AND', conditions: [condition] };
-      const newFilters = { ...filters, customFilters: [group], customFiltersLogic: 'AND' as const };
+      // Create a custom filter object that matches the FilterGroup interface
+      const customFilter = {
+        id: 'custom_' + Date.now(),
+        logic: 'AND' as const,
+        conditions: [condition]
+      };
+      
+      const newFilters = { ...filters, customFilters: [customFilter], customFiltersLogic: 'AND' as const };
       console.log('UniversalFilter: Applying custom filters:', newFilters);
       onFiltersChange(newFilters);
     } else {
@@ -466,38 +478,54 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
 
     return (
       <div className="w-full">
-        <div className="flex items-center justify-between mb-1">
-          {/* <span className="text-xs text-gray-600">Select values</span> */}
-          <label className="flex items-center gap-1 text-xs cursor-pointer">
-            <input type="checkbox" className="w-4 h-4" checked={allSelected} onChange={toggleSelectAll} />
-            <span>Select all</span>
-          </label>
-        </div>
-        <div className="max-h-32 overflow-y-auto border rounded">
-          {options.map(opt => (
-            <label key={String(opt.value)} className="flex items-center gap-2 px-2 py-1 text-sm hover:bg-gray-50">
-              <input
-                type="checkbox"
-                className="w-4 h-4"
-                checked={Array.isArray(singleValues) && singleValues.includes(opt.value)}
-                onChange={() => toggleValue(opt.value)}
-              />
-              <span className="truncate">{opt.label}</span>
-            </label>
-          ))}
-          {/* None at bottom */}
-          {['assignee', 'category', 'tag'].includes(singleMode) && (
-            <label className="flex items-center gap-2 px-2 py-1 text-sm border-t hover:bg-gray-50">
-              <input
-                type="checkbox"
-                className="w-4 h-4"
-                checked={!!singleIncludeNull}
-                onChange={() => setSingleIncludeNull(!singleIncludeNull)}
-              />
-              <span className="truncate italic text-gray-600">None</span>
-            </label>
-          )}
-        </div>
+        {/* Only show values input when operator is 'in' */}
+        {categoricalOperator === 'in' && (
+          <>
+            <div className="flex items-center justify-between mb-1">
+              <label className="flex items-center gap-1 text-xs cursor-pointer">
+                <input type="checkbox" className="w-4 h-4" checked={allSelected} onChange={toggleSelectAll} />
+                <span>Select all</span>
+              </label>
+            </div>
+            <div className="max-h-32 overflow-y-auto border rounded">
+              {options.map(opt => (
+                <label key={String(opt.value)} className="flex items-center gap-2 px-2 py-1 text-sm hover:bg-gray-50">
+                  <input
+                    type="checkbox"
+                    className="w-4 h-4"
+                    checked={Array.isArray(singleValues) && singleValues.includes(opt.value)}
+                    onChange={() => toggleValue(opt.value)}
+                  />
+                  <span className="truncate">{opt.label}</span>
+                </label>
+              ))}
+              {/* None at bottom */}
+              {['assignee', 'category', 'tag'].includes(singleMode) && (
+                <label className="flex items-center gap-2 px-2 py-1 text-sm border-t hover:bg-gray-50">
+                  <input
+                    type="checkbox"
+                    className="w-4 h-4"
+                    checked={!!singleIncludeNull}
+                    onChange={() => setSingleIncludeNull(!singleIncludeNull)}
+                  />
+                  <span className="truncate italic text-gray-600">None</span>
+                </label>
+              )}
+            </div>
+          </>
+        )}
+        
+        {/* Show info text for null operators */}
+        {categoricalOperator === 'is_null' && (
+          <div className="text-sm text-gray-600 italic">
+            Will show tasks where {singleMode} is empty/null
+          </div>
+        )}
+        {categoricalOperator === 'is_not_null' && (
+          <div className="text-sm text-gray-600 italic">
+            Will show tasks where {singleMode} has a value
+          </div>
+        )}
       </div>
     );
   };
@@ -701,7 +729,22 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
                       </div>
 
                       {['assignee', 'category', 'tag', 'status', 'priority'].includes(singleMode) && (
-                        renderCategoricalSingle()
+                        <>
+                          {/* Operator selector for categorical fields */}
+                          <div className="mb-3">
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Operator</label>
+                            <select
+                              value={categoricalOperator}
+                              onChange={(e) => setCategoricalOperator(e.target.value as 'in' | 'is_null' | 'is_not_null')}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            >
+                              <option value="in">IN (multiple values)</option>
+                              <option value="is_null">IS NULL</option>
+                              <option value="is_not_null">IS NOT NULL</option>
+                            </select>
+                          </div>
+                          {renderCategoricalSingle()}
+                        </>
                       )}
 
                       {singleMode === 'date_range' && renderDateRangeSingle()}
