@@ -14,13 +14,16 @@ import { Download, ArrowUpDown, CheckCircle } from 'lucide-react';
 import { TaskFilters, ViewMode, Task } from './types';
 
 function MainApp() {
-  const [viewMode, setViewMode] = useState<ViewMode>('planner');
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<number | undefined>(undefined);
   const [filters, setFilters] = useState<TaskFilters>({
     view: 'planner',
     presets: [], // Default presets will be loaded from database
-    grouping: 'none' // Default to no grouping for planner
+    grouping: 'none', // Default to no grouping for planner
+    _initialFiltersLoaded: false // Track if initial filters have been loaded
   });
+  
+  // Derive viewMode from filters.view - single source of truth
+  const viewMode = filters.view || 'planner';
   const [currentTasks, setCurrentTasks] = useState<Task[]>([]);
   const [workspaces, setWorkspaces] = useState<Array<{ id: number; name: string; access_level?: 'owner' | 'edit' | 'view'; other_users_count?: number }>>([]);
   const taskListRef = useRef<{ sortTasks: () => void; getTasks: () => Task[] }>(null);
@@ -59,15 +62,15 @@ function MainApp() {
     }
   }, [user]); // Removed selectedWorkspaceId from dependencies to prevent infinite loops
 
-  // Load preset filters when view changes
+  // Load initial preset filters when workspace is selected
   useEffect(() => {
     if (preferencesLoading || !selectedWorkspaceId) return;
     
-    console.log('🔄 App.tsx: Loading preset filters for viewMode:', viewMode);
+    console.log('🔄 App.tsx: Loading initial preset filters for workspace:', selectedWorkspaceId);
     
-    const loadPresetFilters = async () => {
+    const loadInitialFilters = async () => {
       try {
-        const response = await fetch(`/api/filters/${selectedWorkspaceId}?view_mode=${viewMode}`, {
+        const response = await fetch(`/api/filters/${selectedWorkspaceId}?view_mode=planner`, {
           credentials: 'include'
         });
         
@@ -77,27 +80,85 @@ function MainApp() {
             .filter((filter: any) => filter.is_default)
             .map((filter: any) => filter.id);
           
-          console.log('🔄 App.tsx: Updating filters with view:', viewMode, 'presets:', enabledPresets);
+          console.log('🔄 App.tsx: Setting initial filters with presets:', enabledPresets);
           
-          // Update filters in a single call to prevent double reload
-          setFilters(prev => ({
-            ...prev,
-            view: viewMode,
+          // Set filters immediately - this will be the initial state for TaskList
+          setFilters({
+            view: 'planner',
+            workspace_id: selectedWorkspaceId,
             presets: enabledPresets,
-            // Initialize currentDays to empty to prevent undefined issues
-            currentDays: prev.currentDays || {}
-          }));
+            grouping: 'none',
+            currentDays: {},
+            customFilters: undefined,
+            customFiltersLogic: 'AND',
+            _initialFiltersLoaded: true
+          });
         }
       } catch (error) {
         console.error('Error loading preset filters:', error);
+        // Set empty filters as fallback
+        setFilters({
+          view: 'planner',
+          workspace_id: selectedWorkspaceId,
+          presets: [],
+          grouping: 'none',
+          currentDays: {},
+          customFilters: undefined,
+          customFiltersLogic: 'AND',
+          _initialFiltersLoaded: true
+        });
       }
     };
-    
-    loadPresetFilters();
-  }, [viewMode, selectedWorkspaceId, preferencesLoading]);
+
+    loadInitialFilters();
+  }, [selectedWorkspaceId, preferencesLoading]);
+
+
 
   const handleFiltersChange = async (newFilters: TaskFilters) => {
     setFilters(newFilters);
+  };
+
+  const handleViewModeChange = async (newViewMode: ViewMode) => {
+    console.log('🔄 App.tsx: Changing view mode to:', newViewMode);
+    
+    // Load filters for the new view mode
+    if (selectedWorkspaceId) {
+      try {
+        const response = await fetch(`/api/filters/${selectedWorkspaceId}?view_mode=${newViewMode}`, {
+          credentials: 'include'
+        });
+        
+        if (response.ok) {
+          const filters = await response.json();
+          const enabledPresets = filters
+            .filter((filter: any) => filter.is_default)
+            .map((filter: any) => filter.id);
+          
+          console.log('🔄 App.tsx: Setting filters for view:', newViewMode, 'presets:', enabledPresets);
+          
+          // Single state update - this is the only change needed!
+          setFilters({
+            view: newViewMode,
+            workspace_id: selectedWorkspaceId,
+            presets: enabledPresets,
+            grouping: newViewMode === 'planner' ? 'none' : 'category',
+            currentDays: {},
+            customFilters: undefined,
+            customFiltersLogic: 'AND',
+            _initialFiltersLoaded: true
+          });
+        }
+      } catch (error) {
+        console.error('Error loading preset filters:', error);
+        // Fallback: just update the view in filters
+        setFilters(prev => ({
+          ...prev,
+          view: newViewMode,
+          grouping: newViewMode === 'planner' ? 'none' : 'category'
+        }));
+      }
+    }
   };
 
   const handleWorkspaceChange = (workspaceId: number) => {
@@ -220,10 +281,7 @@ function MainApp() {
             {/* Tabs */}
             <div className="flex space-x-1 bg-white rounded-lg p-1 shadow-sm">
               <button
-                onClick={() => {
-                  setViewMode('planner');
-                  setFilters({ ...filters, view: 'planner', presets: [], grouping: 'none' });
-                }}
+                onClick={() => handleViewModeChange('planner')}
                 className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex-1 ${
                   viewMode === 'planner'
                     ? 'bg-blue-100 text-blue-700'
@@ -233,10 +291,7 @@ function MainApp() {
                 Planner
               </button>
               <button
-                onClick={() => {
-                  setViewMode('tracker');
-                  setFilters({ ...filters, view: 'tracker', presets: [], grouping: 'category' });
-                }}
+                onClick={() => handleViewModeChange('tracker')}
                 className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex-1 ${
                   viewMode === 'tracker'
                     ? 'bg-blue-100 text-blue-700'
@@ -300,10 +355,7 @@ function MainApp() {
             <div className="flex items-center justify-between">
               <div className="flex space-x-1 bg-white rounded-lg p-1 shadow-sm">
                 <button
-                  onClick={() => {
-                    setViewMode('planner');
-                    setFilters({ ...filters, view: 'planner', presets: [], grouping: 'none' });
-                  }}
+                  onClick={() => handleViewModeChange('planner')}
                   className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
                     viewMode === 'planner'
                       ? 'bg-blue-100 text-blue-700'
@@ -313,10 +365,7 @@ function MainApp() {
                   Planner
                 </button>
                 <button
-                  onClick={() => {
-                    setViewMode('tracker');
-                    setFilters({ ...filters, view: 'tracker', presets: [], grouping: 'category' });
-                  }}
+                  onClick={() => handleViewModeChange('tracker')}
                   className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
                     viewMode === 'tracker'
                       ? 'bg-blue-100 text-blue-700'
@@ -375,7 +424,7 @@ function MainApp() {
           </div>
         </div>
         {/* Task List */}
-        {selectedWorkspaceId ? (
+        {selectedWorkspaceId && filters._initialFiltersLoaded ? (
           <div className="bg-white rounded-lg shadow-sm border">
             <TaskList
               ref={taskListRef}
@@ -386,6 +435,10 @@ function MainApp() {
               onSort={handleSort}
               onTasksChange={setCurrentTasks}
             />
+          </div>
+        ) : selectedWorkspaceId ? (
+          <div className="bg-white rounded-lg shadow-sm border p-8 text-center">
+            <div className="text-gray-500">Loading filters...</div>
           </div>
         ) : (
           <div className="bg-white rounded-lg shadow-sm border p-8 text-center">

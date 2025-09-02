@@ -383,9 +383,25 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
     customFilters: undefined as any
   });
 
+  // Flag to track if this is the first render
+  const isFirstRenderRef = useRef(true);
+
   // Ref to store current filters for loadData function
   const currentFiltersRef = useRef(filters);
   currentFiltersRef.current = filters;
+
+  // Ref to store loadData function to avoid dependency issues
+  const loadDataRef = useRef(loadData);
+  loadDataRef.current = loadData;
+
+  // Initial data load when component mounts with filters ready
+  useEffect(() => {
+    if (isFirstRenderRef.current && filters._initialFiltersLoaded) {
+      console.log('🔄 Initial data load with filters ready');
+      loadDataRef.current();
+      isFirstRenderRef.current = false;
+    }
+  }, [filters._initialFiltersLoaded]);
 
   useEffect(() => {
     const currentState = {
@@ -398,6 +414,14 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
     };
 
     const lastState = lastLoadedStateRef.current;
+    
+    // Skip the first render - just initialize the state
+    if (isFirstRenderRef.current) {
+      console.log('🔄 First render - initializing state without loading data');
+      lastLoadedStateRef.current = currentState;
+      isFirstRenderRef.current = false;
+      return;
+    }
     
     // Check if we need to reload data
     const needsReload = 
@@ -415,10 +439,25 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
         currentDaysChanged: JSON.stringify(currentState.currentDays) !== JSON.stringify(lastState.currentDays),
         customFiltersChanged: JSON.stringify(currentState.customFilters) !== JSON.stringify(lastState.customFilters)
       });
-      loadData();
+      
+      // Debug: Log what specifically changed
+      if (currentState.viewMode !== lastState.viewMode) {
+        console.log('🔄 ViewMode changed:', lastState.viewMode, '→', currentState.viewMode);
+      }
+      if (currentState.selectedWorkspaceId !== lastState.selectedWorkspaceId) {
+        console.log('🔄 SelectedWorkspaceId changed:', lastState.selectedWorkspaceId, '→', currentState.selectedWorkspaceId);
+      }
+      if (currentState.presets.join(',') !== lastState.presets.join(',')) {
+        console.log('🔄 Presets changed:', lastState.presets, '→', currentState.presets);
+      }
+      if (currentState.grouping !== lastState.grouping) {
+        console.log('🔄 Grouping changed:', lastState.grouping, '→', currentState.grouping);
+      }
+      
+      loadDataRef.current();
       lastLoadedStateRef.current = currentState;
     }
-  }, [viewMode, selectedWorkspaceId, filters.presets, filters.grouping, filters.currentDays, filters.customFilters, loadData]);
+  }, [viewMode, selectedWorkspaceId, filters.presets, filters.grouping, filters.currentDays, filters.customFilters]);
 
   // Recheck title truncation when view mode changes
   useEffect(() => {

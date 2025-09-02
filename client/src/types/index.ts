@@ -92,6 +92,9 @@ export interface TaskFilters {
   customFilters?: FilterGroup[];
   // Logic to combine groups
   customFiltersLogic?: 'AND' | 'OR';
+  
+  // Internal flag to track initial filter loading
+  _initialFiltersLoaded?: boolean;
 }
 
 export interface FilterGroup {
