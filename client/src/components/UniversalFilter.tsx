@@ -589,7 +589,20 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
                               <input
                                 type="number"
                                 min="0"
-                                value={customDays[preset.name.toLowerCase().replace(/\s+/g, '_')] || (typeof preset.conditions?.[0]?.values?.[0] === 'number' && preset.conditions[0].values[0] >= 0 ? preset.conditions[0].values[0] : DEFAULT_VALUES.fallbackDays)}
+                                value={(() => {
+                                  const key = preset.name.toLowerCase().replace(/\s+/g, '_');
+                                  const customValue = customDays[key];
+                                  
+                                  // Only look at date_diff conditions for fallback value
+                                  const dateDiffCondition = preset.conditions?.find((c: any) => c.condition_type === 'date_diff');
+                                  const fallbackValue = (dateDiffCondition && typeof dateDiffCondition.values?.[0] === 'number' && dateDiffCondition.values[0] >= 0) 
+                                    ? dateDiffCondition.values[0] 
+                                    : DEFAULT_VALUES.fallbackDays;
+                                  
+                                  const finalValue = customValue || fallbackValue;
+                                  console.log(`Input value for ${preset.name}: customDays[${key}]=${customValue}, dateDiffCondition=${dateDiffCondition?.values?.[0]}, fallback=${fallbackValue}, final=${finalValue}`);
+                                  return finalValue;
+                                })()}
                                 onChange={(e) => handleDaysChange(preset.name.toLowerCase().replace(/\s+/g, '_'), Number(e.target.value))}
                                 className="w-12 text-sm border rounded px-1 py-0.5 text-center"
                                 onClick={(e) => e.stopPropagation()}

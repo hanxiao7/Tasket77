@@ -365,17 +365,17 @@ async function buildFilterQueryFromDatabase(filterIds, startParamIndex, params, 
     return columnMap[field] || field;
   };
 
-  const buildFieldCondition = (field, operator, values, paramIndex) => {
+  const buildFieldCondition = (field, operator, values, paramBuilder) => {
     if (field === 'assignee') {
       if (operator === '=' && values[0] === 'current_user_id') {
         return {
-          query: `EXISTS (SELECT 1 FROM task_assignees ta WHERE ta.task_id = t.id AND ta.user_id = $${paramIndex})`,
-          params: [userId]
+          query: `EXISTS (SELECT 1 FROM task_assignees ta WHERE ta.task_id = t.id AND ta.user_id = ${paramBuilder.add(userId)})`,
+          params: []
         };
       } else if (operator === 'IN') {
         return {
-          query: `EXISTS (SELECT 1 FROM task_assignees ta WHERE ta.task_id = t.id AND ta.user_id = ANY($${paramIndex}))`,
-          params: [values]
+          query: `EXISTS (SELECT 1 FROM task_assignees ta WHERE ta.task_id = t.id AND ta.user_id = ANY(${paramBuilder.addArray(values)}))`,
+          params: []
         };
       } else if (operator === 'IS_NULL') {
         return {
@@ -392,18 +392,18 @@ async function buildFilterQueryFromDatabase(filterIds, startParamIndex, params, 
       const column = getFieldColumn(field);
       if (operator === '=') {
         return {
-          query: `t.${column} = $${paramIndex}`,
-          params: [values[0]]
+          query: `t.${column} = ${paramBuilder.add(values[0])}`,
+          params: []
         };
       } else if (operator === '!=') {
         return {
-          query: `t.${column} != $${paramIndex}`,
-          params: [values[0]]
+          query: `t.${column} != ${paramBuilder.add(values[0])}`,
+          params: []
         };
       } else if (operator === 'IN') {
         return {
-          query: `t.${column} = ANY($${paramIndex})`,
-          params: [values]
+          query: `t.${column} = ANY(${paramBuilder.addArray(values)})`,
+          params: []
         };
       } else if (operator === 'IS_NULL') {
         return {
@@ -420,18 +420,18 @@ async function buildFilterQueryFromDatabase(filterIds, startParamIndex, params, 
       // Direct field access
       if (operator === '=') {
         return {
-          query: `t.${field} = $${paramIndex}`,
-          params: [values[0]]
+          query: `t.${field} = ${paramBuilder.add(values[0])}`,
+          params: []
         };
       } else if (operator === '!=') {
         return {
-          query: `t.${field} != $${paramIndex}`,
-          params: [values[0]]
+          query: `t.${field} != ${paramBuilder.add(values[0])}`,
+          params: []
         };
       } else if (operator === 'IN') {
         return {
-          query: `t.${field} = ANY($${paramIndex})`,
-          params: [values]
+          query: `t.${field} = ANY(${paramBuilder.addArray(values)})`,
+          params: []
         };
       } else if (operator === 'IS_NULL') {
         return {
@@ -448,6 +448,32 @@ async function buildFilterQueryFromDatabase(filterIds, startParamIndex, params, 
     
     return null;
   };
+
+  // Parameter builder utility for safer SQL construction
+  class ParameterBuilder {
+    constructor(startIndex = 1) {
+      this.index = startIndex;
+      this.params = [];
+    }
+    
+    add(value) {
+      this.params.push(value);
+      return `$${this.index++}`;
+    }
+    
+    addArray(values) {
+      this.params.push(values);
+      return `$${this.index++}`;
+    }
+    
+    getParams() {
+      return this.params;
+    }
+    
+    getCurrentIndex() {
+      return this.index;
+    }
+  }
 
   try {
     // Get filter conditions from database
@@ -504,9 +530,9 @@ async function buildFilterQueryFromDatabase(filterIds, startParamIndex, params, 
       }
     });
 
-    // Build query conditions
+    // Build query conditions using ParameterBuilder
     const allConditions = [];
-    let paramCount = 0;
+    const paramBuilder = new ParameterBuilder(startParamIndex);
 
     for (const [filterId, filter] of filtersMap) {
       const filterConditions = [];
@@ -517,12 +543,10 @@ async function buildFilterQueryFromDatabase(filterIds, startParamIndex, params, 
         if (condition.condition_type === 'list') {
           console.log(`🔍 Processing list condition:`, condition);
           // Use the utility function to build field conditions
-          const fieldCondition = buildFieldCondition(condition.field, condition.operator, condition.values, startParamIndex + paramCount);
+          const fieldCondition = buildFieldCondition(condition.field, condition.operator, condition.values, paramBuilder);
           if (fieldCondition) {
             conditionQuery = fieldCondition.query;
-            params.push(...fieldCondition.params);
-            paramCount += fieldCondition.params.length;
-            console.log(`🔍 Built condition:`, conditionQuery, `with params:`, fieldCondition.params);
+            console.log(`🔍 Built condition:`, conditionQuery);
           }
         } else if (condition.condition_type === 'date_diff') {
           // Handle date difference conditions using date_from and date_to
@@ -543,9 +567,7 @@ async function buildFilterQueryFromDatabase(filterIds, startParamIndex, params, 
           }
           
           // Always use: date_to - date_from [operator] [days]
-          conditionQuery = `((${dateTo})::date - (${dateFrom})::date) ${condition.operator} $${startParamIndex + paramCount}`;
-          params.push(daysValue);
-          paramCount++;
+          conditionQuery = `((${dateTo})::date - (${dateFrom})::date) ${condition.operator} ${paramBuilder.add(daysValue)}`;
         }
         
         if (conditionQuery) {
@@ -559,7 +581,7 @@ async function buildFilterQueryFromDatabase(filterIds, startParamIndex, params, 
       }
     }
 
-    // Process custom filters (same logic as database filters)
+    // Process custom filters using ParameterBuilder
     for (const customFilter of customFilters) {
       console.log(`🔍 Processing custom filter:`, customFilter);
       const customFilterConditions = [];
@@ -570,26 +592,20 @@ async function buildFilterQueryFromDatabase(filterIds, startParamIndex, params, 
         if (condition.condition_type === 'list') {
           console.log(`🔍 Processing custom list condition:`, condition);
           // Use the utility function to build field conditions
-          const fieldCondition = buildFieldCondition(condition.field, condition.operator, condition.values, startParamIndex + paramCount);
+          const fieldCondition = buildFieldCondition(condition.field, condition.operator, condition.values, paramBuilder);
           if (fieldCondition) {
             conditionQuery = fieldCondition.query;
-            params.push(...fieldCondition.params);
-            paramCount += fieldCondition.params.length;
-            console.log(`🔍 Built custom condition:`, conditionQuery, `with params:`, fieldCondition.params);
+            console.log(`🔍 Built custom condition:`, conditionQuery);
           }
         } else if (condition.condition_type === 'date_diff') {
           console.log(`🔍 Processing custom date_diff condition:`, condition);
           const dateFrom = getFieldMapping(condition.date_from);
           const dateTo = getFieldMapping(condition.date_to);
           
-          conditionQuery = `((${dateTo})::date - (${dateFrom})::date) ${condition.operator} $${startParamIndex + paramCount}`;
-          params.push(condition.values[0]);
-          paramCount++;
+          conditionQuery = `((${dateTo})::date - (${dateFrom})::date) ${condition.operator} ${paramBuilder.add(condition.values[0])}`;
         } else if (condition.condition_type === 'date_range') {
           console.log(`🔍 Processing custom date_range condition:`, condition);
-          conditionQuery = `t.${condition.field} BETWEEN $${startParamIndex + paramCount} AND $${startParamIndex + paramCount + 1}`;
-          params.push(condition.values[0], condition.values[1]);
-          paramCount += 2;
+          conditionQuery = `t.${condition.field} BETWEEN ${paramBuilder.add(condition.values[0])} AND ${paramBuilder.add(condition.values[1])}`;
         }
         
         if (conditionQuery) {
@@ -606,8 +622,12 @@ async function buildFilterQueryFromDatabase(filterIds, startParamIndex, params, 
     // Each filter should be independent - they're already combined with their own operators
     // So we just need to join them with AND (since multiple enabled filters should all apply)
     const finalQuery = allConditions.length > 0 ? allConditions.join(' AND ') : null;
+    
+    // Add the ParameterBuilder's parameters to the main params array
+    params.push(...paramBuilder.getParams());
+    
     console.log(`🔍 buildFilterQueryFromDatabase: Final query condition:`, finalQuery);
-    console.log(`🔍 buildFilterQueryFromDatabase: Parameters:`, params.slice(startParamIndex - 1));
+    console.log(`🔍 buildFilterQueryFromDatabase: Parameters:`, paramBuilder.getParams());
     console.log(`🔍 buildFilterQueryFromDatabase: Number of filters processed:`, filtersMap.size + customFilters.length);
     return finalQuery;
     
