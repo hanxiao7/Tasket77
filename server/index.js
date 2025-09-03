@@ -343,6 +343,112 @@ async function buildFilterQueryFromDatabase(filterIds, startParamIndex, params, 
     return null;
   }
 
+  // Field mapping utilities to reduce code duplication
+  const getFieldMapping = (field) => {
+    const fieldMap = {
+      due_date: 't.due_date',
+      completion_date: 't.completion_date',
+      created_date: 't.created_at',
+      last_modified: 't.last_modified',
+      start_date: 't.start_date',
+      today: 'CURRENT_DATE'
+    };
+    return fieldMap[field] || `t.${field}`;
+  };
+
+  const getFieldColumn = (field) => {
+    const columnMap = {
+      category: 'category_id',
+      tag: 'tag_id',
+      assignee: 'task_assignees' // Special case for EXISTS queries
+    };
+    return columnMap[field] || field;
+  };
+
+  const buildFieldCondition = (field, operator, values, paramIndex) => {
+    if (field === 'assignee') {
+      if (operator === '=' && values[0] === 'current_user_id') {
+        return {
+          query: `EXISTS (SELECT 1 FROM task_assignees ta WHERE ta.task_id = t.id AND ta.user_id = $${paramIndex})`,
+          params: [userId]
+        };
+      } else if (operator === 'IN') {
+        return {
+          query: `EXISTS (SELECT 1 FROM task_assignees ta WHERE ta.task_id = t.id AND ta.user_id = ANY($${paramIndex}))`,
+          params: [values]
+        };
+      } else if (operator === 'IS_NULL') {
+        return {
+          query: `NOT EXISTS (SELECT 1 FROM task_assignees ta WHERE ta.task_id = t.id)`,
+          params: []
+        };
+      } else if (operator === 'IS_NOT_NULL') {
+        return {
+          query: `EXISTS (SELECT 1 FROM task_assignees ta WHERE ta.task_id = t.id)`,
+          params: []
+        };
+      }
+    } else if (field === 'category' || field === 'tag') {
+      const column = getFieldColumn(field);
+      if (operator === '=') {
+        return {
+          query: `t.${column} = $${paramIndex}`,
+          params: [values[0]]
+        };
+      } else if (operator === '!=') {
+        return {
+          query: `t.${column} != $${paramIndex}`,
+          params: [values[0]]
+        };
+      } else if (operator === 'IN') {
+        return {
+          query: `t.${column} = ANY($${paramIndex})`,
+          params: [values]
+        };
+      } else if (operator === 'IS_NULL') {
+        return {
+          query: `t.${column} IS NULL`,
+          params: []
+        };
+      } else if (operator === 'IS_NOT_NULL') {
+        return {
+          query: `t.${column} IS NOT NULL`,
+          params: []
+        };
+      }
+    } else {
+      // Direct field access
+      if (operator === '=') {
+        return {
+          query: `t.${field} = $${paramIndex}`,
+          params: [values[0]]
+        };
+      } else if (operator === '!=') {
+        return {
+          query: `t.${field} != $${paramIndex}`,
+          params: [values[0]]
+        };
+      } else if (operator === 'IN') {
+        return {
+          query: `t.${field} = ANY($${paramIndex})`,
+          params: [values]
+        };
+      } else if (operator === 'IS_NULL') {
+        return {
+          query: `t.${field} IS NULL`,
+          params: []
+        };
+      } else if (operator === 'IS_NOT_NULL') {
+        return {
+          query: `t.${field} IS NOT NULL`,
+          params: []
+        };
+      }
+    }
+    
+    return null;
+  };
+
   try {
     // Get filter conditions from database
     const query = `
@@ -410,66 +516,18 @@ async function buildFilterQueryFromDatabase(filterIds, startParamIndex, params, 
         
         if (condition.condition_type === 'list') {
           console.log(`🔍 Processing list condition:`, condition);
-          // Handle list conditions (status, assignee, etc.)
-          if (condition.operator === '=' && condition.values && condition.values.length > 0) {
-            if (condition.values[0] === 'current_user_id') {
-              // Special handling for current user
-              conditionQuery = `EXISTS (
-                SELECT 1 FROM task_assignees ta 
-                WHERE ta.task_id = t.id AND ta.user_id = $${startParamIndex + paramCount}
-              )`;
-              params.push(userId);
-              console.log(`🔍 Built current_user_id condition:`, conditionQuery);
-            } else if (condition.field === 'category') {
-              conditionQuery = `t.category_id = $${startParamIndex + paramCount}`;
-              params.push(condition.values[0]);
-              console.log(`🔍 Built category equals condition:`, conditionQuery, `with value:`, condition.values[0]);
-            } else if (condition.field === 'tag') {
-              conditionQuery = `t.tag_id = $${startParamIndex + paramCount}`;
-              params.push(condition.values[0]);
-              console.log(`🔍 Built tag equals condition:`, conditionQuery, `with value:`, condition.values[0]);
-            } else {
-              conditionQuery = `t.${condition.field} = $${startParamIndex + paramCount}`;
-              params.push(condition.values[0]);
-              console.log(`🔍 Built equals condition:`, conditionQuery, `with value:`, condition.values[0]);
-            }
-            paramCount++;
-          } else if (condition.operator === '!=' && condition.values && condition.values.length > 0) {
-            if (condition.field === 'category') {
-              conditionQuery = `t.category_id != $${startParamIndex + paramCount}`;
-            } else if (condition.field === 'tag') {
-              conditionQuery = `t.tag_id != $${startParamIndex + paramCount}`;
-            } else {
-              conditionQuery = `t.${condition.field} != $${startParamIndex + paramCount}`;
-            }
-            params.push(condition.values[0]);
-            console.log(`🔍 Built not-equals condition:`, conditionQuery, `with value:`, condition.values[0]);
-            paramCount++;
-          } else if (condition.operator === 'IN' && condition.values && condition.values.length > 0) {
-            if (condition.field === 'category') {
-              conditionQuery = `t.category_id = ANY($${startParamIndex + paramCount})`;
-            } else if (condition.field === 'tag') {
-              conditionQuery = `t.tag_id = ANY($${startParamIndex + paramCount})`;
-            } else {
-              conditionQuery = `t.${condition.field} = ANY($${startParamIndex + paramCount})`;
-            }
-            params.push(condition.values);
-            console.log(`🔍 Built IN condition:`, conditionQuery, `with values:`, condition.values);
-            paramCount++;
+          // Use the utility function to build field conditions
+          const fieldCondition = buildFieldCondition(condition.field, condition.operator, condition.values, startParamIndex + paramCount);
+          if (fieldCondition) {
+            conditionQuery = fieldCondition.query;
+            params.push(...fieldCondition.params);
+            paramCount += fieldCondition.params.length;
+            console.log(`🔍 Built condition:`, conditionQuery, `with params:`, fieldCondition.params);
           }
         } else if (condition.condition_type === 'date_diff') {
           // Handle date difference conditions using date_from and date_to
-          const fieldMap = {
-            due_date: 't.due_date',
-            completion_date: 't.completion_date',
-            created_date: 't.created_at',
-            last_modified: 't.last_modified',
-            start_date: 't.start_date',
-            today: 'CURRENT_DATE'
-          };
-          
-          const dateFrom = fieldMap[condition.date_from] || 'CURRENT_DATE';
-          const dateTo = fieldMap[condition.date_to] || 'CURRENT_DATE';
+          const dateFrom = getFieldMapping(condition.date_from);
+          const dateTo = getFieldMapping(condition.date_to);
           
           // Use currentDays if available, otherwise use default values
           let daysValue = condition.values && condition.values.length > 0 ? condition.values[0] : 7;
@@ -511,61 +569,18 @@ async function buildFilterQueryFromDatabase(filterIds, startParamIndex, params, 
         
         if (condition.condition_type === 'list') {
           console.log(`🔍 Processing custom list condition:`, condition);
-          if (condition.operator === 'IN' && condition.values && condition.values.length > 0) {
-            if (condition.field === 'assignee') {
-              // Special handling for assignee field
-              conditionQuery = `EXISTS (
-                SELECT 1 FROM task_assignees ta 
-                WHERE ta.task_id = t.id AND ta.user_id = ANY($${startParamIndex + paramCount})
-              )`;
-              params.push(condition.values);
-            } else if (condition.field === 'category') {
-              // Special handling for category field (uses category_id)
-              conditionQuery = `t.category_id = ANY($${startParamIndex + paramCount})`;
-              params.push(condition.values);
-            } else if (condition.field === 'tag') {
-              // Special handling for tag field (uses tag_id)
-              conditionQuery = `t.tag_id = ANY($${startParamIndex + paramCount})`;
-              params.push(condition.values);
-            } else {
-              conditionQuery = `t.${condition.field} = ANY($${startParamIndex + paramCount})`;
-              params.push(condition.values);
-            }
-            paramCount++;
-          } else if (condition.operator === 'IS_NULL') {
-            if (condition.field === 'assignee') {
-              conditionQuery = `NOT EXISTS (SELECT 1 FROM task_assignees ta WHERE ta.task_id = t.id)`;
-            } else if (condition.field === 'category') {
-              conditionQuery = `t.category_id IS NULL`;
-            } else if (condition.field === 'tag') {
-              conditionQuery = `t.tag_id IS NULL`;
-            } else {
-              conditionQuery = `t.${condition.field} IS NULL`;
-            }
-          } else if (condition.operator === 'IS_NOT_NULL') {
-            if (condition.field === 'assignee') {
-              conditionQuery = `EXISTS (SELECT 1 FROM task_assignees ta WHERE ta.task_id = t.id)`;
-            } else if (condition.field === 'category') {
-              conditionQuery = `t.category_id IS NOT NULL`;
-            } else if (condition.field === 'tag') {
-              conditionQuery = `t.tag_id IS NOT NULL`;
-            } else {
-              conditionQuery = `t.${condition.field} IS NOT NULL`;
-            }
+          // Use the utility function to build field conditions
+          const fieldCondition = buildFieldCondition(condition.field, condition.operator, condition.values, startParamIndex + paramCount);
+          if (fieldCondition) {
+            conditionQuery = fieldCondition.query;
+            params.push(...fieldCondition.params);
+            paramCount += fieldCondition.params.length;
+            console.log(`🔍 Built custom condition:`, conditionQuery, `with params:`, fieldCondition.params);
           }
         } else if (condition.condition_type === 'date_diff') {
           console.log(`🔍 Processing custom date_diff condition:`, condition);
-          const fieldMap = {
-            due_date: 't.due_date',
-            completion_date: 't.completion_date',
-            created_date: 't.created_at',
-            last_modified: 't.last_modified',
-            start_date: 't.start_date',
-            today: 'CURRENT_DATE'
-          };
-          
-          const dateFrom = fieldMap[condition.date_from] || 'CURRENT_DATE';
-          const dateTo = fieldMap[condition.date_to] || 'CURRENT_DATE';
+          const dateFrom = getFieldMapping(condition.date_from);
+          const dateTo = getFieldMapping(condition.date_to);
           
           conditionQuery = `((${dateTo})::date - (${dateFrom})::date) ${condition.operator} $${startParamIndex + paramCount}`;
           params.push(condition.values[0]);

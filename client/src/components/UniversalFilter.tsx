@@ -289,9 +289,6 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
   };
 
 
-
-
-
   const getActiveFiltersCount = () => {
     const presetCount = presetFilters.filter(preset => preset.enabled).length;
     const customCount = filters.customFilters ? filters.customFilters.reduce((acc, g) => acc + (g.conditions?.length || 0), 0) : 0;
