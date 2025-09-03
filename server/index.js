@@ -18,6 +18,86 @@ const workspacePermissionsRoutes = require('./routes/workspace-permissions');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// Database Query Caching for Filter Definitions
+const filterCache = new Map();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+// Cache utility functions
+function getCacheKey(filterIds) {
+  return filterIds.sort().join(',');
+}
+
+function getCachedFilters(filterIds) {
+  const cacheKey = getCacheKey(filterIds);
+  const cached = filterCache.get(cacheKey);
+  
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    console.log(`🚀🚀🚀 CACHE HIT! Using cached data for filters: ${cacheKey} (saved database query)`);
+    return cached.data;
+  }
+  
+  console.log(`🚀 Cache MISS for filters: ${cacheKey} (will query database)`);
+  return null;
+}
+
+function setCachedFilters(filterIds, data) {
+  const cacheKey = getCacheKey(filterIds);
+  filterCache.set(cacheKey, { 
+    data, 
+    timestamp: Date.now() 
+  });
+  console.log(`🚀 Cache SET for filters: ${cacheKey}`);
+}
+
+function clearFilterCache() {
+  filterCache.clear();
+  console.log(`🚀 Cache CLEARED`);
+}
+
+// Cache statistics for monitoring
+function getCacheStats() {
+  const now = Date.now();
+  let hits = 0;
+  let misses = 0;
+  let expired = 0;
+  
+  for (const [key, value] of filterCache.entries()) {
+    if (now - value.timestamp < CACHE_TTL) {
+      hits++;
+    } else {
+      expired++;
+    }
+  }
+  
+  return {
+    totalEntries: filterCache.size,
+    hits,
+    misses,
+    expired,
+    hitRate: filterCache.size > 0 ? (hits / filterCache.size * 100).toFixed(2) + '%' : '0%'
+  };
+}
+
+// Periodic cache cleanup to remove expired entries
+function cleanupExpiredCache() {
+  const now = Date.now();
+  let removedCount = 0;
+  
+  for (const [key, value] of filterCache.entries()) {
+    if (now - value.timestamp >= CACHE_TTL) {
+      filterCache.delete(key);
+      removedCount++;
+    }
+  }
+  
+  if (removedCount > 0) {
+    console.log(`🚀 Cache cleanup: Removed ${removedCount} expired entries`);
+  }
+}
+
+// Run cache cleanup every 10 minutes
+setInterval(cleanupExpiredCache, 10 * 60 * 1000);
+
 // CORS configuration
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
@@ -104,9 +184,11 @@ function getNextBusinessDay() {
 
 // Simple health check endpoint
 app.get('/api/health', (req, res) => {
+  const cacheStats = getCacheStats();
   res.json({ 
     status: 'healthy',
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    cache: cacheStats
   });
 });
 
@@ -476,28 +558,42 @@ async function buildFilterQueryFromDatabase(filterIds, startParamIndex, params, 
   }
 
   try {
-    // Get filter conditions from database
-    const query = `
-      SELECT 
-        fp.id,
-        fp.name,
-        fp.operator,
-        fc.condition_type,
-        fc.field,
-        fc.date_from,
-        fc.date_to,
-        fc.operator as condition_operator,
-        fc.values,
-        fc.unit
-      FROM filter_preferences fp
-      LEFT JOIN filter_conditions fc ON fp.id = fc.filter_id
-      WHERE fp.id = ANY($1)
-      ORDER BY fp.id, fc.id
-    `;
+    // Check cache first
+    const cachedData = getCachedFilters(filterIds);
+    let result;
     
-    const result = await pool.query(query, [filterIds]);
+    if (cachedData) {
+      result = cachedData;
+      console.log(`🔍 buildFilterQueryFromDatabase: Using cached data for filter IDs:`, filterIds);
+    } else {
+      // Get filter conditions from database
+      const query = `
+        SELECT 
+          fp.id,
+          fp.name,
+          fp.operator,
+          fc.condition_type,
+          fc.field,
+          fc.date_from,
+          fc.date_to,
+          fc.operator as condition_operator,
+          fc.values,
+          fc.unit
+        FROM filter_preferences fp
+        LEFT JOIN filter_conditions fc ON fp.id = fc.filter_id
+        WHERE fp.id = ANY($1)
+        ORDER BY fp.id, fc.id
+      `;
+      
+      const dbResult = await pool.query(query, [filterIds]);
+      result = dbResult;
+      
+      // Cache the result
+      setCachedFilters(filterIds, result);
+      
+      console.log(`🔍 buildFilterQueryFromDatabase: Queried database for filter IDs:`, filterIds, `(cached for future requests)`);
+    }
     
-    console.log(`🔍 buildFilterQueryFromDatabase: Querying filters with IDs:`, filterIds);
     console.log(`🔍 buildFilterQueryFromDatabase: Found ${result.rows.length} rows:`, result.rows);
     
     if (result.rows.length === 0) {
@@ -1248,6 +1344,26 @@ app.get('/api/workspace-users/:id', authenticateToken, async (req, res) => {
 });
 
 // Removed user-preferences endpoints - no longer needed with new filter system
+
+// Cache management endpoints
+app.get('/api/cache/stats', authenticateToken, async (req, res) => {
+  try {
+    const stats = getCacheStats();
+    console.log(`📊 Cache Statistics:`, stats);
+    res.json(stats);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/cache/clear', authenticateToken, async (req, res) => {
+  try {
+    clearFilterCache();
+    res.json({ success: true, message: 'Filter cache cleared' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // Get filters for a workspace and view mode
 app.get('/api/filters/:workspaceId', authenticateToken, async (req, res) => {
