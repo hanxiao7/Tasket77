@@ -9,144 +9,17 @@ const pool = new Pool({
   connectionString: process.env.DATABASE_URL || 'postgresql://postgres:password@localhost:5432/taskmanagement'
 });
 
-// Helper function to create default presets for a user in a workspace
-async function createDefaultPresets(userId, workspaceId) {
-  const defaultPresets = [
-    {
-      key: 'hide_completed',
-      value: {
-        enabled: true,
-        type: 'system',
-        view: 'planner',
-        logic: {
-          conditions: [{ field: 'status', operator: 'not_equals', values: ['done'] }],
-          logic: 'AND'
-        }
-      }
-    },
-    {
-      key: 'assigned_to_me',
-      value: {
-        enabled: false,
-        type: 'system',
-        view: 'planner',
-        logic: {
-          conditions: [{ field: 'assignee', operator: 'equals', values: ['current_user_id'] }],
-          logic: 'AND'
-        }
-      }
-    },
-    {
-      key: 'due_in_7_days',
-      value: {
-        enabled: false,
-        type: 'system',
-        view: 'planner',
-        logic: {
-          conditions: [{ field: 'due_date', operator: 'greater_than', values: ['now'] }],
-          logic: 'AND'
-        },
-        days: 7
-      }
-    },
-    {
-      key: 'overdue_tasks',
-      value: {
-        enabled: false,
-        type: 'system',
-        view: 'planner',
-        logic: {
-          conditions: [
-            { field: 'due_date', operator: 'less_than', values: ['today'] },
-            { field: 'status', operator: 'not_equals', values: ['done'] }
-          ],
-          logic: 'AND'
-        }
-      }
-    },
-    {
-      key: 'high_urgent_priority',
-      value: {
-        enabled: false,
-        type: 'system',
-        view: 'planner',
-        logic: {
-          conditions: [{ field: 'priority', operator: 'in', values: ['high', 'urgent'] }],
-          logic: 'AND'
-        }
-      }
-    },
-    {
-      key: 'active_past_7_days',
-      value: {
-        enabled: true,
-        type: 'system',
-        view: 'tracker',
-        logic: {
-          conditions: [
-            { field: 'status', operator: 'in', values: ['in_progress', 'paused'] },
-            { field: 'completion_date', operator: 'equals', values: ['done'] }
-          ],
-          logic: 'OR'
-        },
-        days: 7
-      }
-    },
-    {
-      key: 'unchanged_past_14_days',
-      value: {
-        enabled: false,
-        type: 'system',
-        view: 'tracker',
-        logic: {
-          conditions: [
-            { field: 'status', operator: 'not_equals', values: ['done'] },
-            { field: 'last_modified', operator: 'less_than', values: ['now'] }
-          ],
-          logic: 'AND'
-        },
-        days: 14
-      }
-    },
-    {
-      key: 'lasted_more_than_1_day',
-      value: {
-        enabled: false,
-        type: 'system',
-        view: 'tracker',
-        logic: {
-          conditions: [
-            { field: 'status', operator: 'equals', values: ['done'] },
-            { field: 'completion_date', operator: 'is_not_null', values: [] },
-            { field: 'start_date', operator: 'is_not_null', values: [] },
-            { field: 'duration', operator: 'greater_than_or_equal', values: [1], date_field: 'days' }
-          ],
-          logic: 'AND'
-        },
-        days: 1
-      }
-    },
-    {
-      key: 'assigned_to_me_tracker',
-      value: {
-        enabled: false,
-        type: 'system',
-        view: 'tracker',
-        logic: {
-          conditions: [{ field: 'assignee', operator: 'equals', values: ['current_user_id'] }],
-          logic: 'AND'
-        }
-      }
-    }
-  ];
+// Removed createDefaultPresets function - no longer needed with new filter system
 
-  for (const preset of defaultPresets) {
-    await pool.query(
-      'INSERT INTO user_preferences (user_id, workspace_id, preference_key, preference_value) VALUES ($1, $2, $3, $4) ON CONFLICT (user_id, workspace_id, preference_key) DO NOTHING',
-      [userId, workspaceId, preset.key, JSON.stringify(preset.value)]
-    );
-  }
-}
+
+
+
+
+
+
+
+
+
 
 // Helper function to get user access level for a workspace
 async function getUserAccessLevel(userId, workspaceId) {
@@ -267,7 +140,7 @@ router.post('/workspaces/:workspaceId/permissions', authenticateToken, async (re
 
     // Create default presets for the user if they have a user_id (not pending)
     if (user_id) {
-      await createDefaultPresets(user_id, workspaceId);
+      // Removed createDefaultPresets call - no longer needed with new filter system
     }
 
     console.log(`✅ Successfully added user ${email} (user_id: ${user_id}) to workspace ${workspaceId}`);
