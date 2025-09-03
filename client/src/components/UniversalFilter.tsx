@@ -238,19 +238,21 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
           : preset
       );
       
-      // Update parent filters after state update
-      const updatedPresets = newPresets
-        .filter(preset => preset.enabled)
-        .map(preset => preset.id);
-      
-      const newFilters = {
-        ...filters,
-        presets: updatedPresets,
-        currentDays: customDays
-      };
-      
-      console.log('UniversalFilter: Toggle preset, updating filters with:', newFilters);
-      onFiltersChange(newFilters);
+      // Defer parent update to next tick to avoid setState during render warning
+      setTimeout(() => {
+        const updatedPresets = newPresets
+          .filter(preset => preset.enabled)
+          .map(preset => preset.id);
+        
+        const newFilters = {
+          ...filters,
+          presets: updatedPresets,
+          currentDays: customDays
+        };
+        
+        console.log('UniversalFilter: Toggle preset, updating filters with:', newFilters);
+        onFiltersChange(newFilters);
+      }, 0);
       
       return newPresets;
     });
@@ -262,18 +264,28 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
   const handleDaysChange = (presetKey: string, days: number) => {
     console.log(`UniversalFilter: Changing days for ${presetKey} to ${days}`);
     
-    // Update local state only (session-only)
-    // The useEffect will handle updating the parent filters
-    setCustomDays(prev => ({ ...prev, [presetKey]: days }));
-    
-    // Always trigger filter update to use the new days value, regardless of preset state
-    // This ensures that when the preset is enabled, it uses the updated days value
-    const newFilters = {
-      ...filters,
-      currentDays: { ...customDays, [presetKey]: days }
-    };
-    console.log('UniversalFilter: Triggering filter update with new days value:', newFilters);
-    onFiltersChange(newFilters);
+    // Update local state first
+    setCustomDays(prev => {
+      const newCustomDays = { ...prev, [presetKey]: days };
+      
+      // Defer parent update to next tick to avoid setState during render warning
+      setTimeout(() => {
+        const updatedPresets = presetFilters
+          .filter(preset => preset.enabled)
+          .map(preset => preset.id);
+        
+        const newFilters = {
+          ...filters,
+          presets: updatedPresets,
+          currentDays: newCustomDays
+        };
+        
+        console.log('UniversalFilter: Triggering filter update with new days value:', newFilters);
+        onFiltersChange(newFilters);
+      }, 0);
+      
+      return newCustomDays;
+    });
   };
 
 
