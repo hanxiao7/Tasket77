@@ -162,8 +162,11 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
     } else if ((cond as any).condition_type === 'date_range') {
       setSingleMode('date_range');
       setRangeField(cond.field as any);
-      setRangeStart((cond.values?.[0] as string) || '');
-      setRangeEnd((cond.values?.[1] as string) || '');
+      // Validate date values before setting them
+      const startValue = cond.values?.[0];
+      const endValue = cond.values?.[1];
+      setRangeStart((typeof startValue === 'string' && startValue.match(/^\d{4}-\d{2}-\d{2}$/)) ? startValue : '');
+      setRangeEnd((typeof endValue === 'string' && endValue.match(/^\d{4}-\d{2}-\d{2}$/)) ? endValue : '');
     } else if ((cond as any).condition_type === 'date_diff') {
       setSingleMode('date_diff');
       setDiffFrom(((cond as any).date_from) || DEFAULT_VALUES.diffFrom);
@@ -176,7 +179,9 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
       else if (operator === '>=') setDiffCmp('ge');
       else if (operator === '>') setDiffCmp('gt');
       else setDiffCmp('le');
-      setDiffDays(cond.values?.[0] || 0);
+      // Validate days value before setting it
+      const daysValue = cond.values?.[0];
+      setDiffDays((typeof daysValue === 'number' && daysValue >= 0) ? daysValue : 0);
     } else if ((cond as any).condition_type === 'list') {
       if (cond.field && ['assignee', 'category', 'tag', 'status', 'priority'].includes(cond.field)) {
         setSingleMode(cond.field as SingleMode);
@@ -258,6 +263,7 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
     console.log(`UniversalFilter: Changing days for ${presetKey} to ${days}`);
     
     // Update local state only (session-only)
+    // The useEffect will handle updating the parent filters
     setCustomDays(prev => ({ ...prev, [presetKey]: days }));
     
     // Always trigger filter update to use the new days value, regardless of preset state
@@ -574,7 +580,7 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
                               <input
                                 type="number"
                                 min="0"
-                                value={customDays[preset.name.toLowerCase().replace(/\s+/g, '_')] || (preset.conditions?.[0]?.values?.[0] || DEFAULT_VALUES.fallbackDays)}
+                                value={customDays[preset.name.toLowerCase().replace(/\s+/g, '_')] || (typeof preset.conditions?.[0]?.values?.[0] === 'number' && preset.conditions[0].values[0] >= 0 ? preset.conditions[0].values[0] : DEFAULT_VALUES.fallbackDays)}
                                 onChange={(e) => handleDaysChange(preset.name.toLowerCase().replace(/\s+/g, '_'), Number(e.target.value))}
                                 className="w-12 text-sm border rounded px-1 py-0.5 text-center"
                                 onClick={(e) => e.stopPropagation()}
