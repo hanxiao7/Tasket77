@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Filter, X, Plus } from 'lucide-react';
+import { Filter, X } from 'lucide-react';
 import { TaskFilters, PresetFilter, FilterGroup, FilterCondition, Category, Tag } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -24,8 +24,7 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
   // - Changes are lost on page refresh and reset to database defaults
   // - Custom filters are always session-only and never saved
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [customGroups, setCustomGroups] = useState<FilterGroup[]>([]);
-  const [customLogic, setCustomLogic] = useState<'AND' | 'OR'>('AND');
+
   const [presetFilters, setPresetFilters] = useState<PresetFilter[]>([]);
   const [customDays, setCustomDays] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(false);
@@ -71,6 +70,7 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
             id: filter.id,
             name: filter.name,
             enabled: filter.is_default,  // Use is_default for initial state
+            is_default: filter.is_default,  // Preserve is_default for sorting
             view_mode: filter.view_mode,
             operator: filter.operator,
             conditions: filter.conditions
@@ -95,14 +95,8 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
               );
               
               if (dateDiffCondition) {
-                // Map database filter names to the expected keys
-                const keyMap: Record<string, string> = {
-                  'Due in 7 Days': 'due_in_7_days',
-                  'Active in Past 7 Days': 'active_past_7_days',
-                  'Unchanged in Past 14 Days': 'unchanged_past_14_days',
-                  'Lasted More Than 1 Day': 'lasted_more_than_1_day'
-                };
-                const key = keyMap[filter.name] || filter.name.toLowerCase().replace(/\s+/g, '_');
+                // Convert filter name to key format
+                const key = filter.name.toLowerCase().replace(/\s+/g, '_');
                 daysValues[key] = dateDiffCondition.values[0];
                 console.log(`Setting days for ${filter.name} (${key}): ${dateDiffCondition.values[0]}`);
               }
@@ -141,19 +135,7 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isModalOpen]);
 
-  // Sync incoming custom filters from parent
-  useEffect(() => {
-    if (filters.customFilters) {
-      setCustomGroups(filters.customFilters);
-    } else {
-      setCustomGroups([]);
-    }
-    if (filters.customFiltersLogic) {
-      setCustomLogic(filters.customFiltersLogic);
-    } else {
-      setCustomLogic('AND');
-    }
-  }, [filters.customFilters, filters.customFiltersLogic]);
+
 
   // Initialize single-mode UI from existing customFilters when possible
   useEffect(() => {
@@ -163,14 +145,14 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
       setSingleMode('none');
       setSingleValues([]);
       setSingleIncludeNull(false);
-      setRangeField('due_date');
+      setRangeField(DEFAULT_VALUES.rangeField);
       setRangeStart('');
       setRangeEnd('');
 
-      setDiffFrom('created_date');
-      setDiffTo('today');
-      setDiffCmp('le');
-      setDiffDays(0);
+      setDiffFrom(DEFAULT_VALUES.diffFrom);
+      setDiffTo(DEFAULT_VALUES.diffTo);
+      setDiffCmp(DEFAULT_VALUES.diffCmp);
+      setDiffDays(DEFAULT_VALUES.diffDays);
       return;
     }
     // Prefer operator-first interpretation so null/date-diff/range take precedence over field type
@@ -184,8 +166,8 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
       setRangeEnd((cond.values?.[1] as string) || '');
     } else if ((cond as any).condition_type === 'date_diff') {
       setSingleMode('date_diff');
-      setDiffFrom(((cond as any).date_from) || 'created_date');
-      setDiffTo(((cond as any).date_to) || 'today');
+      setDiffFrom(((cond as any).date_from) || DEFAULT_VALUES.diffFrom);
+      setDiffTo(((cond as any).date_to) || DEFAULT_VALUES.diffTo);
       // Convert operator back to comparison type
       const operator = (cond as any).operator;
       if (operator === '<') setDiffCmp('lt');
@@ -290,40 +272,12 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
 
 
 
-  const getDefaultDays = (filterName: string): number => {
-    const defaults: Record<string, number> = {
-      'due in 7 days': 7,
-      'active in past 7 days': 7,
-      'unchanged in past 14 days': 14,
-      'lasted more than 1 day': 1
-    };
-    return defaults[filterName.toLowerCase()] || 7;
-  };
 
-  const isDatePreset = (filterName: string): boolean => {
-    const dateFilters = ['due in 7 days', 'active in past 7 days', 'unchanged in past 14 days', 'lasted more than 1 day'];
-    return dateFilters.includes(filterName.toLowerCase());
-  };
 
   const getActiveFiltersCount = () => {
     const presetCount = presetFilters.filter(preset => preset.enabled).length;
-    const customCount = customGroups.reduce((acc, g) => acc + (g.conditions?.length || 0), 0);
+    const customCount = filters.customFilters ? filters.customFilters.reduce((acc, g) => acc + (g.conditions?.length || 0), 0) : 0;
     return presetCount + (customCount > 0 ? 1 : 0);
-  };
-
-  const getPresetLabel = (filterName: string): string => {
-    // For date filters, return the part before the number
-    if (isDatePreset(filterName)) {
-      const labels: Record<string, string> = {
-        'due in 7 days': 'Due in',
-        'active in past 7 days': 'Active in past',
-        'unchanged in past 14 days': 'Unchanged in past',
-        'lasted more than 1 day': 'Lasted for at least'
-      };
-      return labels[filterName.toLowerCase()] || filterName;
-    }
-    // For other filters, return the full name
-    return filterName;
   };
 
   // Custom filter handlers (session-only - not saved to database)
@@ -331,14 +285,14 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
     setSingleMode('none');
     setSingleValues([]);
     setSingleIncludeNull(false);
-    setRangeField('due_date');
+    setRangeField(DEFAULT_VALUES.rangeField);
     setRangeStart('');
     setRangeEnd('');
 
-    setDiffFrom('created_date');
-    setDiffTo('today');
-    setDiffCmp('le');
-    setDiffDays(0);
+    setDiffFrom(DEFAULT_VALUES.diffFrom);
+    setDiffTo(DEFAULT_VALUES.diffTo);
+    setDiffCmp(DEFAULT_VALUES.diffCmp);
+    setDiffDays(DEFAULT_VALUES.diffDays);
     onFiltersChange({ ...filters, customFilters: undefined, customFiltersLogic: undefined });
   };
 
@@ -409,38 +363,38 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
     }
   };
 
-  // Sort presets: default first, then assigned to me, then others alphabetically
+  // Sort presets: default first, then alphabetically
   const getSortedPresets = (presets: PresetFilter[]): PresetFilter[] => {
-    return presets.sort((a, b) => {
-      const aLabel = getPresetLabel(a.name);
-      const bLabel = getPresetLabel(b.name);
-      
-      // Default presets first (based on is_default field)
+    const sorted = presets.sort((a, b) => {
+      // Default presets first
       if (a.is_default && !b.is_default) return -1;
       if (!a.is_default && b.is_default) return 1;
       
-      // View-specific default filters (Active in past for tracker, Hide completed for planner)
-      if (viewMode === 'tracker' && a.name.toLowerCase().includes('active') && !b.name.toLowerCase().includes('active')) return -1;
-      if (viewMode === 'tracker' && b.name.toLowerCase().includes('active') && !a.name.toLowerCase().includes('active')) return 1;
-      if (viewMode === 'planner' && a.name.toLowerCase().includes('hide') && !b.name.toLowerCase().includes('hide')) return -1;
-      if (viewMode === 'planner' && b.name.toLowerCase().includes('hide') && !a.name.toLowerCase().includes('hide')) return 1;
-      
-      // Assigned to me second
-      const aIsAssignedToMe = aLabel.includes('Assigned to me');
-      const bIsAssignedToMe = bLabel.includes('Assigned to me');
-      if (aIsAssignedToMe && !bIsAssignedToMe) return -1;
-      if (!aIsAssignedToMe && bIsAssignedToMe) return 1;
-      
       // Then alphabetically
-      return aLabel.localeCompare(bLabel);
+      return a.name.localeCompare(b.name);
     });
+    
+    console.log('UniversalFilter: Sorted presets:', sorted.map(p => ({ name: p.name, is_default: p.is_default })));
+    return sorted;
   };
 
   // Helpers to render editors
   const categoricalFields = ['assignee', 'category', 'tag', 'status', 'priority'] as const;
   const dateFields = ['due_date', 'completion_date', 'created_date', 'last_modified', 'start_date'] as const;
+  
+  // These could be moved to a constants file or loaded from database in the future
   const statusOptions = ['todo', 'in_progress', 'paused', 'done'];
   const priorityOptions = ['urgent', 'high', 'normal', 'low'];
+  
+  // Default values for form initialization
+  const DEFAULT_VALUES = {
+    rangeField: 'due_date' as const,
+    diffFrom: 'created_date' as const,
+    diffTo: 'today' as const,
+    diffCmp: 'ge' as const,
+    diffDays: 0,
+    fallbackDays: 7
+  };
 
   const renderCategoricalSingle = () => {
     let options: Array<{ value: number | string; label: string }> = [];
@@ -612,32 +566,30 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
                             onChange={(e) => handlePresetToggle(preset.id, e.target.checked)}
                             className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
                           />
-                          {isDatePreset(preset.name) ? (
+                          {preset.conditions?.some((c: any) => c.condition_type === 'date_diff') ? (
                             <div className="flex items-center gap-1 flex-1">
                               <span className="truncate">
-                                {getPresetLabel(preset.name).replace(/\[\d+\]/, '')}
+                                {preset.name}
                               </span>
                               <input
                                 type="number"
                                 min="0"
-                                value={customDays[preset.name.toLowerCase().replace(/\s+/g, '_')] || getDefaultDays(preset.name)}
+                                value={customDays[preset.name.toLowerCase().replace(/\s+/g, '_')] || (preset.conditions?.[0]?.values?.[0] || DEFAULT_VALUES.fallbackDays)}
                                 onChange={(e) => handleDaysChange(preset.name.toLowerCase().replace(/\s+/g, '_'), Number(e.target.value))}
                                 className="w-12 text-sm border rounded px-1 py-0.5 text-center"
                                 onClick={(e) => e.stopPropagation()}
                               />
-                              <span className="text-sm text-gray-900">
-                                {preset.name.toLowerCase().includes('lasted') ? 'days' : 'days'}
-                              </span>
-                              {/* Show default note for tracker view default filter */}
-                              {viewMode === 'tracker' && preset.name.toLowerCase().includes('active') && (
+                              <span className="text-sm text-gray-900">days</span>
+                              {/* Show default note for default filters */}
+                              {preset.is_default && (
                                 <span className="text-xs text-gray-500 italic">(default)</span>
                               )}
                             </div>
                           ) : (
                             <div className="flex items-center gap-1 flex-1">
-                              <span className="truncate">{getPresetLabel(preset.name)}</span>
-                              {/* Show default note for planner view default filter */}
-                              {viewMode === 'planner' && preset.name.toLowerCase().includes('hide') && (
+                              <span className="truncate">{preset.name}</span>
+                              {/* Show default note for default filters */}
+                              {preset.is_default && (
                                 <span className="text-xs text-gray-500 italic">(default)</span>
                               )}
                             </div>
