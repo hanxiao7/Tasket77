@@ -38,7 +38,7 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
   const [tags, setTags] = useState<Tag[]>([]);
 
   // Single-field custom filter state
-  type SingleMode = 'none' | 'assignee' | 'category' | 'tag' | 'status' | 'priority' | 'date_range' | 'date_diff' | 'null_is' | 'null_is_not';
+  type SingleMode = 'none' | 'assignee' | 'category' | 'tag' | 'status' | 'priority' | 'date_range' | 'date_diff';
   const [singleMode, setSingleMode] = useState<SingleMode>('none');
   const [singleValues, setSingleValues] = useState<any[]>([]);
   const [singleIncludeNull, setSingleIncludeNull] = useState<boolean>(false);
@@ -46,8 +46,7 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
   const [rangeField, setRangeField] = useState<'due_date' | 'completion_date' | 'created_date' | 'last_modified' | 'start_date'>('due_date');
   const [rangeStart, setRangeStart] = useState<string>('');
   const [rangeEnd, setRangeEnd] = useState<string>('');
-  const [nullField, setNullField] = useState<'assignee' | 'status' | 'category' | 'tag' | 'priority' | 'due_date' | 'created_date' | 'completion_date' | 'last_modified' | 'start_date'>('due_date');
-  const [nullOperator, setNullOperator] = useState<'is_null' | 'is_not_null'>('is_null');
+
   const [diffFrom, setDiffFrom] = useState<'due_date' | 'completion_date' | 'created_date' | 'last_modified' | 'start_date' | 'today'>('created_date');
   const [diffTo, setDiffTo] = useState<'due_date' | 'completion_date' | 'created_date' | 'last_modified' | 'start_date' | 'today'>('today');
   const [diffCmp, setDiffCmp] = useState<'lt' | 'le' | 'eq' | 'ge' | 'gt'>('le');
@@ -167,8 +166,7 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
       setRangeField('due_date');
       setRangeStart('');
       setRangeEnd('');
-      setNullField('due_date');
-      setNullOperator('is_null');
+
       setDiffFrom('created_date');
       setDiffTo('today');
       setDiffCmp('le');
@@ -177,21 +175,27 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
     }
     // Prefer operator-first interpretation so null/date-diff/range take precedence over field type
     if (cond.operator === 'is_null' || cond.operator === 'is_not_null') {
-      setSingleMode(cond.operator === 'is_null' ? 'null_is' : 'null_is_not');
-      setNullField(cond.field as any);
-      setNullOperator(cond.operator);
-    } else if (cond.operator === 'between') {
+      setSingleMode(cond.field as any);
+      setCategoricalOperator(cond.operator === 'is_null' ? 'is_null' : 'is_not_null');
+    } else if ((cond as any).condition_type === 'date_range') {
       setSingleMode('date_range');
       setRangeField(cond.field as any);
       setRangeStart((cond.values?.[0] as string) || '');
       setRangeEnd((cond.values?.[1] as string) || '');
-    } else if (cond.operator === 'date_diff') {
+    } else if ((cond as any).condition_type === 'date_diff') {
       setSingleMode('date_diff');
-      setDiffFrom((cond.date_field as any) || 'created_date');
-      setDiffTo((cond.date_field_2 as any) || 'today');
-      setDiffCmp((cond.comparator as any) || 'le');
-      setDiffDays(cond.days || 0);
-    } else {
+      setDiffFrom(((cond as any).date_from) || 'created_date');
+      setDiffTo(((cond as any).date_to) || 'today');
+      // Convert operator back to comparison type
+      const operator = (cond as any).operator;
+      if (operator === '<') setDiffCmp('lt');
+      else if (operator === '<=') setDiffCmp('le');
+      else if (operator === '=') setDiffCmp('eq');
+      else if (operator === '>=') setDiffCmp('ge');
+      else if (operator === '>') setDiffCmp('gt');
+      else setDiffCmp('le');
+      setDiffDays(cond.values?.[0] || 0);
+    } else if ((cond as any).condition_type === 'list') {
       if (['assignee', 'category', 'tag', 'status', 'priority'].includes(cond.field)) {
         setSingleMode(cond.field as SingleMode);
         setSingleValues(Array.isArray(cond.values) ? cond.values : []);
@@ -199,6 +203,8 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
       } else {
         setSingleMode('none');
       }
+    } else {
+      setSingleMode('none');
     }
   }, [filters.customFilters]);
 
@@ -328,8 +334,7 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
     setRangeField('due_date');
     setRangeStart('');
     setRangeEnd('');
-    setNullField('due_date');
-    setNullOperator('is_null');
+
     setDiffFrom('created_date');
     setDiffTo('today');
     setDiffCmp('le');
@@ -346,8 +351,7 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
       rangeField,
       rangeStart,
       rangeEnd,
-      nullField,
-      nullOperator,
+
       diffFrom,
       diffTo,
       diffCmp,
@@ -375,13 +379,6 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
           values: [rangeStart, rangeEnd],
         };
       }
-    } else if (singleMode === 'null_is' || singleMode === 'null_is_not') {
-      condition = {
-        condition_type: 'list',
-        field: nullField,
-        operator: singleMode === 'null_is' ? 'is_null' : 'is_not_null',
-        values: [],
-      };
     } else if (singleMode === 'date_diff') {
       condition = {
         condition_type: 'date_diff',
@@ -516,16 +513,7 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
         )}
         
         {/* Show info text for null operators */}
-        {categoricalOperator === 'is_null' && (
-          <div className="text-sm text-gray-600 italic">
-            Will show tasks where {singleMode} is empty/null
-          </div>
-        )}
-        {categoricalOperator === 'is_not_null' && (
-          <div className="text-sm text-gray-600 italic">
-            Will show tasks where {singleMode} has a value
-          </div>
-        )}
+
       </div>
     );
   };
@@ -540,25 +528,7 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
     </div>
   );
 
-  const renderNullCheckSingle = () => (
-    <div className="w-full">
-      <div className="flex items-center gap-2">
-        <div className="w-1/2">
-          <select value={singleMode} onChange={e => setSingleMode(e.target.value as any)} className="w-full text-sm border rounded px-2 py-1">
-            <option value="null_is">Is null</option>
-            <option value="null_is_not">Is not null</option>
-          </select>
-        </div>
-        <div className="w-1/2">
-          <select value={nullField} onChange={e => setNullField(e.target.value as any)} className="w-full text-sm border rounded px-2 py-1">
-            {[...categoricalFields, ...dateFields].map(f => (
-              <option key={f as any} value={f as any}>{String(f).replace('_', ' ')}</option>
-            ))}
-          </select>
-        </div>
-      </div>
-    </div>
-  );
+
 
   const renderDateDiffSingle = () => (
     <div className="w-full mt-2">
@@ -700,10 +670,20 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
                           <option value="priority">Priority</option>
                           <option value="date_range">Date range</option>
                           <option value="date_diff">Date difference</option>
-                          <option value="null_is">Is null</option>
-                          <option value="null_is_not">Is not null</option>
                           </select>
                         </div>
+                        {/* Operator selector for categorical fields - moved to be inline */}
+                        {['assignee', 'category', 'tag', 'status', 'priority'].includes(singleMode) && (
+                          <select
+                            value={categoricalOperator}
+                            onChange={(e) => setCategoricalOperator(e.target.value as 'in' | 'is_null' | 'is_not_null')}
+                            className="text-sm border rounded px-2 py-1 w-1/2 text-gray-900"
+                          >
+                            <option value="in">IN</option>
+                            <option value="is_null">IS NULL</option>
+                            <option value="is_not_null">IS NOT NULL</option>
+                          </select>
+                        )}
                         {singleMode === 'date_range' && (
                           <select
                             value={rangeField}
@@ -715,36 +695,11 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
                             ))}
                           </select>
                         )}
-                        {(singleMode === 'null_is' || singleMode === 'null_is_not') && (
-                          <select
-                            value={nullField}
-                            onChange={e => setNullField(e.target.value as any)}
-                            className="text-sm border rounded px-2 py-1 w-1/2 text-gray-900"
-                          >
-                            {[...categoricalFields, ...dateFields].map(f => (
-                              <option key={f as any} value={f as any}>{String(f).replace('_', ' ')}</option>
-                            ))}
-                          </select>
-                        )}
+
                       </div>
 
                       {['assignee', 'category', 'tag', 'status', 'priority'].includes(singleMode) && (
-                        <>
-                          {/* Operator selector for categorical fields */}
-                          <div className="mb-3">
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Operator</label>
-                            <select
-                              value={categoricalOperator}
-                              onChange={(e) => setCategoricalOperator(e.target.value as 'in' | 'is_null' | 'is_not_null')}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            >
-                              <option value="in">IN (multiple values)</option>
-                              <option value="is_null">IS NULL</option>
-                              <option value="is_not_null">IS NOT NULL</option>
-                            </select>
-                          </div>
-                          {renderCategoricalSingle()}
-                        </>
+                        renderCategoricalSingle()
                       )}
 
                       {singleMode === 'date_range' && renderDateRangeSingle()}
