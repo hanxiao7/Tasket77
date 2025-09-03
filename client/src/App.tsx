@@ -9,7 +9,7 @@ import TaskSummary from './components/TaskSummary';
 import WorkspaceSelector from './components/WorkspaceSelector';
 import UserMenu from './components/UserMenu';
 import UniversalFilter from './components/UniversalFilter';
-// import useUserPreferences from './hooks/useUserPreferences'; // No longer needed with new filter system
+
 import { Download, ArrowUpDown, CheckCircle } from 'lucide-react';
 import { TaskFilters, ViewMode, Task } from './types';
 
@@ -29,9 +29,7 @@ function MainApp() {
   const taskListRef = useRef<{ sortTasks: () => void; getTasks: () => Task[] }>(null);
   const { user } = useAuth();
 
-  // User preferences hook
-  // const { preferences, savePreference, getPresetFilters, updatePresetFilter, loading: preferencesLoading } = useUserPreferences(selectedWorkspaceId || 0);
-  const preferencesLoading = false; // No longer needed with new filter system
+
 
   // Load workspaces on component mount
   useEffect(() => {
@@ -64,7 +62,7 @@ function MainApp() {
 
   // Load initial preset filters when workspace is selected
   useEffect(() => {
-    if (preferencesLoading || !selectedWorkspaceId) return;
+    if (!selectedWorkspaceId) return;
     
     console.log('🔄 App.tsx: Loading initial preset filters for workspace:', selectedWorkspaceId);
     
@@ -111,7 +109,7 @@ function MainApp() {
     };
 
     loadInitialFilters();
-  }, [selectedWorkspaceId, preferencesLoading]);
+  }, [selectedWorkspaceId]);
 
 
 

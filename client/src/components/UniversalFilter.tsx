@@ -512,7 +512,6 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
           </>
         )}
         
-        {/* Show info text for null operators */}
 
       </div>
     );
@@ -679,9 +678,9 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
                             onChange={(e) => setCategoricalOperator(e.target.value as 'in' | 'is_null' | 'is_not_null')}
                             className="text-sm border rounded px-2 py-1 w-1/2 text-gray-900"
                           >
-                            <option value="in">IN</option>
-                            <option value="is_null">IS NULL</option>
-                            <option value="is_not_null">IS NOT NULL</option>
+                            <option value="in">In</option>
+                            <option value="is_null">Is NULL</option>
+                            <option value="is_not_null">Is not NULL</option>
                           </select>
                         )}
                         {singleMode === 'date_range' && (
