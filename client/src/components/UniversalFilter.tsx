@@ -178,7 +178,7 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
       else setDiffCmp('le');
       setDiffDays(cond.values?.[0] || 0);
     } else if ((cond as any).condition_type === 'list') {
-      if (['assignee', 'category', 'tag', 'status', 'priority'].includes(cond.field)) {
+      if (cond.field && ['assignee', 'category', 'tag', 'status', 'priority'].includes(cond.field)) {
         setSingleMode(cond.field as SingleMode);
         setSingleValues(Array.isArray(cond.values) ? cond.values : []);
         setSingleIncludeNull(!!cond.includeNull);

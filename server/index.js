@@ -474,14 +474,8 @@ async function buildFilterQueryFromDatabase(filterIds, startParamIndex, params, 
           // Use currentDays if available, otherwise use default values
           let daysValue = condition.values && condition.values.length > 0 ? condition.values[0] : 7;
           
-          // Map database filter names to the expected keys (same as frontend)
-          const keyMap = {
-            'Due in 7 Days': 'due_in_7_days',
-            'Active in Past 7 Days': 'active_past_7_days',
-            'Unchanged in Past 14 Days': 'unchanged_past_14_days',
-            'Lasted More Than 1 Day': 'lasted_more_than_1_day'
-          };
-          const key = keyMap[filter.name] || filter.name.toLowerCase().replace(/\s+/g, '_');
+          // Convert filter name to key format (same as frontend)
+          const key = filter.name.toLowerCase().replace(/\s+/g, '_');
           
           if (currentDays && currentDays[key]) {
             daysValue = currentDays[key];
