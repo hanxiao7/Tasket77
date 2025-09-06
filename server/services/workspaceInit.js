@@ -178,9 +178,17 @@ async function createExampleTasks(client, userId, workspaceId) {
 
     // Insert each example task
     for (const task of exampleTasks) {
-      await client.query(
-        'INSERT INTO tasks (user_id, workspace_id, title, description, priority, status, due_date, category_id, tag_id, created_at, last_modified) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $10)',
+      const taskResult = await client.query(
+        'INSERT INTO tasks (user_id, workspace_id, title, description, priority, status, due_date, category_id, tag_id, created_at, last_modified) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $10) RETURNING id',
         [userId, workspaceId, task.title, task.description, task.priority, task.status, task.due_date, task.category_id, task.tag_id, now]
+      );
+      
+      const taskId = taskResult.rows[0].id;
+      
+      // Assign the user as the assignee for this task
+      await client.query(
+        'INSERT INTO task_assignees (task_id, user_id, assigned_by, assigned_at) VALUES ($1, $2, $2, $3)',
+        [taskId, userId, now]
       );
     }
     
