@@ -4,6 +4,7 @@ const { Pool } = require('pg');
 const { authenticateToken } = require('../middleware/auth');
 const moment = require('moment');
 const { sendWorkspaceAccessEmail } = require('../services/emailService');
+const { createDefaultPresetFilters } = require('../services/filterUtils');
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL || 'postgresql://postgres:password@localhost:5432/taskmanagement'
@@ -138,9 +139,9 @@ router.post('/workspaces/:workspaceId/permissions', authenticateToken, async (re
       [workspaceId, user_id, email, access_level]
     );
 
-    // Create default presets for the user if they have a user_id (not pending)
+    // Create default preset filters for the user if they have a user_id (not pending)
     if (user_id) {
-      // Removed createDefaultPresets call - no longer needed with new filter system
+      await createDefaultPresetFilters(client, user_id, workspaceId);
     }
 
     console.log(`✅ Successfully added user ${email} (user_id: ${user_id}) to workspace ${workspaceId}`);
@@ -428,6 +429,9 @@ router.post('/workspaces/:workspaceId/leave', authenticateToken, async (req, res
             [newWorkspaceResult.rows[0].id, userId, userResult.rows[0].email, 'owner', true]
           );
           console.log(`✅ Created new workspace ${newWorkspaceResult.rows[0].id} as default for user ${userId}`);
+          
+          // Create default preset filters for the new workspace
+          await createDefaultPresetFilters(client, userId, newWorkspaceResult.rows[0].id);
         }
       }
     }

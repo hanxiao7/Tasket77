@@ -12,6 +12,7 @@ const { pool, initializeDatabase, updateTaskModified, addTaskHistory } = require
 const PostgreSQLBackupManager = require('./backup-pg');
 const { authenticateToken } = require('./middleware/auth');
 const { testEmailConfig } = require('./services/emailService');
+const { createDefaultPresetFilters } = require('./services/filterUtils');
 const authRoutes = require('./routes/auth');
 const workspacePermissionsRoutes = require('./routes/workspace-permissions');
 
@@ -1730,8 +1731,6 @@ app.get('/api/workspaces', authenticateToken, async (req, res) => {
   }
 });
 
-// Helper function to create default presets for a user in a workspace
-// Removed createDefaultPresets function - no longer needed with new filter system
 
 // Create new workspace
 app.post('/api/workspaces', authenticateToken, async (req, res) => {
@@ -1776,8 +1775,8 @@ app.post('/api/workspaces', authenticateToken, async (req, res) => {
     
     await client.query('COMMIT');
     
-    // Create default presets for the creator
-    // Removed createDefaultPresets call - no longer needed with new filter system
+    // Create default preset filters for the creator
+    await createDefaultPresetFilters(client, req.user.userId, result.rows[0].id);
     
     res.json(result.rows[0]);
   } catch (err) {

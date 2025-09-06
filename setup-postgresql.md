@@ -120,36 +120,49 @@ docker exec -i task-management-db psql -U postgres taskmanagement < backup_filen
 
 **Delete all data for a user**
 -- Set the email once at the top
-\set email_address 'test@example.com'
+\set email_address 'shops9191@gmail.com'
 
 BEGIN;
 
--- Delete everything in the correct order using the variable
-DELETE FROM user_sessions 
-WHERE user_id IN (SELECT id FROM users WHERE email = :'email_address');
+DELETE FROM filter_conditions 
+WHERE filter_id IN (
+  SELECT fp.id FROM filter_preferences fp 
+  JOIN users u ON fp.user_id = u.id 
+  WHERE u.email = :'email_address'
+);
 
-DELETE FROM workspace_permissions 
-WHERE user_id IN (SELECT id FROM users WHERE email = :'email_address');
+DELETE FROM filter_preferences 
+WHERE user_id = (SELECT id FROM users WHERE email = :'email_address');
+
+DELETE FROM task_assignees 
+WHERE user_id = (SELECT id FROM users WHERE email = :'email_address') 
+   OR assigned_by = (SELECT id FROM users WHERE email = :'email_address');
 
 DELETE FROM task_history 
 WHERE task_id IN (
-    SELECT t.id FROM tasks t 
-    JOIN users u ON t.user_id = u.id 
-    WHERE u.email = :'email_address'
+  SELECT id FROM tasks 
+  WHERE user_id = (SELECT id FROM users WHERE email = :'email_address')
 );
 
 DELETE FROM tasks 
-WHERE user_id IN (SELECT id FROM users WHERE email = :'email_address');
+WHERE user_id = (SELECT id FROM users WHERE email = :'email_address');
 
 DELETE FROM categories 
-WHERE user_id IN (SELECT id FROM users WHERE email = :'email_address');
+WHERE user_id = (SELECT id FROM users WHERE email = :'email_address');
 
 DELETE FROM tags 
-WHERE user_id IN (SELECT id FROM users WHERE email = :'email_address');
+WHERE user_id = (SELECT id FROM users WHERE email = :'email_address');
+
+DELETE FROM workspace_permissions 
+WHERE user_id = (SELECT id FROM users WHERE email = :'email_address');
 
 DELETE FROM workspaces 
-WHERE user_id IN (SELECT id FROM users WHERE email = :'email_address');
+WHERE user_id = (SELECT id FROM users WHERE email = :'email_address');
 
-DELETE FROM users WHERE email = :'email_address';
+DELETE FROM user_sessions 
+WHERE user_id = (SELECT id FROM users WHERE email = :'email_address');
+
+DELETE FROM users 
+WHERE email = :'email_address';
 
 COMMIT;

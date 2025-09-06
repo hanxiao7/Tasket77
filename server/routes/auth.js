@@ -4,6 +4,7 @@ const jwt = require('jsonwebtoken');
 const { Pool } = require('pg');
 const moment = require('moment-timezone');
 const { JWT_SECRET } = require('../middleware/auth');
+const { createDefaultPresetFilters } = require('../services/filterUtils');
 
 const router = express.Router();
 const pool = new Pool({
@@ -109,9 +110,23 @@ router.post('/register', async (req, res) => {
           'INSERT INTO workspace_permissions (workspace_id, user_id, email, access_level, is_default) VALUES ($1, $2, $3, $4, $5)',
           [workspaceResult.rows[0].id, user.id, user.email, 'owner', true]
         );
+
+        // Create default preset filters for the new user
+        await createDefaultPresetFilters(client, user.id, workspaceResult.rows[0].id);
       } else {
         // User has accessible workspaces from pending invitations
         console.log(`📝 User ${user.email} has ${accessibleWorkspaces.rows[0].count} accessible workspaces from pending invitations`);
+        
+        // Get all workspaces the user has access to
+        const userWorkspaces = await client.query(
+          'SELECT workspace_id FROM workspace_permissions WHERE user_id = $1',
+          [user.id]
+        );
+        
+        // Create default preset filters for each workspace the user has access to
+        for (const workspace of userWorkspaces.rows) {
+          await createDefaultPresetFilters(client, user.id, workspace.workspace_id);
+        }
         
         // Set the first accessible workspace as default
         const firstWorkspace = await client.query(

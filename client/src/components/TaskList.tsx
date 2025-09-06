@@ -1567,7 +1567,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
                 e.stopPropagation();
                 setShowNewTaskCategoryDropdown(!showNewTaskCategoryDropdown);
               }}
-              title="Select category for new task"
+              title="Select category"
             >
               <span className={selectedNewTaskCategory[selectedWorkspaceId] ? "text-gray-900" : "text-gray-400"}>
                 {selectedNewTaskCategory[selectedWorkspaceId] ? (categories.find(c => c.id.toString() === selectedNewTaskCategory[selectedWorkspaceId])?.name || 'Category') : 'Category'}
@@ -1623,7 +1623,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
           <input
             ref={newTaskInputRef}
             type="text"
-            placeholder="Add new task..."
+            placeholder="Add task title..."
             value={newTaskTitle}
             onChange={(e) => setNewTaskTitle(e.target.value)}
             onKeyPress={handleKeyPress}
@@ -1686,7 +1686,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
                     e.stopPropagation();
                     setShowNewTaskCategoryDropdown(!showNewTaskCategoryDropdown);
                   }}
-                  title="Select category for new task"
+                  title="Select category"
                 >
                   <span className={selectedNewTaskCategory[selectedWorkspaceId] ? "text-gray-900" : "text-gray-400"}>
                     {selectedNewTaskCategory[selectedWorkspaceId] ? (categories.find(c => c.id.toString() === selectedNewTaskCategory[selectedWorkspaceId])?.name || 'Category') : 'Category'}
@@ -1747,7 +1747,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
               <input
                 ref={newTaskInputRef}
                 type="text"
-                placeholder="Add new task..."
+                placeholder="Add task title..."
                 value={newTaskTitle}
                 onChange={(e) => setNewTaskTitle(e.target.value)}
                 onKeyPress={handleKeyPress}
@@ -1792,7 +1792,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
                     ? "bg-blue-100 border-blue-300 text-blue-700"
                     : "bg-white border-gray-300 text-gray-600 hover:bg-gray-50"
                 )}
-                title={`Click to select, drag to apply to a task`}
+                title={`Click to select a tag`}
               >
                 {tag.name}
               </button>
