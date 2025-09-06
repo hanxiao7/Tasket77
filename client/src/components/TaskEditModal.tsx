@@ -76,19 +76,18 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, categories, tags, o
   useEffect(() => {
     const loadWorkspaceUsers = async () => {
       try {
-        console.log(`🔍 Loading workspace users for workspace ${task.workspace_id}`);
+
         const response = await fetch(`/api/workspace-users/${task.workspace_id}`, {
           credentials: 'include'
         });
-        console.log(`📋 Workspace users response status: ${response.status}`);
+
         
         if (response.ok) {
           const responseText = await response.text();
-          console.log(`📄 Raw workspace users response:`, responseText);
+
           
           try {
             const users = JSON.parse(responseText);
-            console.log(`👥 Loaded ${users.length} workspace users:`, users);
             setWorkspaceUsers(users);
           } catch (parseError) {
             console.error(`❌ Failed to parse workspace users JSON:`, parseError);
@@ -105,19 +104,18 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, categories, tags, o
 
     const loadCurrentAssignees = async () => {
       try {
-        console.log(`🔍 Loading current assignees for task ${task.id}`);
+
         const response = await fetch(`/api/tasks/${task.id}/assignees`, {
           credentials: 'include'
         });
-        console.log(`📋 Current assignees response status: ${response.status}`);
+
         
         if (response.ok) {
           const responseText = await response.text();
-          console.log(`📄 Raw current assignees response:`, responseText);
+
           
           try {
             const assignees = JSON.parse(responseText);
-            console.log(`👥 Loaded ${assignees.length} current assignees:`, assignees);
             setSelectedAssignees(assignees.map((a: any) => ({
               id: a.user_id,
               name: a.user_name,
@@ -279,7 +277,7 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, categories, tags, o
     onUpdate(updatedTask); // Optimistic update - immediate UI change
     
     try {
-      console.log(`✏️ Auto-saving task title: "${newTitle.trim()}"`);
+
       await onSave(updatedTask);
     } catch (error) {
       console.error('Error auto-saving task title:', error);
@@ -302,7 +300,7 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, categories, tags, o
     onUpdate(updatedTask); // Optimistic update - immediate UI change
     
     try {
-      console.log(`📝 Auto-saving task description: "${finalDescription}"`);
+
       await onSave(updatedTask);
     } catch (error) {
       console.error('Error auto-saving task description:', error);
@@ -323,7 +321,7 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, categories, tags, o
       // Fallback to local implementation if not provided
       try {
         const categoryName = finalCategoryId ? categories.find(c => c.id === finalCategoryId)?.name || 'Unknown' : 'Unassigned';
-        console.log(`🏷️ Auto-saving task category: "${categoryName}"`);
+
         await onSave({ ...task, category_id: finalCategoryId, category_name: categoryName });
         onUpdate({ ...task, category_id: finalCategoryId, category_name: categoryName });
       } catch (error) {
@@ -345,7 +343,7 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, categories, tags, o
       // Fallback to local implementation if not provided
       try {
         const tagName = finalTagId ? tags.find(t => t.id === finalTagId)?.name || 'Unknown' : undefined;
-        console.log(`🏷️ Auto-saving task tag: "${tagName}"`);
+
         await onSave({ ...task, tag_id: finalTagId, tag_name: tagName });
         onUpdate({ ...task, tag_id: finalTagId, tag_name: tagName });
       } catch (error) {
@@ -366,7 +364,7 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, categories, tags, o
     onUpdate(updatedTask); // Optimistic update - immediate UI change
     
     try {
-      console.log(`🔄 Auto-saving task status: ${task.status} → ${newStatus}`);
+
       await onSave(updatedTask);
     } catch (error) {
       console.error('Error auto-saving task status:', error);
@@ -386,7 +384,7 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, categories, tags, o
     onUpdate(updatedTask); // Optimistic update - immediate UI change
     
     try {
-      console.log(`🚩 Auto-saving task priority: ${task.priority} → ${newPriority}`);
+
       await onSave(updatedTask);
     } catch (error) {
       console.error('Error auto-saving task priority:', error);
@@ -409,7 +407,7 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, categories, tags, o
     onUpdate(updatedTask); // Optimistic update - immediate UI change
     
     try {
-      console.log(`📅 Auto-saving task ${dateType}: "${finalDate}"`);
+
       await onSave(updatedTask);
     } catch (error) {
       console.error(`Error auto-saving task ${dateType}:`, error);

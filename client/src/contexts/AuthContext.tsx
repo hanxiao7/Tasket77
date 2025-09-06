@@ -66,19 +66,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (!window.location.pathname.includes('/login') && !window.location.pathname.includes('/register')) {
       checkSession();
     } else {
-      console.log('🚫 Skipping session check on login/register page');
+
       setLoading(false);
     }
     // eslint-disable-next-line
   }, []);
 
   const login = async (email: string, password: string) => {
-    console.log('🔐 Starting login process for:', email);
-    console.log('📱 Tab info:', {
-      url: window.location.href,
-      userAgent: navigator.userAgent,
-      timestamp: new Date().toISOString()
-    });
+
     const startTime = Date.now();
     setLoading(true);
     setError(null);
@@ -117,7 +112,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       console.log(`✅ Login successful in ${totalTime}ms:`, data.user);
       setUser(data.user);
       // Redirect to main app after successful login
-      console.log('🔄 Redirecting to main app...');
       window.location.href = '/';
     } catch (e) {
       clearTimeout(timeoutId);
@@ -135,17 +129,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setLoading(true);
     setError(null);
     try {
-      console.log('Registering user:', { name, email });
+
       const res = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001/api'}/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({ name, email, password }),
       });
-      console.log('Register response status:', res.status);
+
       if (!res.ok) {
         const err = await res.json();
-        console.log('Register error:', err);
+        console.log('❌ Registration failed:', err.error || 'Unknown error');
         setError(err.error || 'Registration failed');
         setUser(null);
         setLoading(false);
@@ -157,7 +151,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // Redirect to main app after successful registration
       window.location.href = '/';
     } catch (e) {
-      console.log('Register network error:', e);
+
       setError('Network error');
       setUser(null);
     } finally {

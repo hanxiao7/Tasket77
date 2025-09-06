@@ -61,7 +61,7 @@ const DatePicker: React.FC<DatePickerProps> = ({
         try {
           inputRef.current.showPicker();
         } catch (error) {
-          console.log('showPicker not supported or failed:', error);
+
         }
       }
     }

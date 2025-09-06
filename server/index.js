@@ -22,6 +22,8 @@ const PORT = process.env.PORT || 3001;
 const filterCache = new Map();
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
+// Removed excessive debug logging
+
 // Cache utility functions
 function getCacheKey(filterIds) {
   return filterIds.sort().join(',');
@@ -32,11 +34,9 @@ function getCachedFilters(filterIds) {
   const cached = filterCache.get(cacheKey);
   
   if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-    console.log(`🚀🚀🚀 CACHE HIT! Using cached data for filters: ${cacheKey} (saved database query)`);
     return cached.data;
   }
   
-  console.log(`🚀 Cache MISS for filters: ${cacheKey} (will query database)`);
   return null;
 }
 
@@ -46,12 +46,10 @@ function setCachedFilters(filterIds, data) {
     data, 
     timestamp: Date.now() 
   });
-  console.log(`🚀 Cache SET for filters: ${cacheKey}`);
 }
 
 function clearFilterCache() {
   filterCache.clear();
-  console.log(`🚀 Cache CLEARED`);
 }
 
 // Cache statistics for monitoring
@@ -90,9 +88,7 @@ function cleanupExpiredCache() {
     }
   }
   
-  if (removedCount > 0) {
-    console.log(`🚀 Cache cleanup: Removed ${removedCount} expired entries`);
-  }
+  // Cache cleanup runs silently
 }
 
 // Run cache cleanup every 10 minutes
@@ -116,7 +112,7 @@ async function initializeServer() {
   try {
     // Initialize database first
     await initializeDatabase();
-    console.log('Database initialized successfully');
+    console.log('✅ Database initialized successfully');
     
     // Test email configuration
     await testEmailConfig();
@@ -421,7 +417,6 @@ app.delete('/api/tags/:id', authenticateToken, async (req, res) => {
 // New dynamic filter query builder using the new database structure
 async function buildFilterQueryFromDatabase(filterIds, startParamIndex, params, userId, currentDays, customFilters = []) {
   if ((!filterIds || filterIds.length === 0) && (!customFilters || customFilters.length === 0)) {
-    console.log('🔍 buildFilterQueryFromDatabase: No filter IDs or custom filters provided, returning null');
     return null;
   }
 
@@ -564,7 +559,6 @@ async function buildFilterQueryFromDatabase(filterIds, startParamIndex, params, 
     
     if (cachedData) {
       result = cachedData;
-      console.log(`🔍 buildFilterQueryFromDatabase: Using cached data for filter IDs:`, filterIds);
     } else {
       // Get filter conditions from database
       const query = `
@@ -591,13 +585,9 @@ async function buildFilterQueryFromDatabase(filterIds, startParamIndex, params, 
       // Cache the result
       setCachedFilters(filterIds, result);
       
-      console.log(`🔍 buildFilterQueryFromDatabase: Queried database for filter IDs:`, filterIds, `(cached for future requests)`);
     }
     
-    console.log(`🔍 buildFilterQueryFromDatabase: Found ${result.rows.length} rows:`, result.rows);
-    
     if (result.rows.length === 0) {
-      console.log(`🔍 buildFilterQueryFromDatabase: No filter conditions found, returning null`);
       return null;
     }
 
@@ -637,12 +627,10 @@ async function buildFilterQueryFromDatabase(filterIds, startParamIndex, params, 
         let conditionQuery = '';
         
         if (condition.condition_type === 'list') {
-          console.log(`🔍 Processing list condition:`, condition);
           // Use the utility function to build field conditions
           const fieldCondition = buildFieldCondition(condition.field, condition.operator, condition.values, paramBuilder);
           if (fieldCondition) {
             conditionQuery = fieldCondition.query;
-            console.log(`🔍 Built condition:`, conditionQuery);
           }
         } else if (condition.condition_type === 'date_diff') {
           // Handle date difference conditions using date_from and date_to
@@ -657,9 +645,6 @@ async function buildFilterQueryFromDatabase(filterIds, startParamIndex, params, 
           
           if (currentDays && currentDays[key]) {
             daysValue = currentDays[key];
-            console.log(`Using custom days for ${filter.name} (${key}): ${daysValue}`);
-          } else {
-            console.log(`Using default days for ${filter.name}: ${daysValue}`);
           }
           
           // Always use: date_to - date_from [operator] [days]
@@ -679,28 +664,23 @@ async function buildFilterQueryFromDatabase(filterIds, startParamIndex, params, 
 
     // Process custom filters using ParameterBuilder
     for (const customFilter of customFilters) {
-      console.log(`🔍 Processing custom filter:`, customFilter);
       const customFilterConditions = [];
       
       for (const condition of customFilter.conditions) {
         let conditionQuery = '';
         
         if (condition.condition_type === 'list') {
-          console.log(`🔍 Processing custom list condition:`, condition);
           // Use the utility function to build field conditions
           const fieldCondition = buildFieldCondition(condition.field, condition.operator, condition.values, paramBuilder);
           if (fieldCondition) {
             conditionQuery = fieldCondition.query;
-            console.log(`🔍 Built custom condition:`, conditionQuery);
           }
         } else if (condition.condition_type === 'date_diff') {
-          console.log(`🔍 Processing custom date_diff condition:`, condition);
           const dateFrom = getFieldMapping(condition.date_from);
           const dateTo = getFieldMapping(condition.date_to);
           
           conditionQuery = `((${dateTo})::date - (${dateFrom})::date) ${condition.operator} ${paramBuilder.add(condition.values[0])}`;
         } else if (condition.condition_type === 'date_range') {
-          console.log(`🔍 Processing custom date_range condition:`, condition);
           conditionQuery = `t.${condition.field} BETWEEN ${paramBuilder.add(condition.values[0])} AND ${paramBuilder.add(condition.values[1])}`;
         }
         
@@ -722,9 +702,6 @@ async function buildFilterQueryFromDatabase(filterIds, startParamIndex, params, 
     // Add the ParameterBuilder's parameters to the main params array
     params.push(...paramBuilder.getParams());
     
-    console.log(`🔍 buildFilterQueryFromDatabase: Final query condition:`, finalQuery);
-    console.log(`🔍 buildFilterQueryFromDatabase: Parameters:`, paramBuilder.getParams());
-    console.log(`🔍 buildFilterQueryFromDatabase: Number of filters processed:`, filtersMap.size + customFilters.length);
     return finalQuery;
     
   } catch (error) {
@@ -774,16 +751,13 @@ app.get('/api/tasks', authenticateToken, async (req, res) => {
     try {
       const presetArray = JSON.parse(presets);
       if (Array.isArray(presetArray) && presetArray.length > 0) {
-        console.log('Processing preset filters:', presetArray);
-        
         // Parse currentDays if provided
         let frontendDays = {};
         if (currentDays) {
           try {
             frontendDays = JSON.parse(currentDays);
-            console.log('Using frontend days values:', frontendDays);
           } catch (e) {
-            console.log('Failed to parse currentDays, using database values');
+            // Use database values if parsing fails
           }
         }
         
@@ -792,28 +766,16 @@ app.get('/api/tasks', authenticateToken, async (req, res) => {
         if (customFilters) {
           try {
             customFiltersArray = JSON.parse(customFilters);
-            console.log('🔍 Custom filters parsed:', customFiltersArray);
           } catch (e) {
             console.error('Error parsing custom filters:', e);
           }
         }
         
         if (presetArray && presetArray.length > 0 || customFiltersArray && customFiltersArray.length > 0) {
-          console.log('🔍 Using new dynamic filter system with filter IDs:', presetArray);
-          console.log('🔍 Custom filters:', customFiltersArray);
-          console.log('🔍 Current paramIndex:', paramIndex);
-          console.log('🔍 Current params:', params);
           const dynamicCondition = await buildFilterQueryFromDatabase(presetArray, paramIndex, params, req.user.userId, frontendDays, customFiltersArray);
           if (dynamicCondition) {
             query += ` AND (${dynamicCondition})`;
-            console.log('🔍 Dynamic filter condition applied:', dynamicCondition);
-            console.log('🔍 Final query:', query);
-            console.log('🔍 Final params:', params);
-        } else {
-            console.log('🔍 No dynamic condition built');
           }
-        } else {
-          console.log('🔍 No preset or custom filters enabled');
         }
       }
     } catch (e) {
@@ -1349,7 +1311,7 @@ app.get('/api/workspace-users/:id', authenticateToken, async (req, res) => {
 app.get('/api/cache/stats', authenticateToken, async (req, res) => {
   try {
     const stats = getCacheStats();
-    console.log(`📊 Cache Statistics:`, stats);
+
     res.json(stats);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -1371,8 +1333,6 @@ app.get('/api/filters/:workspaceId', authenticateToken, async (req, res) => {
   const { view_mode } = req.query;
   const userId = req.user.userId;
   
-  console.log(`🔍 Filters request: workspace_id=${workspaceId}, user_id=${userId}, view_mode=${view_mode}`);
-  
   try {
     // Check if user has access to the workspace
     const accessResult = await pool.query(
@@ -1381,7 +1341,6 @@ app.get('/api/filters/:workspaceId', authenticateToken, async (req, res) => {
     );
     
     if (accessResult.rowCount === 0) {
-      console.log(`❌ Access denied for user ${userId} to workspace ${workspaceId}`);
       res.status(403).json({ error: 'Access denied' });
       return;
     }
@@ -1444,8 +1403,6 @@ app.get('/api/filters/:workspaceId', authenticateToken, async (req, res) => {
     });
     
     const filters = Array.from(filtersMap.values());
-    
-    console.log(`📋 Loaded ${filters.length} filters for user ${userId} in workspace ${workspaceId} (${view_mode})`);
     res.json(filters);
     
   } catch (err) {
@@ -1984,5 +1941,5 @@ app.use('/api/auth', authRoutes);
 // Workspace permissions routes
 app.use('/api', workspacePermissionsRoutes);
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`🚀 Server running on port ${PORT}`);
 });

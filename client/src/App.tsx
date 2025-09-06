@@ -34,15 +34,16 @@ function MainApp() {
   // Load workspaces on component mount
   useEffect(() => {
     const loadWorkspaces = async () => {
-      console.log(`🔄 Loading workspaces for user ${user?.id} (${user?.email})`);
+
       try {
         const response = await fetch('http://localhost:3001/api/workspaces', {
           credentials: 'include'
         });
         if (response.ok) {
           const workspacesData = await response.json();
-                      console.log(`📋 Loaded ${workspacesData.length} workspaces:`, workspacesData.map((w: { id: number; name: string; is_default: boolean; access_level?: string; other_users_count?: number }) => ({ id: w.id, name: w.name, is_default: w.is_default, access_level: w.access_level, other_users_count: w.other_users_count })));
+
           setWorkspaces(workspacesData);
+          console.log(`📋 Loaded ${workspacesData.length} workspaces`);
           
           // Set the first workspace as selected if none is selected
           if (workspacesData.length > 0 && !workspacesData.find((w: { id: number }) => w.id === selectedWorkspaceId)) {
@@ -64,7 +65,7 @@ function MainApp() {
   useEffect(() => {
     if (!selectedWorkspaceId) return;
     
-    console.log('🔄 App.tsx: Loading initial preset filters for workspace:', selectedWorkspaceId);
+
     
     const loadInitialFilters = async () => {
       try {
@@ -78,7 +79,7 @@ function MainApp() {
             .filter((filter: any) => filter.is_default)
             .map((filter: any) => filter.id);
           
-          console.log('🔄 App.tsx: Setting initial filters with presets:', enabledPresets);
+          console.log(`🔍 Loaded ${filters.length} filters, ${enabledPresets.length} enabled by default`);
           
           // Set filters immediately - this will be the initial state for TaskList
           setFilters({
@@ -118,7 +119,7 @@ function MainApp() {
   };
 
   const handleViewModeChange = async (newViewMode: ViewMode) => {
-    console.log('🔄 App.tsx: Changing view mode to:', newViewMode);
+
     
     // Load filters for the new view mode
     if (selectedWorkspaceId) {
@@ -133,7 +134,7 @@ function MainApp() {
             .filter((filter: any) => filter.is_default)
             .map((filter: any) => filter.id);
           
-          console.log('🔄 App.tsx: Setting filters for view:', newViewMode, 'presets:', enabledPresets);
+          console.log(`🔍 Loaded ${filters.length} filters for ${newViewMode} view, ${enabledPresets.length} enabled by default`);
           
           // Single state update - this is the only change needed!
           setFilters({
@@ -165,15 +166,16 @@ function MainApp() {
   };
 
   const refreshWorkspaces = async () => {
-    console.log(`🔄 Refreshing workspaces for user ${user?.id}`);
+
     try {
       const response = await fetch('http://localhost:3001/api/workspaces', {
         credentials: 'include'
       });
       if (response.ok) {
         const workspacesData = await response.json();
-        console.log(`📋 Refreshed ${workspacesData.length} workspaces:`, workspacesData.map((w: { id: number; name: string; is_default: boolean; access_level?: string; other_users_count?: number }) => ({ id: w.id, name: w.name, is_default: w.is_default, access_level: w.access_level, other_users_count: w.other_users_count })));
+
         setWorkspaces(workspacesData);
+        console.log(`📋 Refreshed ${workspacesData.length} workspaces`);
         
         // Update selected workspace if current one no longer exists
         if (selectedWorkspaceId && !workspacesData.find((w: { id: number }) => w.id === selectedWorkspaceId)) {

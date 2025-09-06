@@ -43,13 +43,13 @@ const UserMenu: React.FC<UserMenuProps> = ({
   const handleProfile = () => {
     setIsOpen(false);
     // TODO: Implement profile functionality
-    console.log('Profile clicked - functionality to be implemented');
+
   };
 
   const handleSettings = () => {
     setIsOpen(false);
     // TODO: Implement settings functionality
-    console.log('Settings clicked - functionality to be implemented');
+
   };
 
   const handleManageAccess = () => {

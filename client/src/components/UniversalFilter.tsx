@@ -98,7 +98,7 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
                 // Convert filter name to key format
                 const key = filter.name.toLowerCase().replace(/\s+/g, '_');
                 daysValues[key] = dateDiffCondition.values[0];
-                console.log(`Setting days for ${filter.name} (${key}): ${dateDiffCondition.values[0]}`);
+
               }
             }
           });
@@ -250,7 +250,7 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
           currentDays: customDays
         };
         
-        console.log('UniversalFilter: Toggle preset, updating filters with:', newFilters);
+
         onFiltersChange(newFilters);
       }, 0);
       
@@ -262,7 +262,7 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
   // Always updates the filter immediately so that when the preset is enabled,
   // it uses the current days value without needing an "Apply" button
   const handleDaysChange = (presetKey: string, days: number) => {
-    console.log(`UniversalFilter: Changing days for ${presetKey} to ${days}`);
+
     
     // Update local state first
     setCustomDays(prev => {
@@ -280,7 +280,7 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
           currentDays: newCustomDays
         };
         
-        console.log('UniversalFilter: Triggering filter update with new days value:', newFilters);
+
         onFiltersChange(newFilters);
       }, 0);
       
@@ -312,20 +312,6 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
   };
 
   const applyCustom = () => {
-    console.log('UniversalFilter: Apply button clicked, current state:', {
-      singleMode,
-      singleValues,
-      singleIncludeNull,
-      categoricalOperator,
-      rangeField,
-      rangeStart,
-      rangeEnd,
-
-      diffFrom,
-      diffTo,
-      diffCmp,
-      diffDays
-    });
     
     // Convert UI selection to database-compatible format
     let condition: any = null;
@@ -359,7 +345,7 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
       };
     }
 
-    console.log('UniversalFilter: Built database-compatible condition:', condition);
+
 
     if (condition) {
       // Create a custom filter object that matches the FilterGroup interface
@@ -370,10 +356,10 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
       };
       
       const newFilters = { ...filters, customFilters: [customFilter], customFiltersLogic: 'AND' as const };
-      console.log('UniversalFilter: Applying custom filters:', newFilters);
+
       onFiltersChange(newFilters);
     } else {
-      console.log('UniversalFilter: No valid condition, clearing custom filters');
+
       onFiltersChange({ ...filters, customFilters: undefined, customFiltersLogic: undefined });
     }
   };
@@ -389,7 +375,7 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
       return a.name.localeCompare(b.name);
     });
     
-    console.log('UniversalFilter: Sorted presets:', sorted.map(p => ({ name: p.name, is_default: p.is_default })));
+
     return sorted;
   };
 
@@ -600,7 +586,7 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
                                     : DEFAULT_VALUES.fallbackDays;
                                   
                                   const finalValue = customValue || fallbackValue;
-                                  console.log(`Input value for ${preset.name}: customDays[${key}]=${customValue}, dateDiffCondition=${dateDiffCondition?.values?.[0]}, fallback=${fallbackValue}, final=${finalValue}`);
+
                                   return finalValue;
                                 })()}
                                 onChange={(e) => handleDaysChange(preset.name.toLowerCase().replace(/\s+/g, '_'), Number(e.target.value))}

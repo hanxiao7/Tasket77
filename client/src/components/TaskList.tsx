@@ -226,7 +226,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
         // Calculate available space from bubble start to container right edge
         const availableSpace = containerRect.right - bubbleStartX - 20; // 20px margin
         
-        console.log(`Task ${taskId}: container right=${containerRect.right}, title left=${titleRect.left}, text width=${textWidth}, bubble start=${bubbleStartX}, available=${availableSpace}`);
+
         
         // Ensure minimum and maximum reasonable widths
         const maxWidth = Math.max(200, Math.min(availableSpace, 800));
@@ -315,11 +315,6 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
   }, [viewMode]);
 
   const loadData = useCallback(async () => {
-    console.log('📥 loadData function called at:', new Date().toISOString());
-    console.log('🔧 loadData function recreated with dependencies:', { 
-      viewMode: viewMode,
-      selectedWorkspaceId: selectedWorkspaceId
-    });
     try {
       setLoading(true);
       const [tasksData, categoriesData, tagsData, usersData] = await Promise.all([
@@ -397,7 +392,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
   // Initial data load when component mounts with filters ready
   useEffect(() => {
     if (isFirstRenderRef.current && filters._initialFiltersLoaded) {
-      console.log('🔄 Initial data load with filters ready');
+
       loadDataRef.current();
       isFirstRenderRef.current = false;
     }
@@ -417,7 +412,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
     
     // Skip the first render - just initialize the state
     if (isFirstRenderRef.current) {
-      console.log('🔄 First render - initializing state without loading data');
+
       lastLoadedStateRef.current = currentState;
       isFirstRenderRef.current = false;
       return;
@@ -433,26 +428,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
       JSON.stringify(currentState.customFilters) !== JSON.stringify(lastState.customFilters);
 
     if (needsReload) {
-      console.log('🔄 State changed, triggering data reload:', { 
-        from: lastState,
-        to: currentState,
-        currentDaysChanged: JSON.stringify(currentState.currentDays) !== JSON.stringify(lastState.currentDays),
-        customFiltersChanged: JSON.stringify(currentState.customFilters) !== JSON.stringify(lastState.customFilters)
-      });
-      
-      // Debug: Log what specifically changed
-      if (currentState.viewMode !== lastState.viewMode) {
-        console.log('🔄 ViewMode changed:', lastState.viewMode, '→', currentState.viewMode);
-      }
-      if (currentState.selectedWorkspaceId !== lastState.selectedWorkspaceId) {
-        console.log('🔄 SelectedWorkspaceId changed:', lastState.selectedWorkspaceId, '→', currentState.selectedWorkspaceId);
-      }
-      if (currentState.presets.join(',') !== lastState.presets.join(',')) {
-        console.log('🔄 Presets changed:', lastState.presets, '→', currentState.presets);
-      }
-      if (currentState.grouping !== lastState.grouping) {
-        console.log('🔄 Grouping changed:', lastState.grouping, '→', currentState.grouping);
-      }
+
       
       loadDataRef.current();
       lastLoadedStateRef.current = currentState;
@@ -483,7 +459,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
       }
       // Also close category dropdown when clicking outside
       if (editingCategoryTaskId !== null) {
-        console.log('Closing category dropdown due to outside click');
+
         setEditingCategoryTaskId(null);
         setEditingCategoryValue('');
       }
@@ -506,7 +482,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
 
   // Debug editingCategoryTaskId changes
   useEffect(() => {
-    console.log('editingCategoryTaskId changed to:', editingCategoryTaskId);
+
   }, [editingCategoryTaskId]);
 
   // Notify parent when tasks change
@@ -537,7 +513,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
           return;
       }
       
-      console.log(`🔄 Updating task "${task.title}" status: ${task.status} → ${newStatus}`);
+
       await apiService.updateTaskStatus(task.id, newStatus);
       
       // Fetch updated task data to get new dates
@@ -561,7 +537,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
 
   const handleStatusDoubleClick = async (task: Task) => {
     try {
-      console.log(`✅ Double-click detected! Marking task "${task.title}" as done`);
+
       await apiService.updateTaskStatus(task.id, 'done');
       
       // Update local state immediately for double-click (mark as done)
@@ -607,7 +583,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
           return;
       }
       
-      console.log(`🚩 Updating task "${task.title}" priority: ${task.priority} → ${newPriority}`);
+
       await apiService.updateTask(task.id, { priority: newPriority });
       
       // Update local state instead of reloading
@@ -624,7 +600,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
 
   const handlePrioritySave = async (taskId: number) => {
     try {
-      console.log(`🚩 Updating task priority: "${editingPriorityValue}"`);
+
       await apiService.updateTask(taskId, { priority: editingPriorityValue });
       
       // Update local state instead of reloading
@@ -684,7 +660,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
       const selectedCategoryName = selectedCategoryId ? categories.find(c => c.id === selectedCategoryId)?.name : undefined;
       const selectedTagId = selectedNewTaskTag[selectedWorkspaceId] || undefined;
       const selectedTagName = selectedTagId ? tags.find(t => t.id === selectedTagId)?.name : undefined;
-      console.log(`➕ Creating new task: "${newTaskTitle.trim()}" with category: ${selectedCategoryName || 'none'}, tag: ${selectedTagName || 'none'}, and priority: ${newTaskPriority}`);
+
       const newTask = await apiService.createTask({
         title: newTaskTitle.trim(),
         category_id: selectedCategoryId,
@@ -957,7 +933,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
           return;
         }
 
-        console.log(`🏷️ Adding tag "${tag.name}" to task ID: ${targetId}`);
+
         await apiService.updateTask(targetId, { tag_id: tagId });
         
         // Update local state instead of reloading
@@ -999,7 +975,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
           return;
         }
         
-        console.log(`📦 Moving task "${task.title}" to status: ${task.status} → ${newStatus}`);
+
         await apiService.updateTaskStatus(taskId, newStatus);
         
         // Update local state instead of reloading
@@ -1014,7 +990,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
         const categoryId = targetId === -1 ? undefined : targetId;
         const targetCategoryName = targetId === -1 ? 'Unassigned' : categories.find(c => c.id === targetId)?.name || 'Unknown';
         
-        console.log(`📦 Moving task "${task.title}" to category: ${task.category_name || 'Unassigned'} → ${targetCategoryName}`);
+
         await apiService.updateTask(taskId, { category_id: categoryId });
         
         // Update local state instead of reloading
@@ -1052,7 +1028,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
     if (!editingTitleValue.trim()) return;
     
     try {
-      console.log(`✏️ Updating task title: "${editingTitleValue.trim()}"`);
+
       await apiService.updateTask(taskId, { title: editingTitleValue.trim() });
       
       // Update local state instead of reloading
@@ -1097,7 +1073,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
     
     setIsCreatingCategory(true);
     try {
-      console.log(`➕ Creating new category: "${newCategoryName.trim()}"`);
+
       const newCategory = await apiService.createCategory(newCategoryName.trim(), selectedWorkspaceId);
       setNewCategoryName('');
       setShowCategoryInput(false);
@@ -1116,7 +1092,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
       // Use provided categoryId or fall back to editingCategoryValue
       const finalCategoryId = categoryId !== undefined ? categoryId : (editingCategoryValue ? Number(editingCategoryValue) : undefined);
       const categoryName = finalCategoryId ? categories.find(c => c.id === finalCategoryId)?.name || 'Unknown' : 'Unassigned';
-      console.log(`🏷️ Updating task category: "${categoryName}"`);
+
       await apiService.updateTask(taskId, { category_id: finalCategoryId });
       
       // Update local state instead of reloading
@@ -1144,7 +1120,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
   const handleTagSave = async (taskId: number, tagId?: number) => {
     try {
       const tagName = tagId ? tags.find(t => t.id === tagId)?.name || 'Unknown' : undefined;
-      console.log(`🏷️ Updating task tag: "${tagName}"`);
+
       await apiService.updateTask(taskId, { tag_id: tagId });
       
       // Update local state instead of reloading
@@ -1280,7 +1256,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
         validatedDateValue = null;
       }
       
-      console.log(`📅 Direct update task ${dateType}: "${validatedDateValue}"`);
+
       await apiService.updateTask(taskId, { [dateType]: validatedDateValue });
       
       // Reload the task data from server to ensure correct format
@@ -1349,7 +1325,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
 
   const handleDescriptionSave = async (taskId: number, description: string) => {
     try {
-      console.log(`📝 Updating task description: "${description}"`);
+
       
       // If description is empty or just whitespace, set it to undefined
       const finalDescription = description.trim() || undefined;
@@ -1522,21 +1498,17 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
   // Expose sort function to parent component
   useImperativeHandle(ref, () => ({
     sortTasks: async () => {
-      console.log('🔄 Manually sorting tasks...');
+
       const sortedTasks = sortTasks(tasks);
       setTasks(sortedTasks);
       
       // Also reload tags to update their order based on usage
-      console.log('🔄 Reloading tags to update order...');
       try {
         const tagsData = await apiService.getTags(selectedWorkspaceId);
         setTags(tagsData);
-        console.log('✅ Tags reloaded successfully');
       } catch (error) {
         console.error('Error reloading tags:', error);
       }
-      
-      console.log('✅ Tasks sorted successfully');
     },
     getTasks: () => tasks
   }), [tasks, sortTasks, selectedWorkspaceId]);
