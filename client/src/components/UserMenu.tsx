@@ -85,7 +85,8 @@ const UserMenu: React.FC<UserMenuProps> = ({
             className="w-full flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
           >
             <User className="w-4 h-4 mr-3 text-gray-500" />
-            Profile
+            <span>Profile</span>
+            <span className="ml-auto text-xs text-gray-400 italic">(coming soon)</span>
           </button>
 
           <button
@@ -93,7 +94,8 @@ const UserMenu: React.FC<UserMenuProps> = ({
             className="w-full flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
           >
             <Settings className="w-4 h-4 mr-3 text-gray-500" />
-            Settings
+            <span>Settings</span>
+            <span className="ml-auto text-xs text-gray-400 italic">(coming soon)</span>
           </button>
 
           <button
