@@ -191,7 +191,7 @@ app.get('/api/health', (req, res) => {
 // Get all categories
 app.get('/api/categories', authenticateToken, async (req, res) => {
   const { include_hidden, workspace_id } = req.query;
-  console.log(`🔍 Fetching categories for user ${req.user.userId}, workspace_id: ${workspace_id}, include_hidden: ${include_hidden}`);
+  // console.log(`🔍 Fetching categories for user ${req.user.userId}, workspace_id: ${workspace_id}, include_hidden: ${include_hidden}`);
   
   let query = `
     SELECT c.* 
@@ -305,7 +305,7 @@ app.delete('/api/categories/:id', authenticateToken, async (req, res) => {
 // Get all tags
 app.get('/api/tags', authenticateToken, async (req, res) => {
   const { workspace_id } = req.query;
-  console.log(`🔍 Fetching tags for user ${req.user.userId}, workspace_id: ${workspace_id}`);
+  // console.log(`🔍 Fetching tags for user ${req.user.userId}, workspace_id: ${workspace_id}`);
   
   let query = `
     SELECT t.* 
@@ -1080,7 +1080,7 @@ app.delete('/api/tasks/:id', authenticateToken, async (req, res) => {
 app.get('/api/tasks/:id/assignees', authenticateToken, async (req, res) => {
   const { id } = req.params;
   
-  console.log(`🔍 Task assignees request: task_id=${id}, user_id=${req.user.userId}`);
+  // console.log(`🔍 Task assignees request: task_id=${id}, user_id=${req.user.userId}`);
   
   try {
     // Check if user has access to the task's workspace
@@ -1089,7 +1089,7 @@ app.get('/api/tasks/:id/assignees', authenticateToken, async (req, res) => {
       [id]
     );
     
-    console.log(`📋 Task lookup result: ${taskResult.rowCount} rows found`);
+    // console.log(`📋 Task lookup result: ${taskResult.rowCount} rows found`);
     
     if (taskResult.rowCount === 0) {
       console.log(`❌ Task ${id} not found`);
@@ -1098,7 +1098,7 @@ app.get('/api/tasks/:id/assignees', authenticateToken, async (req, res) => {
     }
     
     const workspaceId = taskResult.rows[0].workspace_id;
-    console.log(`🏢 Task ${id} belongs to workspace ${workspaceId}`);
+    // console.log(`🏢 Task ${id} belongs to workspace ${workspaceId}`);
     
     // Check workspace access (any access level can view assignees)
     const accessResult = await pool.query(
@@ -1106,7 +1106,7 @@ app.get('/api/tasks/:id/assignees', authenticateToken, async (req, res) => {
       [workspaceId, req.user.userId]
     );
     
-    console.log(`📋 Workspace access check: ${accessResult.rowCount} rows found`);
+    // console.log(`📋 Workspace access check: ${accessResult.rowCount} rows found`);
     
     if (accessResult.rowCount === 0) {
       console.log(`❌ Access denied for user ${req.user.userId} to workspace ${workspaceId}`);
@@ -1126,7 +1126,7 @@ app.get('/api/tasks/:id/assignees', authenticateToken, async (req, res) => {
       [id]
     );
     
-    console.log(`👥 Found ${assigneesResult.rows.length} assignees for task ${id}`);
+    // console.log(`👥 Found ${assigneesResult.rows.length} assignees for task ${id}`);
     res.json(assigneesResult.rows);
   } catch (err) {
     console.error(`❌ Error in task assignees endpoint:`, err);
@@ -1268,7 +1268,7 @@ app.delete('/api/tasks/:id/assignees/:user_id', authenticateToken, async (req, r
 app.get('/api/workspace-users/:id', authenticateToken, async (req, res) => {
   const { id } = req.params;
   
-  console.log(`🔍 Workspace users request: workspace_id=${id}, user_id=${req.user.userId}`);
+  // console.log(`🔍 Workspace users request: workspace_id=${id}, user_id=${req.user.userId}`);
   
   try {
     // Check if user has access to the workspace
@@ -1277,7 +1277,7 @@ app.get('/api/workspace-users/:id', authenticateToken, async (req, res) => {
       [id, req.user.userId]
     );
     
-    console.log(`📋 Access check result: ${accessResult.rowCount} rows found`);
+    // console.log(`📋 Access check result: ${accessResult.rowCount} rows found`);
     
     if (accessResult.rowCount === 0) {
       console.log(`❌ Access denied for user ${req.user.userId} to workspace ${id}`);
@@ -1297,7 +1297,7 @@ app.get('/api/workspace-users/:id', authenticateToken, async (req, res) => {
       [id]
     );
     
-    console.log(`👥 Found ${usersResult.rows.length} users for workspace ${id}`);
+    // console.log(`👥 Found ${usersResult.rows.length} users for workspace ${id}`);
     res.json(usersResult.rows);
   } catch (err) {
     console.error(`❌ Error in workspace users endpoint:`, err);
@@ -1701,7 +1701,7 @@ app.post('/api/backup/restore/:prefix', authenticateToken, async (req, res) => {
 // Get all workspaces (including shared ones)
 app.get('/api/workspaces', authenticateToken, async (req, res) => {
   try {
-    console.log(`🔍 Fetching workspaces for user ${req.user.userId}`);
+    // console.log(`🔍 Fetching workspaces for user ${req.user.userId}`);
     const result = await pool.query(`
       SELECT 
         wp.workspace_id as id,
@@ -1722,7 +1722,7 @@ app.get('/api/workspaces', authenticateToken, async (req, res) => {
       WHERE wp.user_id = $1
       ORDER BY wp.is_default DESC, w.name
     `, [req.user.userId]);
-    console.log(`📋 Found ${result.rows.length} workspaces for user ${req.user.userId}`);
+    // console.log(`📋 Found ${result.rows.length} workspaces for user ${req.user.userId}`);
     res.json(result.rows);
   } catch (err) {
     console.error('Workspaces query error:', err);
@@ -1900,7 +1900,7 @@ app.patch('/api/workspaces/:id/set-default', authenticateToken, async (req, res)
   const { id } = req.params;
   const client = await pool.connect();
   try {
-    console.log(`🔧 Setting workspace ${id} as default for user ${req.user.userId}`);
+    // console.log(`🔧 Setting workspace ${id} as default for user ${req.user.userId}`);
     
     // Check if user has access to this workspace
     const accessResult = await client.query(
@@ -1925,7 +1925,7 @@ app.patch('/api/workspaces/:id/set-default', authenticateToken, async (req, res)
       [id, req.user.userId]
     );
     
-    console.log(`✅ Successfully set workspace ${id} as default for user ${req.user.userId}`);
+    // console.log(`✅ Successfully set workspace ${id} as default for user ${req.user.userId}`);
     res.json({ success: true, workspace_id: id });
   } catch (err) {
     console.error('Error setting default workspace:', err);

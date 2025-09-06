@@ -43,11 +43,11 @@ function MainApp() {
           const workspacesData = await response.json();
 
           setWorkspaces(workspacesData);
-          console.log(`📋 Loaded ${workspacesData.length} workspaces`);
+          // console.log(`📋 Loaded ${workspacesData.length} workspaces`);
           
           // Set the first workspace as selected if none is selected
           if (workspacesData.length > 0 && !workspacesData.find((w: { id: number }) => w.id === selectedWorkspaceId)) {
-            console.log(`🎯 Setting selected workspace to ${workspacesData[0].id} (${workspacesData[0].name})`);
+            // console.log(`🎯 Setting selected workspace to ${workspacesData[0].id} (${workspacesData[0].name})`);
             setSelectedWorkspaceId(workspacesData[0].id);
           }
         }
@@ -79,7 +79,7 @@ function MainApp() {
             .filter((filter: any) => filter.is_default)
             .map((filter: any) => filter.id);
           
-          console.log(`🔍 Loaded ${filters.length} filters, ${enabledPresets.length} enabled by default`);
+          // console.log(`🔍 Loaded ${filters.length} filters, ${enabledPresets.length} enabled by default`);
           
           // Set filters immediately - this will be the initial state for TaskList
           setFilters({
@@ -134,7 +134,7 @@ function MainApp() {
             .filter((filter: any) => filter.is_default)
             .map((filter: any) => filter.id);
           
-          console.log(`🔍 Loaded ${filters.length} filters for ${newViewMode} view, ${enabledPresets.length} enabled by default`);
+          // console.log(`🔍 Loaded ${filters.length} filters for ${newViewMode} view, ${enabledPresets.length} enabled by default`);
           
           // Single state update - this is the only change needed!
           setFilters({
