@@ -304,18 +304,8 @@ function MainApp() {
             
                         {/* Controls row */}
             <div className="flex items-center justify-between">
-              {/* Left side: Filters and Grouping */}
+              {/* Left side: Grouping selector */}
               <div className="flex items-center space-x-2">
-                {/* Universal filter */}
-                {selectedWorkspaceId && (
-                  <UniversalFilter
-                    workspaceId={selectedWorkspaceId}
-                    filters={filters}
-                    onFiltersChange={handleFiltersChange}
-                    viewMode={viewMode}
-                  />
-                )}
-                
                 {/* Grouping selector */}
                 <select
                   value={filters.grouping || 'none'}
@@ -328,6 +318,16 @@ function MainApp() {
                   <option value="priority">Priority</option>
                   <option value="category">Category</option>
                 </select>
+                
+                {/* Universal filter */}
+                {selectedWorkspaceId && (
+                  <UniversalFilter
+                    workspaceId={selectedWorkspaceId}
+                    filters={filters}
+                    onFiltersChange={handleFiltersChange}
+                    viewMode={viewMode}
+                  />
+                )}
               </div>
               
               {/* Right side: Action buttons */}
@@ -377,18 +377,6 @@ function MainApp() {
               </div>
               
               <div className="flex items-center space-x-4">
-                {/* Universal filter */}
-                {selectedWorkspaceId && (
-                  <UniversalFilter
-                    workspaceId={selectedWorkspaceId}
-                    filters={filters}
-                    onFiltersChange={handleFiltersChange}
-                    viewMode={viewMode}
-                  />
-                )}
-                
-
-                
                 {/* Grouping selector */}
                 <select
                   value={filters.grouping || 'none'}
@@ -402,6 +390,16 @@ function MainApp() {
                   <option value="category">Category</option>
                   <option value="tag">Tag</option>
                 </select>
+                
+                {/* Universal filter */}
+                {selectedWorkspaceId && (
+                  <UniversalFilter
+                    workspaceId={selectedWorkspaceId}
+                    filters={filters}
+                    onFiltersChange={handleFiltersChange}
+                    viewMode={viewMode}
+                  />
+                )}
 
                 <div className="flex space-x-2">
                   <button
