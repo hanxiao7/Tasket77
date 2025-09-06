@@ -12,7 +12,7 @@ const { pool, initializeDatabase, updateTaskModified, addTaskHistory } = require
 const PostgreSQLBackupManager = require('./backup-pg');
 const { authenticateToken } = require('./middleware/auth');
 const { testEmailConfig } = require('./services/emailService');
-const { createDefaultPresetFilters } = require('./services/filterUtils');
+const { createDefaultPresetFilters, createExampleTasks } = require('./services/workspaceInit');
 const authRoutes = require('./routes/auth');
 const workspacePermissionsRoutes = require('./routes/workspace-permissions');
 

@@ -4,7 +4,7 @@ const { Pool } = require('pg');
 const { authenticateToken } = require('../middleware/auth');
 const moment = require('moment');
 const { sendWorkspaceAccessEmail } = require('../services/emailService');
-const { createDefaultPresetFilters } = require('../services/filterUtils');
+const { createDefaultPresetFilters } = require('../services/workspaceInit');
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL || 'postgresql://postgres:password@localhost:5432/taskmanagement'

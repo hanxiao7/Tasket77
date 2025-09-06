@@ -4,7 +4,7 @@ const jwt = require('jsonwebtoken');
 const { Pool } = require('pg');
 const moment = require('moment-timezone');
 const { JWT_SECRET } = require('../middleware/auth');
-const { createDefaultPresetFilters } = require('../services/filterUtils');
+const { createDefaultPresetFilters, createExampleTasks } = require('../services/workspaceInit');
 
 const router = express.Router();
 const pool = new Pool({
@@ -113,6 +113,9 @@ router.post('/register', async (req, res) => {
 
         // Create default preset filters for the new user
         await createDefaultPresetFilters(client, user.id, workspaceResult.rows[0].id);
+        
+        // Create example tasks for the new user's default workspace
+        await createExampleTasks(client, user.id, workspaceResult.rows[0].id);
       } else {
         // User has accessible workspaces from pending invitations
         console.log(`📝 User ${user.email} has ${accessibleWorkspaces.rows[0].count} accessible workspaces from pending invitations`);
