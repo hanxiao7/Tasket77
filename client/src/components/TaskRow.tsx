@@ -20,6 +20,7 @@ import DatePicker from './DatePicker';
 interface TaskRowProps {
   task: Task;
   viewMode: 'planner' | 'tracker';
+  shouldShowAssigneeColumn?: boolean;
   onContextMenu: (e: React.MouseEvent, taskId: number) => void;
   editingTitleTaskId: number | null;
   editingPriorityTaskId: number | null;
@@ -87,6 +88,7 @@ interface TaskRowProps {
 const TaskRow: React.FC<TaskRowProps> = ({
   task,
   viewMode,
+  shouldShowAssigneeColumn = true,
   onContextMenu,
   editingTitleTaskId,
   editingPriorityTaskId,
@@ -435,7 +437,8 @@ const TaskRow: React.FC<TaskRowProps> = ({
       )}
 
       {/* Assignee */}
-      <div className="hidden sm:flex flex-shrink-0 w-24 text-center relative">
+      {shouldShowAssigneeColumn && (
+        <div className="hidden sm:flex flex-shrink-0 w-24 text-center relative">
         <div
           className={clsx(
             "text-xs rounded px-1 py-1 w-full transition-all cursor-pointer min-h-[20px] flex items-center justify-center",
@@ -508,7 +511,8 @@ const TaskRow: React.FC<TaskRowProps> = ({
             </div>
           </div>
         )}
-      </div>
+        </div>
+      )}
 
       {/* Start date */}
       <div className="hidden sm:flex flex-shrink-0 w-12 justify-center">

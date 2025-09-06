@@ -30,12 +30,13 @@ interface TaskListProps {
   viewMode: 'planner' | 'tracker';
   filters: TaskFilters;
   selectedWorkspaceId: number;
+  workspaces?: Array<{ id: number; name: string; access_level?: 'owner' | 'edit' | 'view'; other_users_count?: number }>;
   onFiltersChange: (filters: TaskFilters) => void;
   onSort: () => void;
   onTasksChange?: (tasks: Task[]) => void;
 }
 
-const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[] }, TaskListProps>(({ viewMode, filters, selectedWorkspaceId, onFiltersChange, onSort, onTasksChange }, ref) => {
+const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[] }, TaskListProps>(({ viewMode, filters, selectedWorkspaceId, workspaces, onFiltersChange, onSort, onTasksChange }, ref) => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
@@ -92,6 +93,13 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
   const statusClickTimers = useRef<{ [taskId: number]: NodeJS.Timeout }>({});
   const [newTaskPriority, setNewTaskPriority] = useState<Task['priority']>('normal');
   const [selectedTagFilter, setSelectedTagFilter] = useState<string | null>(null);
+
+  // Determine if assignee column should be shown based on workspace user count
+  const shouldShowAssigneeColumn = useMemo(() => {
+    if (!workspaces || !selectedWorkspaceId) return false;
+    const currentWorkspace = workspaces.find(w => w.id === selectedWorkspaceId);
+    return Boolean(currentWorkspace?.other_users_count && currentWorkspace.other_users_count > 0);
+  }, [workspaces, selectedWorkspaceId]);
 
   const checkTitleTruncation = (taskId: number) => {
     const titleRef = titleRefs.current.get(taskId);
@@ -1844,7 +1852,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
                   <div className="w-4"></div> {/* Priority */}
                   <div className="flex-1">Task</div>
                   {viewMode === 'planner' && <div className="hidden sm:block w-24 text-center">Category</div>}
-                  <div className="hidden sm:block w-24 text-center">Assignee</div>
+                  {shouldShowAssigneeColumn && <div className="hidden sm:block w-24 text-center">Assignee</div>}
                   <div className="hidden sm:block w-12 text-center">Start</div>
                   {viewMode === 'tracker' && <div className="hidden sm:block w-12 text-center">Complete</div>}
                   <div className="hidden sm:block w-12 text-center">Due</div>
@@ -1856,6 +1864,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
                     key={task.id}
                     task={task}
                     viewMode={viewMode}
+                    shouldShowAssigneeColumn={shouldShowAssigneeColumn}
                     onContextMenu={handleContextMenu}
                     editingTitleTaskId={editingTitleTaskId}
                     editingPriorityTaskId={editingPriorityTaskId}
@@ -1933,7 +1942,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
             <div className="w-4"></div> {/* Priority */}
             <div className="flex-1">Task</div>
             {viewMode === 'planner' && <div className="hidden sm:block w-24 text-center">Category</div>}
-            <div className="hidden sm:block w-24 text-center">Assignee</div>
+            {shouldShowAssigneeColumn && <div className="hidden sm:block w-24 text-center">Assignee</div>}
             <div className="hidden sm:block w-12 text-center">Start</div>
             {viewMode === 'tracker' && <div className="hidden sm:block w-12 text-center">Complete</div>}
             <div className="hidden sm:block w-12 text-center">Due</div>
@@ -1947,6 +1956,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
                 key={task.id}
                 task={task}
                 viewMode={viewMode}
+                shouldShowAssigneeColumn={shouldShowAssigneeColumn}
                 onContextMenu={handleContextMenu}
                 editingTitleTaskId={editingTitleTaskId}
                 editingPriorityTaskId={editingPriorityTaskId}

@@ -429,6 +429,7 @@ function MainApp() {
               viewMode={viewMode}
               filters={filters}
               selectedWorkspaceId={selectedWorkspaceId}
+              workspaces={workspaces}
               onFiltersChange={handleFiltersChange}
               onSort={handleSort}
               onTasksChange={setCurrentTasks}
