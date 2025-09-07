@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { X, Plus, Edit3, Trash2, Crown, Users, Eye, EyeOff, LogOut } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
+const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
+
 interface Workspace {
   id: number;
   name: string;
@@ -64,7 +66,7 @@ const ManageAccessModal: React.FC<ManageAccessModalProps> = ({
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`http://localhost:3001/api/workspaces/${selectedWorkspaceId}/permissions`, {
+      const response = await fetch(`${API_BASE}/workspaces/${selectedWorkspaceId}/permissions`, {
         credentials: 'include'
       });
       
@@ -97,7 +99,7 @@ const ManageAccessModal: React.FC<ManageAccessModalProps> = ({
     setSuccess(null);
 
     try {
-      const response = await fetch(`http://localhost:3001/api/workspaces/${selectedWorkspaceId}/permissions`, {
+      const response = await fetch(`${API_BASE}/workspaces/${selectedWorkspaceId}/permissions`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -132,7 +134,7 @@ const ManageAccessModal: React.FC<ManageAccessModalProps> = ({
     setSuccess(null);
 
     try {
-      const response = await fetch(`http://localhost:3001/api/workspaces/${selectedWorkspaceId}/permissions/${permissionId}`, {
+      const response = await fetch(`${API_BASE}/workspaces/${selectedWorkspaceId}/permissions/${permissionId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
@@ -168,7 +170,7 @@ const ManageAccessModal: React.FC<ManageAccessModalProps> = ({
     setSuccess(null);
 
     try {
-      const response = await fetch(`http://localhost:3001/api/workspaces/${selectedWorkspaceId}/permissions/${permissionId}`, {
+      const response = await fetch(`${API_BASE}/workspaces/${selectedWorkspaceId}/permissions/${permissionId}`, {
         method: 'DELETE',
         credentials: 'include'
       });
@@ -198,7 +200,7 @@ const ManageAccessModal: React.FC<ManageAccessModalProps> = ({
     setSuccess(null);
 
     try {
-      const response = await fetch(`http://localhost:3001/api/workspaces/${selectedWorkspaceId}/permissions/${permissionId}/transfer-ownership`, {
+      const response = await fetch(`${API_BASE}/workspaces/${selectedWorkspaceId}/permissions/${permissionId}/transfer-ownership`, {
         method: 'POST',
         credentials: 'include'
       });
@@ -228,7 +230,7 @@ const ManageAccessModal: React.FC<ManageAccessModalProps> = ({
     setSuccess(null);
 
     try {
-      const response = await fetch(`http://localhost:3001/api/workspaces/${selectedWorkspaceId}/leave`, {
+      const response = await fetch(`${API_BASE}/workspaces/${selectedWorkspaceId}/leave`, {
         method: 'POST',
         credentials: 'include'
       });

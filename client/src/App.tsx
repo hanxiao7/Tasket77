@@ -13,6 +13,8 @@ import UniversalFilter from './components/UniversalFilter';
 import { Download, ArrowUpDown, CheckCircle } from 'lucide-react';
 import { TaskFilters, ViewMode, Task } from './types';
 
+const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
+
 function MainApp() {
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<number | undefined>(undefined);
   const [filters, setFilters] = useState<TaskFilters>({
@@ -36,7 +38,7 @@ function MainApp() {
     const loadWorkspaces = async () => {
 
       try {
-        const response = await fetch('http://localhost:3001/api/workspaces', {
+        const response = await fetch(`${API_BASE}/workspaces`, {
           credentials: 'include'
         });
         if (response.ok) {
@@ -168,7 +170,7 @@ function MainApp() {
   const refreshWorkspaces = async () => {
 
     try {
-      const response = await fetch('http://localhost:3001/api/workspaces', {
+      const response = await fetch(`${API_BASE}/workspaces`, {
         credentials: 'include'
       });
       if (response.ok) {
@@ -203,7 +205,7 @@ function MainApp() {
   };
   const handleExport = async () => {
     try {
-      const response = await fetch('http://localhost:3001/api/export', { credentials: 'include' });
+      const response = await fetch(`${API_BASE}/export`, { credentials: 'include' });
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
