@@ -98,7 +98,7 @@ setInterval(cleanupExpiredCache, 10 * 60 * 1000);
 // CORS configuration
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
-    ? process.env.FRONTEND_URL || 'http://localhost:3000'
+    ? true // Allow all origins in production for now
     : 'http://localhost:3000',
   credentials: true
 }));

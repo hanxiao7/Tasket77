@@ -329,7 +329,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
         apiService.getTasks({ ...currentFiltersRef.current, view: viewMode, workspace_id: selectedWorkspaceId }),
         apiService.getCategories(true, selectedWorkspaceId), // Include hidden categories and filter by workspace
         apiService.getTags(selectedWorkspaceId), // Get tags for the workspace
-        fetch(`/api/workspace-users/${selectedWorkspaceId}`, { credentials: 'include' }).then(res => res.ok ? res.json() : [])
+        fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001/api'}/workspace-users/${selectedWorkspaceId}`, { credentials: 'include' }).then(res => res.ok ? res.json() : [])
       ]);
       
       // Apply sorting to the loaded data
@@ -1192,7 +1192,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
       for (const name of assigneesToRemove) {
         const user = workspaceUsers.find(u => u.name === name);
         if (user) {
-          const response = await fetch(`/api/tasks/${taskId}/assignees/${user.user_id}`, {
+          const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001/api'}/tasks/${taskId}/assignees/${user.user_id}`, {
             method: 'DELETE',
             credentials: 'include'
           });
@@ -1207,7 +1207,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
       for (const name of assigneesToAdd) {
         const user = workspaceUsers.find(u => u.name === name);
         if (user) {
-          const response = await fetch(`/api/tasks/${taskId}/assignees`, {
+          const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001/api'}/tasks/${taskId}/assignees`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',

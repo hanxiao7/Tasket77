@@ -77,7 +77,7 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, categories, tags, o
     const loadWorkspaceUsers = async () => {
       try {
 
-        const response = await fetch(`/api/workspace-users/${task.workspace_id}`, {
+        const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001/api'}/workspace-users/${task.workspace_id}`, {
           credentials: 'include'
         });
 
@@ -105,7 +105,7 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, categories, tags, o
     const loadCurrentAssignees = async () => {
       try {
 
-        const response = await fetch(`/api/tasks/${task.id}/assignees`, {
+        const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001/api'}/tasks/${task.id}/assignees`, {
           credentials: 'include'
         });
 
@@ -418,7 +418,7 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, categories, tags, o
   // Assignee management functions
   const handleAddAssignee = async (userId: number) => {
     try {
-      const response = await fetch(`/api/tasks/${task.id}/assignees`, {
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001/api'}/tasks/${task.id}/assignees`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -445,7 +445,7 @@ const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, categories, tags, o
 
   const handleRemoveAssignee = async (userId: number) => {
     try {
-      const response = await fetch(`/api/tasks/${task.id}/assignees/${userId}`, {
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001/api'}/tasks/${task.id}/assignees/${userId}`, {
         method: 'DELETE',
         credentials: 'include'
       });

@@ -71,7 +71,7 @@ function MainApp() {
     
     const loadInitialFilters = async () => {
       try {
-        const response = await fetch(`/api/filters/${selectedWorkspaceId}?view_mode=planner`, {
+        const response = await fetch(`${API_BASE}/filters/${selectedWorkspaceId}?view_mode=planner`, {
           credentials: 'include'
         });
         
@@ -126,7 +126,7 @@ function MainApp() {
     // Load filters for the new view mode
     if (selectedWorkspaceId) {
       try {
-        const response = await fetch(`/api/filters/${selectedWorkspaceId}?view_mode=${newViewMode}`, {
+        const response = await fetch(`${API_BASE}/filters/${selectedWorkspaceId}?view_mode=${newViewMode}`, {
           credentials: 'include'
         });
         

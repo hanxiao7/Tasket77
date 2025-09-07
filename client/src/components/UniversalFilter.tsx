@@ -58,7 +58,7 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
       
       setLoading(true);
       try {
-        const response = await fetch(`/api/filters/${workspaceId}?view_mode=${viewMode}`, {
+        const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001/api'}/filters/${workspaceId}?view_mode=${viewMode}`, {
           credentials: 'include'
         });
         
@@ -201,9 +201,9 @@ const UniversalFilter: React.FC<UniversalFilterProps> = ({
       if (!workspaceId) return;
       try {
         const [usersRes, catsRes, tagsRes] = await Promise.all([
-          fetch(`/api/workspace-users/${workspaceId}`, { credentials: 'include' }),
-          fetch(`/api/categories?include_hidden=true&workspace_id=${workspaceId}`, { credentials: 'include' }),
-          fetch(`/api/tags?workspace_id=${workspaceId}`, { credentials: 'include' })
+          fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001/api'}/workspace-users/${workspaceId}`, { credentials: 'include' }),
+          fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001/api'}/categories?include_hidden=true&workspace_id=${workspaceId}`, { credentials: 'include' }),
+          fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001/api'}/tags?workspace_id=${workspaceId}`, { credentials: 'include' })
         ]);
         if (usersRes.ok) {
           const usersJson = await usersRes.json();
