@@ -444,6 +444,14 @@ async function buildFilterQueryFromDatabase(filterIds, startParamIndex, params, 
   };
 
   const buildFieldCondition = (field, operator, values, paramBuilder) => {
+    // Check if values array is empty or undefined for operators that need values
+    const operatorsNeedingValues = ['=', '!=', 'IN'];
+    if (operatorsNeedingValues.includes(operator) && (!values || values.length === 0)) {
+      return null;
+    }
+    
+    // IS_NULL and IS_NOT_NULL operators don't need values, so they should work with empty arrays
+    
     if (field === 'assignee') {
       if (operator === '=' && values[0] === 'current_user_id') {
         return {
@@ -588,7 +596,7 @@ async function buildFilterQueryFromDatabase(filterIds, startParamIndex, params, 
       
     }
     
-    if (result.rows.length === 0) {
+    if (result.rows.length === 0 && (!customFilters || customFilters.length === 0)) {
       return null;
     }
 
@@ -747,44 +755,44 @@ app.get('/api/tasks', authenticateToken, async (req, res) => {
     paramIndex++;
   }
 
-  // Apply preset filters
+  // Parse currentDays if provided
+  let frontendDays = {};
+  if (currentDays) {
+    try {
+      frontendDays = JSON.parse(currentDays);
+    } catch (e) {
+      // Use database values if parsing fails
+    }
+  }
+  
+  // Parse custom filters
+  let customFiltersArray = [];
+  if (customFilters) {
+    try {
+      customFiltersArray = JSON.parse(customFilters);
+    } catch (e) {
+      console.error('Error parsing custom filters:', e);
+    }
+  }
+  
+  // Parse preset filters
+  let presetArray = [];
   if (presets) {
     try {
-      const presetArray = JSON.parse(presets);
-      if (Array.isArray(presetArray) && presetArray.length > 0) {
-        // Parse currentDays if provided
-        let frontendDays = {};
-        if (currentDays) {
-          try {
-            frontendDays = JSON.parse(currentDays);
-          } catch (e) {
-            // Use database values if parsing fails
-          }
-        }
-        
-        // Use new dynamic filter system for both preset and custom filters
-        let customFiltersArray = [];
-        if (customFilters) {
-          try {
-            customFiltersArray = JSON.parse(customFilters);
-          } catch (e) {
-            console.error('Error parsing custom filters:', e);
-          }
-        }
-        
-        if (presetArray && presetArray.length > 0 || customFiltersArray && customFiltersArray.length > 0) {
-          const dynamicCondition = await buildFilterQueryFromDatabase(presetArray, paramIndex, params, req.user.userId, frontendDays, customFiltersArray);
-          if (dynamicCondition) {
-            query += ` AND (${dynamicCondition})`;
-          }
-        }
-      }
+      presetArray = JSON.parse(presets);
     } catch (e) {
       console.error('Error parsing presets:', e);
     }
   }
+  
+  // Apply filters (both preset and custom) if any exist
+  if ((Array.isArray(presetArray) && presetArray.length > 0) || (Array.isArray(customFiltersArray) && customFiltersArray.length > 0)) {
+    const dynamicCondition = await buildFilterQueryFromDatabase(presetArray, paramIndex, params, req.user.userId, frontendDays, customFiltersArray);
+    if (dynamicCondition) {
+      query += ` AND (${dynamicCondition})`;
+    }
+  }
 
-  // Custom filters are now handled in the unified buildFilterQueryFromDatabase function above
   if (view === 'planner') {
     query += ' ORDER BY CASE t.status WHEN \'in_progress\' THEN 1 WHEN \'paused\' THEN 2 WHEN \'todo\' THEN 3 WHEN \'done\' THEN 4 END,';
     query += ' CASE t.priority WHEN \'urgent\' THEN 1 WHEN \'high\' THEN 2 WHEN \'normal\' THEN 3 WHEN \'low\' THEN 4 END,';
