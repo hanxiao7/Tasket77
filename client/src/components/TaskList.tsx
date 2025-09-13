@@ -1531,7 +1531,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
       <div className="p-2 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200 shadow-sm space-y-2">
         {/* Desktop input row - reordered: Plus -> priority -> category -> due -> title */}
         <div className="hidden md:flex items-center gap-3">
-          <div title="Add new task" className="p-0">
+          <div title="Enter initial info then add the task" className="p-0">
             <Plus 
               className="w-5 h-5 text-blue-500 cursor-pointer hover:text-blue-700 transition-colors" 
               onClick={handleCreateTask}
@@ -1644,7 +1644,7 @@ const TaskList = React.forwardRef<{ sortTasks: () => void; getTasks: () => Task[
         <div className="flex md:hidden gap-3">
           {/* Plus button spanning two rows */}
           <div className="flex flex-col justify-center w-5">
-            <div title="Add new task" className="flex justify-center">
+            <div title="Enter initial info then add the task" className="flex justify-center">
               <Plus 
                 className="w-5 h-5 text-blue-500 cursor-pointer hover:text-blue-700 transition-colors" 
                 onClick={handleCreateTask}
